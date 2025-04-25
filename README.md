@@ -31,7 +31,7 @@ Vous incarnez une IA tacticienne chargée de construire une base robotique et de
    ```
 3. Le jeu sera accessible à l’adresse :
 ```
-http://localhost:8087
+http://localhost:8097
 ```
 
 ## 📋 TODOs
