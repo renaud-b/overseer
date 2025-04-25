@@ -1,0 +1,462 @@
+class MainScene extends Phaser.Scene {
+    constructor() {
+        super('MainScene');
+        this.waveNumber = 0;
+    }
+
+    preload() {
+        this.load.json('gameData', 'assets/game_data.json');
+        this.load.json('spells', 'assets/spells.json');
+        this.load.image('droneSprite', 'assets/sprites/drone_01.png');
+
+        // 🔽 Charge chaque icône de ressource
+        const resources = [
+            'hydronium', 'scrap', 'alloy', 'flux_crystal',
+            'ion_field', 'bio_gel', 'compute_units', 'xeno_sample'
+        ];
+        resources.forEach(id => {
+            this.load.image(`icon_${id}`, `assets/sprites/${id}.png`);
+        });
+    }
+
+    create() {
+        this.globalGameTime = 0;
+        this.timeScale = 1;
+        this.tileSize = 100;
+        this.gameData = this.cache.json.get('gameData');
+
+        this.resources = {};
+        this.gameData.resources.forEach((r) => {
+                this.resources[r.id] = 0
+        });
+
+        this.unitCapMap = {};
+        this.units = {};
+        this.gameData.units.forEach(u => this.units[u.id] = 0);
+        this.enemyUnits = [];
+        this.playerUnits = [];
+        this.projectiles = [];
+
+
+        this.unitManager = new UnitManager(this, this.units)
+        this.hud = new HUDManager(this, this.resources, this.units);
+        this.buildingManager = new BuildingManager(this);
+        this.spellManager = new SpellManager(this, this.cache.json.get('spells'))
+
+
+        this.gridWidth = 5;
+        this.gridHeight = 5;
+        this.tileSize = 100;
+        this.gridManager = new GridManager(this, this.gridWidth, this.gridHeight, this.tileSize);
+
+        this.zoneEffects = [];
+
+        this.artifactManager = new ArtifactManager(this);
+
+
+        this.createCardZone();
+        this.vision = new Vision(this, this.tileSize, this.gridWidth, this.gridHeight, this.gridManager.tiles);
+
+        this.createSpawnZones();
+
+        this.baseTarget = this.add.rectangle(
+            this.playerSpawnCircle.x-50,
+            this.playerSpawnCircle.y,
+            40, 40,
+            0x00ff00,
+            0.2
+        ).setStrokeStyle(2, 0x00ff00).setDepth(3);
+
+        this.baseTarget.hpText = this.add.text(
+            this.baseTarget.x,
+            this.baseTarget.y - 45,
+            `PV: ${this.baseTarget.hp}`,
+            {
+                fontSize: '16px',
+                fill: '#00ff00',
+                fontFamily: 'monospace'
+            }
+        ).setOrigin(0.5).setDepth(10);
+
+        this.baseTarget.hp = 100;
+        this.baseTarget.maxHp = 100;
+
+        this.timeline = new Timeline(this);
+        this.waveManager = new WaveManager(this)
+
+
+        this.input.keyboard.on('keydown-SPACE', () => {
+            if (this.timeScale === 0) this.setTimeScale(this.lastTimeScale || 1);
+            else { this.lastTimeScale = this.timeScale; this.setTimeScale(0); }
+        });
+
+        this.input.keyboard.on('keydown-ZERO', () => this.setTimeScale(0));
+        this.input.keyboard.on('keydown-ONE', () => this.setTimeScale(1));
+        this.input.keyboard.on('keydown-TWO', () => this.setTimeScale(3));
+        this.input.keyboard.on('keydown-THREE', () => this.setTimeScale(5));
+
+        this.setupDragDrop();
+    }
+
+    update(time, delta) {
+        if (this.timeScale === 0) return;
+        const scaledDelta = delta * this.timeScale;
+        this.globalGameTime += scaledDelta;
+
+        this.buildingManager.updateAll(scaledDelta);
+        this.timeline.update(scaledDelta);
+        this.projectiles.forEach(p => p.update(scaledDelta));
+        this.enemyUnits.forEach(u => u.update(scaledDelta, this.playerUnits));
+        this.playerUnits.forEach(u => u.update(scaledDelta, this.enemyUnits));
+
+        this.enemyUnits = this.enemyUnits.filter(u => u.isAlive());
+        this.waveManager.update(this.enemyUnits)
+        this.unitManager.update()
+
+        this.spellManager.updateSpellCooldowns();
+        this.zoneEffects.forEach(z => z.update(scaledDelta));
+
+        this.baseTarget.hpText.setText(`PV: ${Math.max(0, Math.floor(this.baseTarget.hp))}`);
+        this.baseTarget.hpText.setFill(this.baseTarget.hp > 40 ? '#00ff00' : this.baseTarget.hp > 15 ? '#ffff00' : '#ff0000');
+
+        if (this.baseTarget.hp <= 0 && !this.baseDestroyed) {
+            this.baseDestroyed = true;
+            this.setTimeScale(0);
+
+            // Overlay semi-transparent
+            this.gameOverOverlay = this.add.rectangle(
+                0, 0,
+                this.scale.width,
+                this.scale.height,
+                0x000000,
+                0.7
+            ).setOrigin(0).setDepth(999);
+
+            // Message central
+            this.gameOverText = this.add.text(
+                this.scale.width / 2,
+                this.scale.height / 2 - 80,
+                "💀 BASE DÉTRUITE\nVous avez perdu",
+                {
+                    fontSize: '32px',
+                    fill: '#ffffff',
+                    align: 'center',
+                    fontFamily: 'monospace'
+                }
+            ).setOrigin(0.5).setDepth(1000);
+
+            // Bouton [Recommencer]
+            const btnX = this.scale.width / 2;
+            const btnY = this.scale.height / 2 + 20;
+
+            this.restartBtn = this.add.rectangle(btnX, btnY, 200, 50, 0x333333, 1)
+                .setStrokeStyle(2, 0xffffff)
+                .setOrigin(0.5)
+                .setInteractive()
+                .setDepth(1001);
+
+            this.restartText = this.add.text(btnX, btnY, "[ Recommencer ]", {
+                fontSize: '20px',
+                fill: '#00ff00',
+                fontFamily: 'monospace'
+            }).setOrigin(0.5).setDepth(1002);
+
+            this.restartBtn.on('pointerover', () => {
+                this.restartBtn.setFillStyle(0x555555);
+            });
+
+            this.restartBtn.on('pointerout', () => {
+                this.restartBtn.setFillStyle(0x333333);
+            });
+
+            this.restartBtn.on('pointerdown', () => {
+                this.scene.restart();
+            });
+        }
+
+        this.artifactManager.update(scaledDelta)
+    }
+
+
+    getDescription(type) {
+        const building = this.buildingManager.buildingMap[type];
+        if (building) {
+            let desc = building.desc || 'Aucune description.';
+            if (building.cost) {
+                const costText = Object.entries(building.cost)
+                    .map(([k, v]) => {
+                        const res = this.gameData.resources.find(r => r.id === k);
+                        const name = res ? res.name : k;
+                        return `${name}: ${v}`;
+                    })
+                    .join(', ');
+                desc += `\nCoût:\n ${costText}`;
+            }
+            return {
+                name: building.name || type,
+                desc: desc
+            };
+        }
+        return { name: type || '???', desc: 'Aucune description disponible.' };
+    }
+
+
+    createSpawnZones() {
+        const playerSpawnRadius = 60;
+        const enemySpawnRadius = 60;
+
+        this.playerSpawnCircle = this.add.circle(
+            600,
+            200,
+            playerSpawnRadius,
+            0x00ff00,
+            0.2
+        ).setDepth(1).setVisible(false);
+
+        this.enemySpawnCircle = this.add.circle(
+            this.scale.width +enemySpawnRadius,
+            this.scale.height / 2,
+            enemySpawnRadius,
+            0xff0000,
+            0.2
+        ).setDepth(1);
+    }
+
+    addResource(type, amount) {
+        this.resources[type] += amount;
+        this.hud.updateHUD(this.resources, this.units, this.unitCapMap);
+    }
+
+
+    createCardZone() {
+        this.buildingManager.addCardById("condensor");
+        this.buildingManager.addCardById("scrap_mine");
+        this.buildingManager.addCardById("refinery");
+        this.buildingManager.addCardById("drone_bay");
+        //this.buildingManager.addCardById("god_sanctuary");
+    }
+
+
+    setupDragDrop() {
+        this.input.on('drop', (pointer, gameObject, dropZone) => {
+
+            // ---- Construction depuis une carte
+            if (gameObject.cardType && !gameObject.originTile) {
+                const tile = dropZone.getData('tileRef');
+                if (!tile) return;
+                if (tile.building) return;
+
+                const buildingData = this.buildingManager.buildingMap[gameObject.cardType];
+                if (!buildingData) return;
+
+                const canAfford = this.checkCost(buildingData.cost || {});
+                if (!canAfford && !buildingData.unlimited) {
+                    console.log("Pas assez de ressources !");
+                    this.tweens.add({
+                        targets: gameObject,
+                        x: gameObject.startX || gameObject.input.dragStartX,
+                        y: gameObject.startY || gameObject.input.dragStartY,
+                        duration: 150,
+                        ease: 'Back.easeOut'
+                    });
+                    return;
+                }
+
+                if (!buildingData.unlimited) {
+                    this.payCost(buildingData.cost || {});
+                }
+
+                const building = new Building(
+                    this,
+                    tile.rect.x + this.tileSize / 2,
+                    tile.rect.y + this.tileSize / 2,
+                    tile,
+                    gameObject.cardType
+                );
+                tile.building = building;
+                this.buildingManager.buildings.push(building);
+
+                // 👇 Ici : gestion du stack de cartes
+                if (!buildingData.unlimited) {
+                    const cardStack = this.buildingManager.cards.find(c => c.id === gameObject.cardType);
+                    if (cardStack) {
+                        cardStack.count--;
+                        cardStack.cardObj.setCount(cardStack.count);
+                        if (cardStack.count === 0) {
+                            cardStack.cardObj.destroy();
+                            this.buildingManager.cards = this.buildingManager.cards.filter(c => c !== cardStack);
+                        } else {
+                            cardStack.cardObj.label.setText(`${cardStack.id} x${cardStack.count}`);
+                        }
+                        this.buildingManager.reorganizeCards();
+                    }
+                } else {
+                    // Si carte illimitée : repositionne la carte proprement
+                    this.tweens.add({
+                        targets: gameObject,
+                        x: gameObject.startX || gameObject.input.dragStartX,
+                        y: gameObject.startY || gameObject.input.dragStartY,
+                        duration: 200,
+                        ease: 'Back.easeOut'
+                    });
+                }
+            }
+
+            // ---- Déplacement d’un bâtiment existant
+            else if (gameObject.originTile) {
+                const oldTile = gameObject.originTile;
+                const newTile = dropZone.getData('tileRef');
+
+                if (newTile.building === null) {
+                    gameObject.x = dropZone.x + this.tileSize / 2;
+                    gameObject.y = dropZone.y + this.tileSize / 2;
+
+                    const building = oldTile.building;
+                    oldTile.building = null;
+                    newTile.building = building;
+
+                    building.tile = newTile;
+                    gameObject.originTile = newTile;
+
+                    console.log(`Déplacement du bâtiment ${gameObject.cardType} vers [${newTile.x}, ${newTile.y}]`);
+                } else {
+                    gameObject.x = oldTile.rect.x + this.tileSize / 2;
+                    gameObject.y = oldTile.rect.y + this.tileSize / 2;
+                }
+            }
+
+            console.log("spellId: ", gameObject.spellId)
+            // ---- Sorts (inchangé)
+            if (gameObject.spellId) {
+                const spell = this.spellManager.spellData.find(s => s.id === gameObject.spellId);
+                if (!spell) return;
+
+                const now = this.time.now;
+                if (!gameObject.oneTime &&  this.spellManager.spellCooldowns[spell.id] > now) {
+                    console.log("Sort en recharge.");
+                    return;
+                }
+
+                console.log("launch the spell")
+                const x = pointer.worldX;
+                const y = pointer.worldY;
+                this.spellManager.castSpellAt(spell, x, y);
+                if (gameObject.oneTime) {
+                    // Supprimer le sort de la barre
+                    const index = this.spellManager.spellButtons.findIndex(s => s.btn === gameObject);
+                    if (index !== -1) {
+                        this.spellManager.spellButtons[index].btn.destroy();
+                        this.spellManager.spellButtons[index].txt.destroy();
+                        this.spellManager.spellButtons.splice(index, 1);
+                        this.spellManager.reorganizeSpellBar();
+                    }
+                } else {
+                    this.spellManager.spellCooldowns[spell.id] = now + spell.cooldown;
+                }
+            }
+        });
+
+
+
+        this.input.on('dragstart', (_, g) => g.setAlpha(0.5));
+        this.input.on('drag', (_, g, x, y) => { g.x = x; g.y = y; });
+        this.input.on('drag', (pointer, gameObject, x, y) => {
+            gameObject.x = x;
+            gameObject.y = y;
+
+            if (gameObject.spellId) {
+                const spell = this.spellManager.spellData.find(s => s.id === gameObject.spellId);
+                if (!spell) return;
+
+                // Créer ou déplacer le cercle
+                if (!this.spellManager.spellPreviewCircle) {
+                    this.spellManager.spellPreviewCircle = this.add.circle(x, y, spell.radius, 0xffffff, 0.2)
+                        .setStrokeStyle(2, 0xffffff)
+                        .setDepth(4)
+                        .setAlpha(0.6)
+                        .setBlendMode(Phaser.BlendModes.ADD);
+                } else {
+                    this.spellManager.spellPreviewCircle.setPosition(x, y);
+                }
+            }
+        });
+
+        this.input.on('dragend', (pointer, gameObject, dropped) => {
+            gameObject.setAlpha(1);
+
+            // --- Cas 1 : Bâtiment déjà placé
+            if (!dropped && gameObject.originTile) {
+                this.tweens.add({
+                    targets: gameObject,
+                    x: gameObject.originTile.rect.x + this.tileSize / 2,
+                    y: gameObject.originTile.rect.y + this.tileSize / 2,
+                    duration: 200,
+                    ease: 'Back.easeOut'
+                });
+            }
+
+            // --- Cas 2 : Carte (non placée)
+            if (!dropped && gameObject.startX !== undefined && gameObject.startY !== undefined) {
+                this.tweens.add({
+                    targets: gameObject,
+                    x: gameObject.startX,
+                    y: gameObject.startY,
+                    duration: 200,
+                    ease: 'Back.easeOut'
+                });
+            }
+
+            // --- Cas 3 : Spell annulé → retour + suppression du preview
+            if (gameObject.spellId) {
+                this.tweens.add({
+                    targets: gameObject,
+                    x: gameObject.startX || gameObject.input.dragStartX,
+                    y: gameObject.startY || gameObject.input.dragStartY,
+                    duration: 200,
+                    ease: 'Back.easeOut'
+                });
+
+                if (this.spellManager.spellPreviewCircle) {
+                    this.spellManager.spellPreviewCircle.destroy();
+                    this.spellManager.spellPreviewCircle = null;
+                }
+            }
+        });
+
+    }
+
+    checkCost(costObj) {
+        for (let res in costObj) {
+            if (!this.resources[res] || this.resources[res] < costObj[res]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    payCost(costObj) {
+        for (let res in costObj) {
+            this.resources[res] -= costObj[res];
+        }
+        this.hud.updateHUD(this.resources, this.units, this.unitCapMap);
+    }
+
+    getRandomPointInCircle(cx, cy, radius) {
+        const angle = Phaser.Math.FloatBetween(0, 2 * Math.PI);
+        const r = radius * Math.sqrt(Math.random()); // pour une distribution uniforme
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        return { x, y };
+    }
+
+    setTimeScale(scale) {
+        this.timeScale = scale;
+        console.log(`⏱️ Temps réglé sur x${scale}`);
+
+        const speedMap = { 0: 0, 1: 1, 3: 2, 5: 3 };
+        const index = speedMap[scale] ?? 1;
+        this.hud.highlightSelectedSpeed(index);
+    }
+
+}
+

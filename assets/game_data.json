@@ -1,0 +1,491 @@
+{
+  "resources": [
+    {
+      "id": "hydronium",
+      "name": "Condensat d’Hydronium",
+      "description": "Énergie liquide extraite de l’atmosphère. Sert à alimenter les machines de base.",
+      "color": "#3cb9fc"
+    },
+    {
+      "id": "scrap",
+      "name": "Ferraille brute",
+      "description": "Débris ou minerais extraits du sol. Sert aux constructions de base.",
+      "color": "#a0522d"
+    },
+    {
+      "id": "alloy",
+      "name": "Alliage structuré",
+      "description": "Matériau renforcé issu de la ferraille. Utilisé pour les unités et bâtiments avancés.",
+      "color": "#aaaaaa"
+    },
+    {
+      "id": "flux_crystal",
+      "name": "Cristaux de flux",
+      "description": "Matériaux exotiques canalisant l'énergie. Nécessaires aux modules techno et sorts.",
+      "color": "#9400d3"
+    },
+    {
+      "id": "ion_field",
+      "name": "Champ d’ionisation",
+      "description": "Stock d'énergie transformée. Sert à activer modules et vision.",
+      "color": "#ffff00"
+    },
+    {
+      "id": "bio_gel",
+      "name": "Gel organo-acide",
+      "description": "Substance alien récoltée. Utilisée pour les modules hybrides offensifs.",
+      "color": "#7fff00"
+    },
+    {
+      "id": "compute_units",
+      "name": "Unités de calcul",
+      "description": "Devise interne de la base robotique. Sert aux achats et upgrades.",
+      "color": "#00ffff"
+    },
+    {
+      "id": "xeno_sample",
+      "name": "Échantillons xéno",
+      "description": "Fragments d’ADN alien. Permettent d'activer des fonctions mutagènes.",
+      "color": "#ff69b4"
+    }
+  ],
+  "buildings": [
+    {
+      "id": "condensor",
+      "name": "Condenseur d’Hydronium",
+      "produces": "hydronium",
+      "unlimited": true,
+      "desc": "Génère du condensat pour l’usage énergétique de base.",
+      "rate": 1,
+      "producesType": "resource",
+      "color": "#3cb9fc",
+      "level": 1
+    },
+    {
+      "id": "scrap_mine",
+      "name": "Mine de Ferraille",
+      "produces": "scrap",
+      "unlimited": true,
+      "desc": "Extrait des minerais utiles à la construction.",
+      "rate": 1,
+      "max_produced": 10,
+      "producesType": "resource",
+      "color": "#a0522d",
+      "level": 1
+    },
+    {
+      "id": "refinery",
+      "name": "Raffinerie logique",
+      "produces": "alloy",
+      "desc": "Convertit la ferraille brute en alliage structuré.",
+      "rate": 1,
+      "producesType": "resource",
+      "color": "#aaaaaa",
+      "level": 1
+    },
+    {
+      "id": "reactor",
+      "name": "Noyau de Fusion",
+      "produces": "ion_field",
+      "desc": "Produit des Champs d’ionisation.",
+      "rate": 1,
+      "cost": { "scrap": 20, "alloy": 20 },
+      "producesType": "resource",
+      "color": "#ffff00",
+      "level": 1
+    },
+    {
+      "id": "flux_catalyst",
+      "name": "Catalyseur de Flux",
+      "produces": "spell",
+      "desc": "Produit un protocole technologique aléatoire toutes les 20 secondes.",
+      "cooldown": 20000,
+      "producesType": "spell",
+      "cost": { "hydronium": 5, "scrap": 10 },
+      "color": "#9400d3",
+      "level": 1
+    },
+    {
+      "id": "drone_bay",
+      "cooldown": 5000,
+      "name": "Station Drone",
+      "produces": "unit_dronoid",
+      "producesType": "unit",
+      "cost": { "hydronium": 10, "scrap": 20 },
+      "consumePerCycle": {
+        "scrap": 5
+      },
+      "unitCap": 3,
+      "desc": "Produit des dronoïdes de base.\nProduit : Unité (+1 par cycle, Capacité: 3)",
+      "rate": 1,
+      "color": "#00ff00",
+      "level": 1
+    },
+    {
+      "id": "decompiler",
+      "name": "Décompilateur de Structures",
+      "desc": "Démonte les alliages avancés pour récupérer de la ferraille brute.",
+      "produces": "scrap",
+      "producesType": "resource",
+      "rate": 1,
+      "cooldown": 6000,
+      "consumePerCycle": {
+        "hydronium": 2,
+        "alloy": 4
+      },
+      "cost": {
+        "compute_units": 2,
+        "alloy": 5
+      },
+      "color": "#a07040",
+      "level": 1
+    },
+    {
+      "id": "ion_refinery",
+      "name": "Raffinerie d’Ions",
+      "desc": "Convertit du condensat d’hydronium et de la ferraille brute en champs d’ionisation.\nProduit : Champ d’ionisation (+1)\nCycle : 6 sec",
+      "produces": "ion_field",
+      "producesType": "resource",
+      "rate": 1,
+      "cooldown": 6000,
+      "cost": {
+        "hydronium": 20,
+        "scrap": 10
+      },
+      "consumePerCycle": {
+        "hydronium": 1,
+        "scrap": 1
+      },
+      "color": "#ffee88",
+      "level": 1
+    },
+    {
+      "id": "sniper_tower",
+      "cooldown": 6000,
+      "name": "Tour de Snipeur",
+      "produces": "unit_sniper",
+      "producesType": "unit",
+      "cost": { "hydronium": 5, "alloy": 8, "ion_field": 2 },
+      "consumePerCycle": { "alloy": 4, "ion_field": 2 },
+      "unitCap": 2,
+      "desc": "Produit des unités à distance à longue portée.\nProduit : Unité (+1 par cycle, Capacité: 2)\nCycle : 6 sec",
+      "rate": 1,
+      "color": "#ff9900",
+      "level": 1
+    },
+    {
+      "id": "guard_bunker",
+      "name": "Bunker de Sentinelles",
+      "produces": "unit_guard",
+      "producesType": "unit",
+      "cooldown": 6000,
+      "rate": 1,
+      "unitCap": 3,
+      "cost": {
+        "scrap": 8,
+        "bio_gel": 3,
+        "compute_units": 1
+      },
+      "desc": "Déploie des unités garde sentinelles pour défendre la base.\nProduit : Unité (+1 par cycle, Capacité: 3)\nCycle : 6 sec",
+      "color": "#1e90ff",
+      "level": 1
+    },{
+      "id": "mecha_forge",
+      "name": "Forge Xéno-Mécanique",
+      "produces": "unit_mecha",
+      "producesType": "unit",
+      "cooldown": 10000,
+      "rate": 1,
+      "unitCap": 2,
+      "cost": {
+        "alloy": 10,
+        "xeno_sample": 2,
+        "compute_units": 3
+      },
+      "desc": "Assemble des unités Enclume Mobile avec une structure hybride avancée.\nProduit : Unité (+1 par cycle, Capacité: 2)\nCycle : 10 sec",
+      "color": "#8b0000",
+      "level": 1
+    },
+    {
+      "id": "bio_cuve",
+      "name": "Biocuve Alpha",
+      "produces": "bio_gel",
+      "producesType": "resource",
+      "desc": "Synthétise du gel organo-acide à partir de spores atmosphériques.\nProduit : Gel organo-acide (+1)\nCycle : 10 sec",
+      "rate": 1,
+      "cooldown": 10000,
+      "cost": {
+        "scrap": 5,
+        "hydronium": 5
+      },
+      "color": "#7fff00",
+      "level": 1
+    },
+    {
+      "id": "quantum_compressor",
+      "name": "Compresseur Quantique",
+      "desc": "Condense l’énergie pour produire des Cristaux de flux.",
+      "produces": "flux_crystal",
+      "producesType": "resource",
+      "rate": 1,
+      "cooldown": 15000,
+      "cost": { "ion_field": 2, "compute_units": 1 },
+      "consumePerCycle": { "ion_field": 1 },
+      "color": "#dd66ff",
+      "level": 2
+    },
+    {
+      "id": "logic_cluster",
+      "name": "Cluster Logique",
+      "produces": "compute_units",
+      "producesType": "resource",
+      "desc": "Centralise des unités de traitement pour produire de la puissance de calcul.\nProduit : Unités de calcul (+1)\nCycle : 8 sec",
+      "rate": 1,
+      "consumePerCycle": {
+        "hydronium": 1,
+        "alloy": 1
+      },
+      "cooldown": 8000,
+      "cost": {
+        "alloy": 5,
+        "ion_field": 2
+      },
+      "color": "#00ffff",
+      "level": 1
+    },
+    {
+      "id": "supercluster",
+      "name": "Supercluster Logique",
+      "desc": "Regroupe plusieurs noyaux pour maximiser les Unités de calcul.",
+      "produces": "compute_units",
+      "producesType": "resource",
+      "rate": 2,
+      "cooldown": 10000,
+      "cost": { "alloy": 10, "ion_field": 3 },
+      "consumePerCycle": { "hydronium": 2, "alloy": 2 },
+      "color": "#00ffee",
+      "level": 2
+    },
+    {
+      "id": "xeno_extractor",
+      "name": "Extracteur Xéno",
+      "produces": "xeno_sample",
+      "producesType": "resource",
+      "desc": "Récolte des échantillons génétiques sur les cadavres aliens.\nProduit : Échantillons xéno (+1)\nCycle : 15 sec",
+      "rate": 1,
+      "cooldown": 15000,
+      "cost": {
+        "bio_gel": 2,
+        "compute_units": 2
+      },
+      "color": "#ff69b4",
+      "level": 1
+    },
+    {
+      "id": "god_sanctuary",
+      "name": "Sanctuaire de la Déesse",
+      "produces": "unit_mecha",
+      "producesType": "unit",
+      "cooldown": 1000,
+      "rate": 1,
+      "unitCap": 10,
+      "desc": "Assemble des unités Enclume Mobile avec une structure hybride avancée.\nProduit : Unité (+1 par cycle, Capacité: 10)\nCycle : 1 sec",
+      "color": "#8b0000",
+      "level": 1
+    }
+  ],
+  "enemies": [
+    {
+      "id": "basic_monster",
+      "level": 1,
+      "name": "Monstre basique",
+      "role": "Attaque",
+      "desc": "Un monstre basique, présent dans les premieres vagues",
+      "hp": 3,
+      "speed": 30,
+      "attack_type": "melee",
+      "attack_range": 20,
+      "attack_speed": 2.0,
+      "attack_damage": 1
+    },
+    {
+      "id": "ranged_monster",
+      "level": 2,
+      "name": "Monstre a distance basique",
+      "role": "Attaque",
+      "desc": "Un monstre basique, présent dans les premieres vagues",
+      "hp": 3,
+      "speed": 30,
+      "attack_type": "ranged",
+      "attack_range": 100,
+      "attack_speed": 2.0,
+      "attack_damage": 1
+    },
+    {
+      "id": "base_rusher",
+      "level": 2,
+      "name": "Carapace Percutante",
+      "role": "Percuteur",
+      "desc": "Ignore les unités alliées et fonce vers la base pour l’écraser.",
+      "hp": 12,
+      "speed": 45,
+      "attack_type": "melee",
+      "attack_range": 30,
+      "attack_speed": 1.0,
+      "attack_damage": 5,
+      "behavior": "base_rusher"
+    },
+    {
+      "id": "stalker",
+      "level": 3,
+      "name": "Stalker Organique",
+      "role": "assassin",
+      "desc": "Invisible jusqu’à sa première attaque.",
+      "hp": 3,
+      "speed": 40,
+      "attack_type": "melee",
+      "attack_range": 20,
+      "attack_speed": 1.2,
+      "attack_damage": 4,
+      "behavior": "invisible_until_hit"
+    },
+    {
+      "id": "mother_slime",
+      "level": 3,
+      "name": "Slime-Mère",
+      "role": "fission",
+      "desc": "À sa mort, génère 2 petits slimes.",
+      "hp": 8,
+      "speed": 30,
+      "attack_type": "melee",
+      "attack_range": 20,
+      "attack_speed": 1.2,
+      "attack_damage": 2,
+      "behavior": "split_on_death",
+      "split_spawn": "baby_slime",
+      "split_count": 2
+    },
+    {
+      "id": "baby_slime",
+      "level": 1,
+      "name": "Slime-Enfant",
+      "role": "parasite",
+      "desc": "Petit slime issu d’une fission.",
+      "hp": 2,
+      "speed": 35,
+      "attack_type": "melee",
+      "attack_range": 20,
+      "attack_speed": 1.0,
+      "attack_damage": 1
+    }
+  ],
+  "units": [
+    {
+      "id": "unit_dronoid",
+      "sprite": "droneSprite",
+      "name": "Dronoid",
+      "role": "récolte et soutien",
+      "desc": "Unité de support.",
+      "hp": 4,
+      "speed": 40,
+      "attack_type": "melee",
+      "attack_range": 20,
+      "attack_speed": 1.5,
+      "attack_damage": 2,
+      "cost": { "hydronium": 3, "alloy": 2 }
+    },
+    {
+      "id": "unit_guard",
+      "name": "Sentinelle Garde",
+      "role": "défense",
+      "desc": "Unité de combat standard.",
+      "hp": 7,
+      "speed": 35,
+      "attack_type": "melee",
+      "attack_range": 20,
+      "attack_speed": 1.0,
+      "attack_damage": 2,
+      "cost": {
+        "scrap": 8,
+        "bio_gel": 3,
+        "compute_units": 1
+      }
+    },
+    {
+      "id": "unit_mecha",
+      "name": "Enclume Mobile",
+      "role": "tank",
+      "desc": "Unité blindée avancée.",
+      "hp": 13,
+      "speed": 25,
+      "attack_type": "melee",
+      "attack_range": 25,
+      "attack_speed": 2.0,
+      "attack_damage": 3,
+
+      "cost": {
+        "alloy": 10,
+        "bio_gel": 5,
+        "compute_units": 3
+      }
+    },
+    {
+      "id": "unit_sniper",
+      "name": "Sniper Élite",
+      "role": "tir à distance",
+      "desc": "Unité à distance à très longue portée mais fragile.",
+      "hp": 3,
+      "speed": 30,
+      "attack_type": "ranged",
+      "attack_range": 120,
+      "attack_speed": 2.5,
+      "attack_damage": 3,
+      "cost": { "alloy": 4, "ion_field": 2 }
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "heal_on_ally_death",
+      "name": "Réparateur empathique",
+      "desc": "Quand une unité meurt, une autre alliée est soignée légèrement.",
+      "effect": "heal_random_on_death"
+    },
+    {
+      "id": "explode_on_ally_death",
+      "name": "Noyau instable",
+      "desc": "Quand une unité meurt, un ennemi subit 2 dégâts.",
+      "effect": "damage_enemy_on_death"
+    },
+    {
+      "id": "heal_base_on_ally_death",
+      "name": "Soutien centralisé",
+      "desc": "Quand une unité meurt, la base est soignée légèrement.",
+      "effect": "heal_base_on_death"
+    },
+    {
+      "id": "condensor_boost",
+      "name": "Amélioration du condenseur",
+      "desc": "Le Condenseur d’Hydronium produit +25%.",
+      "effect": "boost_condensor"
+    },
+    {
+      "id": "boost_decompiler",
+      "name": "Nano-Outils Réversifs",
+      "desc": "Le Décompilateur de Structures récupère +1 ferraille par cycle.",
+      "effect": "boost_decompiler"
+    },
+    {
+      "id": "refinery_boost",
+      "name": "Amélioration de la Raffinerie",
+      "desc": "La Raffinerie logique produit +25%.",
+      "effect": "boost_refinery"
+    },
+    {
+      "id": "xeno_sample_periodic",
+      "name": "Extraction auto",
+      "desc": "Chaque 5s, gagne 1 Échantillons xéno par réacteur ou raffinerie activé.",
+      "effect": "periodic_xeno"
+    }
+  ]
+
+}

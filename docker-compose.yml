@@ -1,0 +1,7 @@
+version: '3'
+services:
+  overseer:
+    build: .
+    ports:
+      - "8097:8097"
+    restart: unless-stopped

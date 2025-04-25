@@ -1,0 +1,46 @@
+[
+  {
+    "id": "emp_blast",
+    "name": "Surtension EMP",
+    "desc": "Neutralise temporairement les ennemis dans une zone.",
+    "color": "#00ffff",
+    "cooldown": 8000,
+    "cost": { "flux_crystal": 3 },
+    "radius": 100,
+    "effect": "stun",
+    "duration": 2000
+  },
+  {
+    "id": "ion_storm",
+    "name": "Tempête Ionique",
+    "desc": "Inflige des dégâts à tous les ennemis dans la zone.",
+    "color": "#ffff00",
+    "cooldown": 6000,
+    "cost": { "ion_field": 4 },
+    "radius": 100,
+    "effect": "damage",
+    "amount": 2
+  },
+  {
+    "id": "pulse_heal",
+    "name": "Soin pulsé",
+    "desc": "Soigne toutes les unités alliées dans une zone.",
+    "color": "#00ff00",
+    "cooldown": 5000,
+    "cost": { "hydronium": 2, "flux_crystal": 1 },
+    "radius": 100,
+    "effect": "heal",
+    "amount": 2
+  },
+  {
+    "id": "regen_field",
+    "name": "Zone régénérante",
+    "desc": "Soigne les alliés dans la zone pendant 10s.",
+    "color": "#00ff00",
+    "cooldown": 10000,
+    "radius": 120,
+    "duration": 10000,
+    "tickInterval": 1000,
+    "effect": "persistent_heal"
+  }
+]
