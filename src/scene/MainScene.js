@@ -50,7 +50,14 @@ class MainScene extends Phaser.Scene {
         }, text);
     }
 
+    isTalentUnlocked(id) {
+        return this.unlockedTalents.includes(id);
+    }
+
     create() {
+        this.unlockedTalents = JSON.parse(localStorage.getItem('unlockedTalents') || '[]');
+
+
         this.globalGameTime = 0;
         this.timeScale = 1;
         this.tileSize = 100;
@@ -73,6 +80,7 @@ class MainScene extends Phaser.Scene {
 
 
         this.unitManager = new UnitManager(this, this.units)
+
         this.hud = new HUDManager(this, this.resources, this.units);
         this.buildingManager = new BuildingManager(this);
         this.spellManager = new SpellManager(this, this.gameData.spells)
@@ -82,6 +90,11 @@ class MainScene extends Phaser.Scene {
         this.gridHeight = 5;
         this.tileSize = 100;
         this.gridManager = new GridManager(this, this.gridWidth, this.gridHeight, this.tileSize);
+        if (this.isTalentUnlocked('resource_node_scanner')) {
+            const tile = Phaser.Utils.Array.GetRandom(this.gridManager.getAllTiles());
+            tile.isResourceBoost = true;
+            tile.rect.setFillStyle(0x00ff00, 0.2); // Visuel de tuile spéciale
+        }
 
         this.zoneEffects = [];
 
@@ -91,7 +104,18 @@ class MainScene extends Phaser.Scene {
         this.createCardZone();
         this.vision = new Vision(this, this.tileSize, this.gridWidth, this.gridHeight, this.gridManager.tiles);
 
+        if (this.isTalentUnlocked('vision_boost')) {
+            console.log("Talent débloqué : Vision Boost");
+            this.vision.level++;
+            this.vision.updatePatternForLevel(); // Important ! Recalcule le pattern
+            this.vision.updatePosition();        // Important ! Redessine la vision
+        }
+
         this.createSpawnZones();
+        if (this.isTalentUnlocked('starter_drone')) {
+            console.log("Talent débloqué : Starter Drone");
+            this.unitManager.addUnit('unit_dronoid', 1);
+        }
 
         this.baseTarget = this.add.rectangle(
             this.playerSpawnCircle.x-50,
@@ -150,12 +174,19 @@ class MainScene extends Phaser.Scene {
         this.spellManager.updateSpellCooldowns();
         this.zoneEffects.forEach(z => z.update(scaledDelta));
 
+        this.baseTarget.hp = Math.max(0, this.baseTarget.hp);
         this.baseTarget.hpText.setText(this.translate("base_hp")+`: ${Math.max(0, Math.floor(this.baseTarget.hp))}`);
         this.baseTarget.hpText.setFill(this.baseTarget.hp > 40 ? '#00ff00' : this.baseTarget.hp > 15 ? '#ffff00' : '#ff0000');
 
         if (this.baseTarget.hp <= 0 && !this.baseDestroyed) {
             this.baseDestroyed = true;
             this.setTimeScale(0);
+
+            const wavesSurvived = this.waveManager.waveNumber || 0;
+            const shardsEarned = Math.floor(wavesSurvived / 2); // Ex : 1 shard toutes les 2 vagues
+
+            const currentShards = parseInt(localStorage.getItem('memoryShards') || '0');
+            localStorage.setItem('memoryShards', ""+(currentShards + shardsEarned));
 
             // Overlay semi-transparent
             this.gameOverOverlay = this.add.rectangle(
@@ -204,7 +235,7 @@ class MainScene extends Phaser.Scene {
             });
 
             this.restartBtn.on('pointerdown', () => {
-                this.scene.restart();
+                this.scene.start('OverseerCoreScene');
             });
         }
 

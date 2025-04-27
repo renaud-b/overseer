@@ -429,7 +429,9 @@ class HUDManager {
 
     showWavePreviewWithRewards(composition, rewards, x, y) {
         this.hideWavePreview(); // nettoie au cas où
-
+        if(composition === undefined){
+            return
+        }
         const enemyLines = Object.entries(composition).map(([id, count]) => {
             const enemy = this.scene.gameData.enemies.find(e => e.id === id);
             return `- ${enemy?.name || id} x${count}`;

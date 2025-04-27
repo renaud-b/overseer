@@ -145,6 +145,17 @@ class BuildingManager {
         const name = this.scene.translate(data.name) || type;
         let desc = this.scene.translate(data.desc) || '';
 
+        // ➡️ Ajout ici : afficher coût de construction initial
+        if (data.cost) {
+            const costText = Object.entries(data.cost)
+                .map(([k, v]) => {
+                    const res = this.scene.gameData.resources.find(r => r.id === k);
+                    return `${this.scene.translate(res?.name) || k}: ${v}`;
+                })
+                .join(', ');
+            desc += `\n\n${this.scene.translate('building_cost', { cost: costText })}`;
+        }
+
         if (data.producesType === 'unit') {
             const unitData = this.scene.gameData.units.find(u => u.id === data.produces);
             const costText = unitData?.cost

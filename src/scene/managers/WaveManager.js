@@ -49,7 +49,10 @@ class WaveManager {
         const owned = this.scene.artifactManager.artifacts.map(a => a.id);
         const allArtifacts = this.scene.gameData.artifacts;
         const available = allArtifacts.filter(a => !owned.includes(a.id));
-        if (available.length > 0 && Math.random() < 0.2) {
+
+
+        const chance = this.scene.isTalentUnlocked('artifact_scanner') ? 0.4 : 0.2; // +20% si débloqué
+        if (available.length > 0 && Math.random() < chance) {
             const options = Phaser.Utils.Array.Shuffle(available).slice(0, 3);
             rewards.artifactReward = options;
         }
