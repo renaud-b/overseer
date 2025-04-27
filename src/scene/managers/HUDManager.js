@@ -73,7 +73,7 @@ class HUDManager {
             }).setDepth(100);
         }
 
-        this.unitText.setText(`Unités:\n  ${unitLines}`);
+        this.unitText.setText(this.scene.translate("units_label")+`:\n  ${unitLines}`);
     }
 
 
@@ -130,7 +130,12 @@ class HUDManager {
 
 
     createTimeControlButtons() {
-        const labels = ['⏸️', '▶️ x1', '⚡ x3', '🔥 x5'];
+        const labels = [
+            this.scene.translate('time_speed_pause'),
+            this.scene.translate('time_speed_x1'),
+            this.scene.translate('time_speed_x3'),
+            this.scene.translate('time_speed_x5')
+        ];
         const speeds = [0, 1, 3, 5];
 
         this.timeButtons = [];
@@ -168,7 +173,7 @@ class HUDManager {
             .setInteractive()
             .setDepth(50);
 
-        this.upgradeVisionText = this.scene.add.text(upgradeBtnX + 60, upgradeBtnY + 15, '▲ Vision', {
+        this.upgradeVisionText = this.scene.add.text(upgradeBtnX + 60, upgradeBtnY + 15, this.scene.translate('upgrade_vision'), {
             fontSize: '14px',
             fill: '#ffffff',
             fontFamily: 'monospace'
@@ -176,7 +181,11 @@ class HUDManager {
 
         this.upgradeVisionBtn.on('pointerover', () => {
             const level = this.scene.vision.level || 0;
-            this.showInfoPanel(`Améliorer Vision`, `Actuel: niveau ${level}\nCoût: ${this.scene.vision.getUpgradeCost(level)} unités de calcul`, upgradeBtnX + 140, upgradeBtnY + 100);
+
+            const title = this.scene.translate("upgrade_vision_title")
+            const description = this.scene.translate("current_level_text", {level: level})+"\n"+this.scene.translate("upgrade_cost_text", {cost: this.scene.vision.getUpgradeCost(level)})
+
+            this.showInfoPanel(title, description, upgradeBtnX + 140, upgradeBtnY + 100);
         });
         this.upgradeVisionBtn.on('pointerout', () => this.hideInfoPanel());
 
@@ -257,8 +266,8 @@ class HUDManager {
             .setDepth(201);
 
         const titleText = {
-            resource: '🔧 Choisissez vos ressources',
-            building: '🏗️ Choisissez vos bâtiments'
+            resource: this.scene.translate('reward_choose_resources'),
+            building: this.scene.translate('reward_choose_buildings')
         };
 
         const title = this.scene.add.text(panel.x, panel.y - 120, titleText[type] || 'Récompenses', {
@@ -326,7 +335,7 @@ class HUDManager {
             yOffset += 100;
         });
 
-        const confirmBtn = this.scene.add.text(panel.x, panel.y + panelHeight / 2 - 40, '[ Valider ]', {
+        const confirmBtn = this.scene.add.text(panel.x, panel.y + panelHeight / 2 - 40, this.scene.translate('confirm_button'), {
             fontSize: '20px',
             fill: '#00ff00',
             fontFamily: 'monospace'
@@ -361,7 +370,7 @@ class HUDManager {
         const title = this.scene.add.text(
             panel.x,
             panel.y - 120,
-            '🧬 Choisissez un artefact',
+            this.scene.translate('reward_choose_artifact'),
             {
                 fontSize: '22px',
                 fill: '#ffffff',
@@ -402,7 +411,7 @@ class HUDManager {
             return { btn, txt, id: artifact.id };
         });
 
-        const confirmBtn = this.scene.add.text(panel.x, panel.y + 100, '[ Valider votre choix ]', {
+        const confirmBtn = this.scene.add.text(panel.x, panel.y + 100, this.scene.translate('confirm_artifact_button'), {
             fontSize: '20px',
             fill: '#00ff00',
             fontFamily: 'monospace'
@@ -428,20 +437,20 @@ class HUDManager {
 
         const rewardLines = [];
 
-        rewardLines.push("Récompenses :");
+        rewardLines.push(this.scene.translate('rewards_label'));
         if (rewards?.packs) {
             rewards.packs.forEach(pack => {
                 if (pack.type === 'resource') {
-                    rewardLines.push(`🔧 Ressource (x${pack.quantity})`);
+                    rewardLines.push(this.scene.translate('resource_pack_label', { quantity: pack.quantity }));
                 } else if (pack.type === 'building') {
-                    rewardLines.push(`🏗️ Bâtiment`);
+                    rewardLines.push(this.scene.translate('building_pack_label'));
                 }
             });
         }
 
         if (rewards?.artifactReward) {
             const names = rewards.artifactReward.map(a => a.name || a.id).join(', ');
-            rewardLines.push(`🧬 Artefact`);
+            rewardLines.push(this.scene.translate('artifact_reward_label'));
         }
 
         console.log("rewards: ", rewards)

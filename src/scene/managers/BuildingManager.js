@@ -126,66 +126,89 @@ class BuildingManager {
     }
 
     getBuildingRuntimeInfo(building) {
-        if (!building) return { name: '???', desc: 'Bâtiment inconnu.' };
+        if (!building) {
+            return {
+                name: '???',
+                desc: this.scene.translate('building_unknown')
+            };
+        }
 
         const type = building.type;
         const data = this.buildingMap[type];
-        if (!data) return { name: type, desc: 'Aucune donnée.' };
+        if (!data) {
+            return {
+                name: type,
+                desc: this.scene.translate('building_no_data')
+            };
+        }
 
-        const name = data.name || type;
-        let desc = data.desc || '';
+        const name = this.scene.translate(data.name) || type;
+        let desc = this.scene.translate(data.desc) || '';
 
         if (data.producesType === 'unit') {
             const unitData = this.scene.gameData.units.find(u => u.id === data.produces);
             const costText = unitData?.cost
                 ? Object.entries(unitData.cost).map(([k, v]) => {
                     const res = this.scene.gameData.resources.find(r => r.id === k);
-                    return `${res ? res.name : k}: ${v}`;
+                    return `${this.scene.translate(res?.name) || k}: ${v}`;
                 }).join(', ')
-                : 'Aucun coût';
+                : this.scene.translate('building_no_unit_cost');
 
-            desc += `\nProduit: ${unitData?.name || data.produces} (${data.rate || 1})`;
-            desc += `\nCoût unitaire: ${costText}`;
+            desc += `\n` + this.scene.translate('building_product_unit', {
+                unit: this.scene.translate(unitData?.name || data.produces),
+                rate: data.rate || 1
+            });
+            desc += `\n` + this.scene.translate('building_unit_cost', { cost: costText });
         } else if (data.producesType === 'resource') {
             const res = this.scene.gameData.resources.find(r => r.id === data.produces);
-            desc += `\nProduit: ${res?.name || data.produces} (+${data.rate || 1})`;
+            desc += `\n` + this.scene.translate('building_product_resource', {
+                resource: this.scene.translate(res?.name || data.produces),
+                rate: data.rate || 1
+            });
         } else if (data.producesType === 'spell') {
-            desc += `\nProduit: Protocole techno aléatoire (sort)`;
+            desc += `\n` + this.scene.translate('building_product_spell');
         }
 
         if (data.cooldown) {
-            desc += `\nCycle: ${Math.round(data.cooldown / 1000)} sec`;
+            desc += `\n` + this.scene.translate('building_cycle', { seconds: Math.round(data.cooldown / 1000) });
         }
+
         if (data.consumePerCycle) {
             const costText = Object.entries(data.consumePerCycle)
                 .map(([k, v]) => {
                     const res = this.scene.gameData.resources.find(r => r.id === k);
-                    return `${res ? res.name : k}: ${v}`;
+                    return `${this.scene.translate(res?.name) || k}: ${v}`;
                 })
                 .join(', ');
-            desc += `\nConsomme par cycle: ${costText}`;
+            desc += `\n` + this.scene.translate('building_cycle_consumption', { cost: costText });
         }
+
         return { name, desc };
     }
 
     getDescription(type) {
         const building = this.buildingMap[type];
-        if (!building) return { name: type || '???', desc: 'Aucune description disponible.' };
+        if (!building) {
+            return {
+                name: type || '???',
+                desc: this.scene.translate('building_no_description')
+            };
+        }
 
-        let desc = building.desc || 'Aucune description.';
+        let desc = this.scene.translate(building.desc) || this.scene.translate('building_no_description');
         if (building.cost) {
             const costText = Object.entries(building.cost)
                 .map(([k, v]) => {
                     const res = this.scene.gameData.resources.find(r => r.id === k);
-                    const name = res ? res.name : k;
+                    const name = this.scene.translate(res?.name) || k;
                     return `${name}: ${v}`;
                 })
                 .join(', ');
-            desc += `\nCoût:\n ${costText}`;
+            desc += `\n` + this.scene.translate('building_unit_cost', { cost: costText });
         }
 
         return {
-            name: building.name || type,
+            name: this.scene.translate(building.name) || type,
             desc
         };
     }

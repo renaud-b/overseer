@@ -1,0 +1,273 @@
+{
+  "resources": [
+    {
+      "id": "hydronium",
+      "name": "ヒドロニウム凝縮液",
+      "description": "大気から抽出された液体エネルギー。基本的な機械の動力源として使用される。"
+    },
+    {
+      "id": "scrap",
+      "name": "原始スクラップ",
+      "description": "地面から採掘された破片や鉱物。基本的な建設に使用される。"
+    },
+    {
+      "id": "alloy",
+      "name": "構造合金",
+      "description": "スクラップから精製された強化素材。上位ユニットや建物に使用される。"
+    },
+    {
+      "id": "flux_crystal",
+      "name": "フラックスクリスタル",
+      "description": "エネルギーをチャネリングするための異種素材。テクノロジーモジュールや魔法に必要。"
+    },
+    {
+      "id": "ion_field",
+      "name": "イオンフィールド",
+      "description": "変換されたエネルギーのストック。モジュールと視界の活性化に使用される。"
+    },
+    {
+      "id": "bio_gel",
+      "name": "有機酸ゲル",
+      "description": "収穫されたエイリアン物質。攻撃的なハイブリッドモジュールに使用される。"
+    },
+    {
+      "id": "compute_units",
+      "name": "演算ユニット",
+      "description": "ロボット基地内で使用される内部通貨。購入やアップグレードに使用される。"
+    },
+    {
+      "id": "xeno_sample",
+      "name": "ゼノサンプル",
+      "description": "エイリアンDNAの断片。変異機能の活性化を可能にする。"
+    }
+  ],
+  "buildings": [
+    {
+      "id": "condensor",
+      "name": "ヒドロニウム凝縮装置",
+      "desc": "基本的なエネルギー需要のために凝縮液を生成する。"
+    },
+    {
+      "id": "scrap_mine",
+      "name": "スクラップ鉱山",
+      "desc": "建設に有用な鉱物を採掘する。"
+    },
+    {
+      "id": "refinery",
+      "name": "ロジック精製所",
+      "desc": "原始スクラップを構造合金に変換する。"
+    },
+    {
+      "id": "reactor",
+      "name": "融合炉コア",
+      "desc": "イオンフィールドを生成する。"
+    },
+    {
+      "id": "flux_catalyst",
+      "name": "フラックス触媒装置",
+      "desc": "20秒ごとにランダムな技術プロトコルを生成する。"
+    },
+    {
+      "id": "drone_bay",
+      "name": "ドローンステーション",
+      "desc": "基本的なドロノイドを生成する。"
+    },
+    {
+      "id": "decompiler",
+      "name": "構造分解機",
+      "desc": "高度な合金を分解して原始スクラップを回収する。"
+    },
+    {
+      "id": "ion_refinery",
+      "name": "イオン精製所",
+      "desc": "ヒドロニウムとスクラップをイオンフィールドに変換する。"
+    },
+    {
+      "id": "sniper_tower",
+      "name": "スナイパータワー",
+      "desc": "長距離ユニットを生産する"
+    },
+    {
+      "id": "guard_bunker",
+      "name": "ガードバンカー",
+      "desc": "防衛用センチネルガードを展開する。"
+    },
+    {
+      "id": "mecha_forge",
+      "name": "ゼノ機械工場",
+      "desc": "高度なハイブリッド構造のモバイルアンビルを組み立てる。"
+    },
+    {
+      "id": "bio_cuve",
+      "name": "バイオ培養槽アルファ",
+      "desc": "大気中の胞子から有機酸ゲルを合成する。"
+    },
+    {
+      "id": "quantum_compressor",
+      "name": "量子圧縮機",
+      "desc": "エネルギーを凝縮してフラックスクリスタルを生成する。"
+    },
+    {
+      "id": "logic_cluster",
+      "name": "ロジッククラスター",
+      "desc": "演算ユニットを中央集約して演算力を生産する。"
+    },
+    {
+      "id": "supercluster",
+      "name": "スーパーロジッククラスター",
+      "desc": "複数のコアを集約して演算ユニットの生産を最大化する。"
+    },
+    {
+      "id": "xeno_extractor",
+      "name": "ゼノエクストラクター",
+      "desc": "エイリアンの死体から遺伝子サンプルを回収する。"
+    }
+  ],
+  "enemies": [
+    {
+      "id": "basic_monster",
+      "name": "基本モンスター",
+      "desc": "初期の波に出現する基本的なモンスター。"
+    },
+    {
+      "id": "ranged_monster",
+      "name": "基本遠距離モンスター",
+      "desc": "初期の波に出現する基本的なモンスター。"
+    },
+    {
+      "id": "base_rusher",
+      "name": "突進型カラパス",
+      "desc": "味方ユニットを無視して基地へ突進する。"
+    },
+    {
+      "id": "stalker",
+      "name": "有機ストーカー",
+      "desc": "最初の攻撃まで不可視状態。"
+    },
+    {
+      "id": "mother_slime",
+      "name": "マザースライム",
+      "desc": "死亡時に2体のベビースライムを生成する。"
+    },
+    {
+      "id": "baby_slime",
+      "name": "ベビースライム",
+      "desc": "分裂から生まれた小型スライム。"
+    }
+  ],
+  "units": [
+    {
+      "id": "unit_dronoid",
+      "name": "ドロノイド",
+      "desc": "支援ユニット。"
+    },
+    {
+      "id": "unit_guard",
+      "name": "センチネルガード",
+      "desc": "標準戦闘ユニット。"
+    },
+    {
+      "id": "unit_mecha",
+      "name": "モバイルアンビル",
+      "desc": "高度に装甲されたユニット。"
+    },
+    {
+      "id": "unit_sniper",
+      "name": "エリートスナイパー",
+      "desc": "超長距離だが脆弱な遠距離ユニット。"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "heal_on_ally_death",
+      "name": "共感ヒーラー",
+      "desc": "味方ユニットが死亡すると、別の味方が少し回復する。"
+    },
+    {
+      "id": "explode_on_ally_death",
+      "name": "不安定なコア",
+      "desc": "味方ユニットが死亡すると、敵に2ダメージを与える。"
+    },
+    {
+      "id": "heal_base_on_ally_death",
+      "name": "中央支援",
+      "desc": "味方ユニットが死亡すると、基地が少し回復する。"
+    },
+    {
+      "id": "condensor_boost",
+      "name": "凝縮装置強化",
+      "desc": "ヒドロニウム凝縮装置の生産量が+25%増加する。"
+    },
+    {
+      "id": "boost_decompiler",
+      "name": "逆解析ナノツール",
+      "desc": "構造分解機がサイクルごとに+1スクラップ回収する。"
+    },
+    {
+      "id": "refinery_boost",
+      "name": "精製所強化",
+      "desc": "ロジック精製所の生産量が+25%増加する。"
+    },
+    {
+      "id": "xeno_sample_periodic",
+      "name": "自動抽出",
+      "desc": "5秒ごとに、アクティブなリアクターまたは精製所ごとにゼノサンプルを+1獲得する。"
+    }
+  ],
+  "spells": [
+    {
+      "id": "emp_blast",
+      "name": "EMP衝撃波",
+      "desc": "範囲内の敵を一時的に無力化する。"
+    },
+    {
+      "id": "ion_storm",
+      "name": "イオンストーム",
+      "desc": "範囲内の全敵にダメージを与える。"
+    },
+    {
+      "id": "pulse_heal",
+      "name": "パルスヒール",
+      "desc": "範囲内の味方ユニットを回復する。"
+    },
+    {
+      "id": "regen_field",
+      "name": "再生フィールド",
+      "desc": "範囲内の味方を10秒間継続的に回復する。"
+    }
+  ],
+  "ui": {
+    "reward_choose_resources": "🔧 資源を選択",
+    "reward_choose_buildings": "🏗️ 建物を選択",
+    "reward_choose_artifact": "🧬 アーティファクトを選択",
+    "confirm_button": "[ 確定 ]",
+    "confirm_artifact_button": "[ 選択を確定 ]",
+    "upgrade_vision": "▲ 視界強化",
+    "upgrade_vision_title": "視界をアップグレード",
+    "current_level_text": "現在レベル: {level}",
+    "upgrade_cost_text": "コスト: {cost}演算ユニット",
+    "units_label": "ユニット:",
+    "rewards_label": "報酬:",
+    "resource_pack_label": "🔧 資源 (x{quantity})",
+    "building_pack_label": "🏗️ 建物",
+    "artifact_reward_label": "🧬 アーティファクト",
+    "base_destroyed_title": "💀 基地破壊\n敗北しました",
+    "restart_button": "[ 再スタート ]",
+    "time_speed_pause": "⏸️",
+    "time_speed_x1": "▶️ x1",
+    "time_speed_x3": "⚡ x3",
+    "time_speed_x5": "🔥 x5",
+    "base_hp": "耐久値",
+    "building_unknown": "不明な建物。",
+    "building_no_data": "データなし。",
+    "building_no_description": "説明がありません。",
+    "building_product_unit": "生産:\n {unit} (+{rate})",
+    "building_product_resource": "生産:\n {resource} (+{rate})",
+    "building_product_spell": "生産:\n ランダム技術プロトコル (魔法)",
+    "building_unit_cost": "ユニットコスト:\n {cost}",
+    "building_cycle": "サイクル:\n {seconds}秒",
+    "building_cost": "コスト：\n {cost}",
+    "building_cycle_consumption": "サイクルごとの消費:\n {cost}",
+    "building_no_unit_cost": "コストなし"
+  }
+}

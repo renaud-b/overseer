@@ -67,6 +67,8 @@ class Building {
 
         const totalBuildings = this.scene.buildingManager.buildings.filter(b => b.type === this.type).length;
         const maxUnits = data.unitCap * totalBuildings;
+        this.scene.unitCapMap[data.produces] = maxUnits;
+
         const currentUnits = this.scene.units[data.produces] || 0;
 
         if (currentUnits >= maxUnits) return;

@@ -5,8 +5,11 @@ class MainScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.json('gameData', 'assets/game_data.json');
-        this.load.json('spells', 'assets/spells.json');
+        this.load.json('gameStats', 'assets/game_stats.json');
+        const lang = window.selectedLanguage || 'en';
+        this.load.json('gameTexts', `assets/game_texts_${lang}.json`);
+
+
         this.load.image('droneSprite', 'assets/sprites/drone_01.png');
 
         // 🔽 Charge chaque icône de ressource
@@ -19,11 +22,42 @@ class MainScene extends Phaser.Scene {
         });
     }
 
+    mergeStatsAndTexts(stats, texts) {
+        const merged = {};
+
+        for (let category of Object.keys(stats)) {
+            merged[category] = stats[category].map(item => {
+                const textItem = (texts[category] || []).find(t => t.id === item.id);
+                if (!textItem) {
+                    console.warn(`⚠️ Texte manquant pour ${category}/${item.id}`);
+                }
+                return { ...item, ...(textItem || {}) };
+
+            });
+        }
+
+        // Fusion spéciale pour les textes d'interface (ui)
+        merged.ui = texts.ui || {};
+
+        return merged;
+    }
+
+    translate(key, replacements = {}) {
+        const text = this.gameData.ui[key] || key; // Si pas trouvé, retourne la clé brute
+
+        return Object.entries(replacements).reduce((acc, [k, v]) => {
+            return acc.replace(new RegExp(`{${k}}`, 'g'), v);
+        }, text);
+    }
+
     create() {
         this.globalGameTime = 0;
         this.timeScale = 1;
         this.tileSize = 100;
-        this.gameData = this.cache.json.get('gameData');
+
+        const stats = this.cache.json.get('gameStats');
+        const texts = this.cache.json.get('gameTexts');
+        this.gameData = this.mergeStatsAndTexts(stats, texts);
 
         this.resources = {};
         this.gameData.resources.forEach((r) => {
@@ -41,7 +75,7 @@ class MainScene extends Phaser.Scene {
         this.unitManager = new UnitManager(this, this.units)
         this.hud = new HUDManager(this, this.resources, this.units);
         this.buildingManager = new BuildingManager(this);
-        this.spellManager = new SpellManager(this, this.cache.json.get('spells'))
+        this.spellManager = new SpellManager(this, this.gameData.spells)
 
 
         this.gridWidth = 5;
@@ -116,7 +150,7 @@ class MainScene extends Phaser.Scene {
         this.spellManager.updateSpellCooldowns();
         this.zoneEffects.forEach(z => z.update(scaledDelta));
 
-        this.baseTarget.hpText.setText(`PV: ${Math.max(0, Math.floor(this.baseTarget.hp))}`);
+        this.baseTarget.hpText.setText(this.translate("base_hp")+`: ${Math.max(0, Math.floor(this.baseTarget.hp))}`);
         this.baseTarget.hpText.setFill(this.baseTarget.hp > 40 ? '#00ff00' : this.baseTarget.hp > 15 ? '#ffff00' : '#ff0000');
 
         if (this.baseTarget.hp <= 0 && !this.baseDestroyed) {
@@ -136,7 +170,7 @@ class MainScene extends Phaser.Scene {
             this.gameOverText = this.add.text(
                 this.scale.width / 2,
                 this.scale.height / 2 - 80,
-                "💀 BASE DÉTRUITE\nVous avez perdu",
+                this.translate('base_destroyed_title'),
                 {
                     fontSize: '32px',
                     fill: '#ffffff',
@@ -155,7 +189,7 @@ class MainScene extends Phaser.Scene {
                 .setInteractive()
                 .setDepth(1001);
 
-            this.restartText = this.add.text(btnX, btnY, "[ Recommencer ]", {
+            this.restartText = this.add.text(btnX, btnY, this.translate('restart_button'), {
                 fontSize: '20px',
                 fill: '#00ff00',
                 fontFamily: 'monospace'
@@ -190,7 +224,7 @@ class MainScene extends Phaser.Scene {
                         return `${name}: ${v}`;
                     })
                     .join(', ');
-                desc += `\nCoût:\n ${costText}`;
+                desc += this.translate("building_cost", {cost: costText});
             }
             return {
                 name: building.name || type,

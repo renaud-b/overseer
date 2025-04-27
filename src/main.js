@@ -3,7 +3,7 @@ const config = {
     width: window.innerWidth,
     height: window.innerHeight,
     backgroundColor: '#1d1d1d',
-    scene: MainScene,
+    scene: [LanguageSelectScene, MainScene],
     scale: {
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH

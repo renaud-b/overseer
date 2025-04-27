@@ -1,0 +1,273 @@
+{
+  "resources": [
+    {
+      "id": "hydronium",
+      "name": "Condensado de Hidronio",
+      "description": "Energía líquida extraída de la atmósfera. Utilizada para alimentar máquinas básicas."
+    },
+    {
+      "id": "scrap",
+      "name": "Chatarra Bruta",
+      "description": "Desechos o minerales extraídos del suelo. Usados para construcciones básicas."
+    },
+    {
+      "id": "alloy",
+      "name": "Aleación Estructurada",
+      "description": "Material reforzado derivado de la chatarra. Usado para unidades y edificios avanzados."
+    },
+    {
+      "id": "flux_crystal",
+      "name": "Cristales de Flujo",
+      "description": "Materiales exóticos que canalizan energía. Requeridos para módulos tecnológicos y hechizos."
+    },
+    {
+      "id": "ion_field",
+      "name": "Campo Iónico",
+      "description": "Reserva de energía transformada. Usado para activar módulos y visión."
+    },
+    {
+      "id": "bio_gel",
+      "name": "Gel Organo-Ácido",
+      "description": "Sustancia alienígena recolectada. Usada para módulos ofensivos híbridos."
+    },
+    {
+      "id": "compute_units",
+      "name": "Unidades de Cómputo",
+      "description": "Moneda interna de la base robótica. Usada para compras y mejoras."
+    },
+    {
+      "id": "xeno_sample",
+      "name": "Muestras Xeno",
+      "description": "Fragmentos de ADN alienígena. Permiten activar funciones mutagénicas."
+    }
+  ],
+  "buildings": [
+    {
+      "id": "condensor",
+      "name": "Condensador de Hidronio",
+      "desc": "Genera condensado para necesidades energéticas básicas."
+    },
+    {
+      "id": "scrap_mine",
+      "name": "Mina de Chatarra",
+      "desc": "Extrae minerales útiles para la construcción."
+    },
+    {
+      "id": "refinery",
+      "name": "Refinería Lógica",
+      "desc": "Convierte chatarra bruta en aleación estructurada."
+    },
+    {
+      "id": "reactor",
+      "name": "Núcleo de Fusión",
+      "desc": "Produce Campos Iónicos."
+    },
+    {
+      "id": "flux_catalyst",
+      "name": "Catalizador de Flujo",
+      "desc": "Genera un protocolo tecnológico aleatorio cada 20 segundos."
+    },
+    {
+      "id": "drone_bay",
+      "name": "Estación de Drones",
+      "desc": "Produce dronoides básicos."
+    },
+    {
+      "id": "decompiler",
+      "name": "Descompilador de Estructuras",
+      "desc": "Desmantela aleaciones avanzadas para recuperar chatarra."
+    },
+    {
+      "id": "ion_refinery",
+      "name": "Refinería de Iones",
+      "desc": "Convierte hidronio y chatarra en campos iónicos."
+    },
+    {
+      "id": "sniper_tower",
+      "name": "Torre de Francotirador",
+      "desc": "Produce unidades de largo alcance."
+    },
+    {
+      "id": "guard_bunker",
+      "name": "Búnker de Centinelas",
+      "desc": "Despliega unidades defensoras para proteger la base."
+    },
+    {
+      "id": "mecha_forge",
+      "name": "Forja Xeno-Mecánica",
+      "desc": "Ensambla unidades Ancla Móvil de estructura híbrida avanzada."
+    },
+    {
+      "id": "bio_cuve",
+      "name": "Biocuba Alfa",
+      "desc": "Sintetiza gel organo-ácido a partir de esporas atmosféricas."
+    },
+    {
+      "id": "quantum_compressor",
+      "name": "Compresor Cuántico",
+      "desc": "Condensa energía para producir Cristales de Flujo."
+    },
+    {
+      "id": "logic_cluster",
+      "name": "Clúster Lógico",
+      "desc": "Centraliza unidades de procesamiento para producir poder de cómputo."
+    },
+    {
+      "id": "supercluster",
+      "name": "Superclúster Lógico",
+      "desc": "Agrupa varios núcleos para maximizar Unidades de Cómputo."
+    },
+    {
+      "id": "xeno_extractor",
+      "name": "Extractor Xeno",
+      "desc": "Recolecta muestras genéticas de cadáveres alienígenas."
+    }
+  ],
+  "enemies": [
+    {
+      "id": "basic_monster",
+      "name": "Monstruo Básico",
+      "desc": "Un monstruo básico que aparece en las primeras oleadas."
+    },
+    {
+      "id": "ranged_monster",
+      "name": "Monstruo a Distancia Básico",
+      "desc": "Un monstruo básico que aparece en las primeras oleadas."
+    },
+    {
+      "id": "base_rusher",
+      "name": "Caparazón de Embestida",
+      "desc": "Ignora unidades aliadas y embiste directamente hacia la base."
+    },
+    {
+      "id": "stalker",
+      "name": "Acechador Orgánico",
+      "desc": "Invisible hasta su primer ataque."
+    },
+    {
+      "id": "mother_slime",
+      "name": "Slime Madre",
+      "desc": "Al morir, genera 2 pequeños slimes."
+    },
+    {
+      "id": "baby_slime",
+      "name": "Slime Bebé",
+      "desc": "Pequeño slime generado por fisión."
+    }
+  ],
+  "units": [
+    {
+      "id": "unit_dronoid",
+      "name": "Dronoide",
+      "desc": "Unidad de soporte."
+    },
+    {
+      "id": "unit_guard",
+      "name": "Guardián Centinela",
+      "desc": "Unidad de combate estándar."
+    },
+    {
+      "id": "unit_mecha",
+      "name": "Ancla Móvil",
+      "desc": "Unidad blindada avanzada."
+    },
+    {
+      "id": "unit_sniper",
+      "name": "Francotirador de Élite",
+      "desc": "Unidad de largo alcance pero frágil."
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "heal_on_ally_death",
+      "name": "Reparador Empático",
+      "desc": "Cuando una unidad muere, otra unidad aliada se cura ligeramente."
+    },
+    {
+      "id": "explode_on_ally_death",
+      "name": "Núcleo Inestable",
+      "desc": "Cuando una unidad muere, un enemigo recibe 2 de daño."
+    },
+    {
+      "id": "heal_base_on_ally_death",
+      "name": "Soporte Centralizado",
+      "desc": "Cuando una unidad muere, la base se cura ligeramente."
+    },
+    {
+      "id": "condensor_boost",
+      "name": "Mejora del Condensador",
+      "desc": "El Condensador de Hidronio produce +25% más."
+    },
+    {
+      "id": "boost_decompiler",
+      "name": "Nanoherramientas Inversoras",
+      "desc": "El Descompilador recupera +1 chatarra por ciclo."
+    },
+    {
+      "id": "refinery_boost",
+      "name": "Mejora de la Refinería",
+      "desc": "La Refinería Lógica produce +25% más."
+    },
+    {
+      "id": "xeno_sample_periodic",
+      "name": "Extracción Automática",
+      "desc": "Cada 5s, ganas 1 Muestra Xeno por reactor o refinería activa."
+    }
+  ],
+  "spells": [
+    {
+      "id": "emp_blast",
+      "name": "Explosión EMP",
+      "desc": "Neutraliza temporalmente a los enemigos en un área."
+    },
+    {
+      "id": "ion_storm",
+      "name": "Tormenta Iónica",
+      "desc": "Inflige daño a todos los enemigos en el área."
+    },
+    {
+      "id": "pulse_heal",
+      "name": "Pulso de Curación",
+      "desc": "Cura todas las unidades aliadas en un área."
+    },
+    {
+      "id": "regen_field",
+      "name": "Campo de Regeneración",
+      "desc": "Cura a los aliados dentro del área durante 10 segundos."
+    }
+  ],
+  "ui": {
+    "reward_choose_resources": "🔧 Elige tus recursos",
+    "reward_choose_buildings": "🏗️ Elige tus edificios",
+    "reward_choose_artifact": "🧬 Elige un artefacto",
+    "confirm_button": "[ Confirmar ]",
+    "confirm_artifact_button": "[ Confirmar elección ]",
+    "upgrade_vision": "▲ Visión",
+    "upgrade_vision_title": "Mejorar Visión",
+    "current_level_text": "Nivel actual: {level}",
+    "upgrade_cost_text": "Costo: {cost} unidades de cómputo",
+    "units_label": "Unidades:",
+    "rewards_label": "Recompensas:",
+    "resource_pack_label": "🔧 Recurso (x{quantity})",
+    "building_pack_label": "🏗️ Edificio",
+    "artifact_reward_label": "🧬 Artefacto",
+    "base_destroyed_title": "💀 BASE DESTRUIDA\nHas sido derrotado",
+    "restart_button": "[ Reiniciar ]",
+    "time_speed_pause": "⏸️",
+    "time_speed_x1": "▶️ x1",
+    "time_speed_x3": "⚡ x3",
+    "time_speed_x5": "🔥 x5",
+    "base_hp": "PV",
+    "building_unknown": "Edificio desconocido.",
+    "building_no_data": "Sin datos.",
+    "building_no_description": "Descripción no disponible.",
+    "building_product_unit": "Produce:\n {unit} (+{rate})",
+    "building_product_resource": "Produce:\n {resource} (+{rate})",
+    "building_product_spell": "Produce:\n Protocolo Tecnológico Aleatorio (hechizo)",
+    "building_unit_cost": "Costo por unidad:\n {cost}",
+    "building_cycle": "Ciclo:\n {seconds} seg",
+    "building_cost": "Costo:\n {cost}",
+    "building_cycle_consumption": "Consume por ciclo:\n {cost}",
+    "building_no_unit_cost": "Sin costo"
+  }
+}

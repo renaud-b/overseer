@@ -1,0 +1,274 @@
+{
+  "resources": [
+    {
+      "id": "hydronium",
+      "name": "Condensat d’Hydronium",
+      "description": "Énergie liquide extraite de l’atmosphère. Sert à alimenter les machines de base."
+    },
+    {
+      "id": "scrap",
+      "name": "Ferraille brute",
+      "description": "Débris ou minerais extraits du sol. Sert aux constructions de base."
+    },
+    {
+      "id": "alloy",
+      "name": "Alliage structuré",
+      "description": "Matériau renforcé issu de la ferraille. Utilisé pour les unités et bâtiments avancés."
+    },
+    {
+      "id": "flux_crystal",
+      "name": "Cristaux de flux",
+      "description": "Matériaux exotiques canalisant l'énergie. Nécessaires aux modules techno et sorts."
+    },
+    {
+      "id": "ion_field",
+      "name": "Champ d’ionisation",
+      "description": "Stock d'énergie transformée. Sert à activer modules et vision."
+    },
+    {
+      "id": "bio_gel",
+      "name": "Gel organo-acide",
+      "description": "Substance alien récoltée. Utilisée pour les modules hybrides offensifs."
+    },
+    {
+      "id": "compute_units",
+      "name": "Unités de calcul",
+      "description": "Devise interne de la base robotique. Sert aux achats et upgrades."
+    },
+    {
+      "id": "xeno_sample",
+      "name": "Échantillons xéno",
+      "description": "Fragments d’ADN alien. Permettent d'activer des fonctions mutagènes."
+    }
+  ],
+  "buildings": [
+    {
+      "id": "condensor",
+      "name": "Condenseur d’Hydronium",
+      "desc": "Génère du condensat pour l’usage énergétique de base."
+    },
+    {
+      "id": "scrap_mine",
+      "name": "Mine de Ferraille",
+      "desc": "Extrait des minerais utiles à la construction."
+    },
+    {
+      "id": "refinery",
+      "name": "Raffinerie logique",
+      "desc": "Convertit la ferraille brute en alliage structuré."
+    },
+    {
+      "id": "reactor",
+      "name": "Noyau de Fusion",
+      "desc": "Produit des Champs d’ionisation."
+    },
+    {
+      "id": "flux_catalyst",
+      "name": "Catalyseur de Flux",
+      "desc": "Produit un protocole technologique aléatoire toutes les 20 secondes."
+    },
+    {
+      "id": "drone_bay",
+      "name": "Station Drone",
+      "desc": "Produit des dronoïdes de base.\nProduit : Unité (+1 par cycle, Capacité: 3)"
+    },
+    {
+      "id": "decompiler",
+      "name": "Décompilateur de Structures",
+      "desc": "Démonte les alliages avancés pour récupérer de la ferraille brute."
+    },
+    {
+      "id": "ion_refinery",
+      "name": "Raffinerie d’Ions",
+      "desc": "Convertit du condensat d’hydronium et de la ferraille brute en champs d’ionisation."
+
+    },
+    {
+      "id": "sniper_tower",
+      "name": "Tour de Snipeur",
+      "desc": "Produit des unités à distance à longue portée."
+    },
+    {
+      "id": "guard_bunker",
+      "name": "Bunker de Sentinelles",
+      "desc": "Déploie des unités garde sentinelles pour défendre la base."
+
+    },{
+      "id": "mecha_forge",
+      "name": "Forge Xéno-Mécanique",
+      "desc": "Assemble des unités Enclume Mobile avec une structure hybride avancée."
+    },
+    {
+      "id": "bio_cuve",
+      "name": "Biocuve Alpha",
+      "desc": "Synthétise du gel organo-acide à partir de spores atmosphériques."
+    },
+    {
+      "id": "quantum_compressor",
+      "name": "Compresseur Quantique",
+      "desc": "Condense l’énergie pour produire des Cristaux de flux."
+    },
+    {
+      "id": "logic_cluster",
+      "name": "Cluster Logique",
+      "desc": "Centralise des unités de traitement pour produire de la puissance de calcul."
+    },
+    {
+      "id": "supercluster",
+      "name": "Supercluster Logique",
+      "desc": "Regroupe plusieurs noyaux pour maximiser les Unités de calcul."
+    },
+    {
+      "id": "xeno_extractor",
+      "name": "Extracteur Xéno",
+      "desc": "Récolte des échantillons génétiques sur les cadavres aliens."
+    }
+  ],
+  "enemies": [
+    {
+      "id": "basic_monster",
+      "name": "Monstre basique",
+      "desc": "Un monstre basique, présent dans les premieres vagues"
+    },
+    {
+      "id": "ranged_monster",
+      "name": "Monstre a distance basique",
+      "desc": "Un monstre basique, présent dans les premieres vagues"
+    },
+    {
+      "id": "base_rusher",
+      "name": "Carapace Percutante",
+      "desc": "Ignore les unités alliées et fonce vers la base pour l’écraser."
+    },
+    {
+      "id": "stalker",
+      "name": "Stalker Organique",
+      "desc": "Invisible jusqu’à sa première attaque."
+    },
+    {
+      "id": "mother_slime",
+      "name": "Slime-Mère",
+      "desc": "À sa mort, génère 2 petits slimes."
+    },
+    {
+      "id": "baby_slime",
+      "name": "Slime-Enfant",
+      "desc": "Petit slime issu d’une fission."
+    }
+  ],
+  "units": [
+    {
+      "id": "unit_dronoid",
+      "name": "Dronoid",
+      "desc": "Unité de support."
+    },
+    {
+      "id": "unit_guard",
+      "name": "Sentinelle Garde",
+      "desc": "Unité de combat standard."
+    },
+    {
+      "id": "unit_mecha",
+      "name": "Enclume Mobile",
+      "desc": "Unité blindée avancée."
+    },
+    {
+      "id": "unit_sniper",
+      "name": "Sniper Élite",
+      "desc": "Unité à distance à très longue portée mais fragile."
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "heal_on_ally_death",
+      "name": "Réparateur empathique",
+      "desc": "Quand une unité meurt, une autre alliée est soignée légèrement."
+    },
+    {
+      "id": "explode_on_ally_death",
+      "name": "Noyau instable",
+      "desc": "Quand une unité meurt, un ennemi subit 2 dégâts."
+    },
+    {
+      "id": "heal_base_on_ally_death",
+      "name": "Soutien centralisé",
+      "desc": "Quand une unité meurt, la base est soignée légèrement."
+    },
+    {
+      "id": "condensor_boost",
+      "name": "Amélioration du condenseur",
+      "desc": "Le Condenseur d’Hydronium produit +25%."
+    },
+    {
+      "id": "boost_decompiler",
+      "name": "Nano-Outils Réversifs",
+      "desc": "Le Décompilateur de Structures récupère +1 ferraille par cycle."
+    },
+    {
+      "id": "refinery_boost",
+      "name": "Amélioration de la Raffinerie",
+      "desc": "La Raffinerie logique produit +25%."
+    },
+    {
+      "id": "xeno_sample_periodic",
+      "name": "Extraction auto",
+      "desc": "Chaque 5s, gagne 1 Échantillons xéno par réacteur ou raffinerie activé."
+    }
+  ],
+  "spells": [
+    {
+      "id": "emp_blast",
+      "name": "Surtension EMP",
+      "desc": "Neutralise temporairement les ennemis dans une zone."
+    },
+    {
+      "id": "ion_storm",
+      "name": "Tempête Ionique",
+      "desc": "Inflige des dégâts à tous les ennemis dans la zone."
+    },
+    {
+      "id": "pulse_heal",
+      "name": "Soin pulsé",
+      "desc": "Soigne toutes les unités alliées dans une zone."
+    },
+    {
+      "id": "regen_field",
+      "name": "Zone régénérante",
+      "desc": "Soigne les alliés dans la zone pendant 10s."
+    }
+  ],
+  "ui": {
+    "reward_choose_resources": "🔧 Choisissez vos ressources",
+    "reward_choose_buildings": "🏗️ Choisissez vos bâtiments",
+    "reward_choose_artifact": "🧬 Choisissez un artefact",
+    "confirm_button": "[ Valider ]",
+    "confirm_artifact_button": "[ Valider votre choix ]",
+    "upgrade_vision": "▲ Vision",
+    "upgrade_vision_title": "Améliorer la Vision",
+    "current_level_text": "Niveau actuel : {level}",
+    "upgrade_cost_text": "Coût : {cost} unités de calcul",
+    "units_label": "Unités :",
+    "rewards_label": "Récompenses :",
+    "resource_pack_label": "🔧 Ressource (x{quantity})",
+    "building_pack_label": "🏗️ Bâtiment",
+    "artifact_reward_label": "🧬 Artefact",
+    "base_destroyed_title": "💀 BASE DÉTRUITE\nVous avez perdu",
+    "restart_button": "[ Recommencer ]",
+    "time_speed_pause": "⏸️",
+    "time_speed_x1": "▶️ x1",
+    "time_speed_x3": "⚡ x3",
+    "time_speed_x5": "🔥 x5",
+    "base_hp": "PV",
+    "building_unknown": "Bâtiment inconnu.",
+    "building_no_data": "Aucune donnée.",
+    "building_no_description": "Aucune description disponible.",
+    "building_product_unit": "Produit :\n {unit} (+{rate})",
+    "building_product_resource": "Produit :\n {resource} (+{rate})",
+    "building_product_spell": "Produit :\n Protocole technologique aléatoire (sort)",
+    "building_unit_cost": "Coût unitaire :\n {cost}",
+    "building_cycle": "Cycle :\n {seconds} sec",
+    "building_cost": "Coût :\n {cost}",
+    "building_cycle_consumption": "Consommation par cycle :\n {cost}",
+    "building_no_unit_cost": "Aucun coût"
+  }
+}

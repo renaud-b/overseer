@@ -35,7 +35,7 @@ class Card {
         scene.input.setDraggable(this.card);
 
         this.card.on('pointerover', () => {
-            const info = this.scene.getDescription(this.cardType);
+            const info = this.scene.buildingManager.getBuildingRuntimeInfo({ type: this.cardType });
             this.scene.hud.showInfoPanel(info.name, info.desc, this.card.x, this.card.y);
         });
         this.card.on('pointerout', () => {

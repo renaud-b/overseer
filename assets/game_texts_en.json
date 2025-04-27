@@ -1,0 +1,273 @@
+{
+  "resources": [
+    {
+      "id": "hydronium",
+      "name": "Hydronium Condensate",
+      "description": "Liquid energy extracted from the atmosphere. Used to power basic machines."
+    },
+    {
+      "id": "scrap",
+      "name": "Raw Scrap",
+      "description": "Debris or minerals extracted from the ground. Used for basic constructions."
+    },
+    {
+      "id": "alloy",
+      "name": "Structured Alloy",
+      "description": "Reinforced material derived from scrap. Used for advanced units and buildings."
+    },
+    {
+      "id": "flux_crystal",
+      "name": "Flux Crystals",
+      "description": "Exotic materials channeling energy. Required for tech modules and spells."
+    },
+    {
+      "id": "ion_field",
+      "name": "Ion Field",
+      "description": "Transformed energy stock. Used to activate modules and vision."
+    },
+    {
+      "id": "bio_gel",
+      "name": "Organo-Acid Gel",
+      "description": "Harvested alien substance. Used for offensive hybrid modules."
+    },
+    {
+      "id": "compute_units",
+      "name": "Compute Units",
+      "description": "Internal currency of the robotic base. Used for purchases and upgrades."
+    },
+    {
+      "id": "xeno_sample",
+      "name": "Xeno Samples",
+      "description": "Alien DNA fragments. Enable activation of mutagenic functions."
+    }
+  ],
+  "buildings": [
+    {
+      "id": "condensor",
+      "name": "Hydronium Condenser",
+      "desc": "Generates condensate for basic energy needs."
+    },
+    {
+      "id": "scrap_mine",
+      "name": "Scrap Mine",
+      "desc": "Extracts minerals useful for construction."
+    },
+    {
+      "id": "refinery",
+      "name": "Logic Refinery",
+      "desc": "Converts raw scrap into structured alloy."
+    },
+    {
+      "id": "reactor",
+      "name": "Fusion Core",
+      "desc": "Produces Ion Fields."
+    },
+    {
+      "id": "flux_catalyst",
+      "name": "Flux Catalyst",
+      "desc": "Generates a random technological protocol every 20 seconds."
+    },
+    {
+      "id": "drone_bay",
+      "name": "Drone Station",
+      "desc": "Produces basic dronoids.\nProduct: Unit (+1 per cycle, Capacity: 3)"
+    },
+    {
+      "id": "decompiler",
+      "name": "Structure Decompiler",
+      "desc": "Disassembles advanced alloys to recover raw scrap."
+    },
+    {
+      "id": "ion_refinery",
+      "name": "Ion Refinery",
+      "desc": "Converts hydronium condensate and raw scrap into ion fields."
+    },
+    {
+      "id": "sniper_tower",
+      "name": "Sniper Tower",
+      "desc": "Produces long-range ranged units."
+    },
+    {
+      "id": "guard_bunker",
+      "name": "Sentinel Bunker",
+      "desc": "Deploys sentinel guard units to defend the base."
+    },
+    {
+      "id": "mecha_forge",
+      "name": "Xeno-Mechanical Forge",
+      "desc": "Assembles Mobile Anvils with advanced hybrid structures."
+    },
+    {
+      "id": "bio_cuve",
+      "name": "Alpha Biocuve",
+      "desc": "Synthesizes organo-acid gel from atmospheric spores."
+    },
+    {
+      "id": "quantum_compressor",
+      "name": "Quantum Compressor",
+      "desc": "Condenses energy to produce Flux Crystals."
+    },
+    {
+      "id": "logic_cluster",
+      "name": "Logic Cluster",
+      "desc": "Centralizes processing units to produce computational power."
+    },
+    {
+      "id": "supercluster",
+      "name": "Logic Supercluster",
+      "desc": "Groups several cores to maximize Compute Units."
+    },
+    {
+      "id": "xeno_extractor",
+      "name": "Xeno Extractor",
+      "desc": "Harvests genetic samples from alien corpses."
+    }
+  ],
+  "enemies": [
+    {
+      "id": "basic_monster",
+      "name": "Basic Monster",
+      "desc": "A basic monster, appearing in the early waves."
+    },
+    {
+      "id": "ranged_monster",
+      "name": "Basic Ranged Monster",
+      "desc": "A basic monster, appearing in the early waves."
+    },
+    {
+      "id": "base_rusher",
+      "name": "Ramming Carapace",
+      "desc": "Ignores allied units and rushes toward the base to crush it."
+    },
+    {
+      "id": "stalker",
+      "name": "Organic Stalker",
+      "desc": "Invisible until its first attack."
+    },
+    {
+      "id": "mother_slime",
+      "name": "Mother Slime",
+      "desc": "Upon death, spawns 2 baby slimes."
+    },
+    {
+      "id": "baby_slime",
+      "name": "Baby Slime",
+      "desc": "Small slime spawned from a fission."
+    }
+  ],
+  "units": [
+    {
+      "id": "unit_dronoid",
+      "name": "Dronoid",
+      "desc": "Support unit."
+    },
+    {
+      "id": "unit_guard",
+      "name": "Sentinel Guard",
+      "desc": "Standard combat unit."
+    },
+    {
+      "id": "unit_mecha",
+      "name": "Mobile Anvil",
+      "desc": "Advanced armored unit."
+    },
+    {
+      "id": "unit_sniper",
+      "name": "Elite Sniper",
+      "desc": "Very long-range but fragile ranged unit."
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "heal_on_ally_death",
+      "name": "Empathic Repairer",
+      "desc": "When a unit dies, another allied unit is slightly healed."
+    },
+    {
+      "id": "explode_on_ally_death",
+      "name": "Unstable Core",
+      "desc": "When a unit dies, an enemy suffers 2 damage."
+    },
+    {
+      "id": "heal_base_on_ally_death",
+      "name": "Centralized Support",
+      "desc": "When a unit dies, the base is slightly healed."
+    },
+    {
+      "id": "condensor_boost",
+      "name": "Condenser Upgrade",
+      "desc": "The Hydronium Condenser produces +25% more."
+    },
+    {
+      "id": "boost_decompiler",
+      "name": "Reversal Nanotools",
+      "desc": "The Structure Decompiler recovers +1 scrap per cycle."
+    },
+    {
+      "id": "refinery_boost",
+      "name": "Refinery Upgrade",
+      "desc": "The Logic Refinery produces +25% more."
+    },
+    {
+      "id": "xeno_sample_periodic",
+      "name": "Auto-Extraction",
+      "desc": "Every 5s, gain 1 Xeno Sample per active reactor or refinery."
+    }
+  ],
+  "spells": [
+    {
+      "id": "emp_blast",
+      "name": "EMP Surge",
+      "desc": "Temporarily neutralizes enemies in an area."
+    },
+    {
+      "id": "ion_storm",
+      "name": "Ion Storm",
+      "desc": "Deals damage to all enemies in the area."
+    },
+    {
+      "id": "pulse_heal",
+      "name": "Pulse Heal",
+      "desc": "Heals all allied units in an area."
+    },
+    {
+      "id": "regen_field",
+      "name": "Regeneration Field",
+      "desc": "Heals allies within the area for 10 seconds."
+    }
+  ],
+  "ui": {
+    "reward_choose_resources": "🔧 Choose your resources",
+    "reward_choose_buildings": "🏗️ Choose your buildings",
+    "reward_choose_artifact": "🧬 Choose an artifact",
+    "confirm_button": "[ Confirm ]",
+    "confirm_artifact_button": "[ Confirm your choice ]",
+    "upgrade_vision": "▲ Vision",
+    "upgrade_vision_title": "Upgrade Vision",
+    "current_level_text": "Current level: {level}",
+    "upgrade_cost_text": "Cost: {cost} compute units",
+    "units_label": "Units:",
+    "rewards_label": "Rewards:",
+    "resource_pack_label": "🔧 Resource (x{quantity})",
+    "building_pack_label": "🏗️ Building",
+    "artifact_reward_label": "🧬 Artifact",
+    "base_destroyed_title": "💀 BASE DESTROYED\nYou have been defeated",
+    "restart_button": "[ Restart ]",
+    "time_speed_pause": "⏸️",
+    "time_speed_x1": "▶️ x1",
+    "time_speed_x3": "⚡ x3",
+    "time_speed_x5": "🔥 x5",
+    "base_hp": "HP",
+    "building_unknown": "Unknown building.",
+    "building_no_data": "No data.",
+    "building_no_description": "No description available.",
+    "building_product_unit": "Produces:\n {unit} (+{rate})",
+    "building_product_resource": "Produces:\n {resource} (+{rate})",
+    "building_product_spell": "Produces:\n Random Tech Protocol (spell)",
+    "building_unit_cost": "Unit Cost:\n {cost}",
+    "building_cycle": "Cycle:\n {seconds} sec",
+    "building_cost": "Cost :\n {cost}",
+    "building_cycle_consumption": "Consumes per cycle:\n {cost}",
+    "building_no_unit_cost": "No cost"
+  }
+}
