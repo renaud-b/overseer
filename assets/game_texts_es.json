@@ -268,6 +268,25 @@
     "building_cycle": "Ciclo:\n {seconds} seg",
     "building_cost": "Costo:\n {cost}",
     "building_cycle_consumption": "Consume por ciclo:\n {cost}",
-    "building_no_unit_cost": "Sin costo"
+    "building_no_unit_cost": "Sin costo",
+    "overseer_core_title": "🧠 Núcleo Overseer",
+    "restart_game_button": "[ Reiniciar partida ]",
+    "reset_overseer_core_button": "[ Reiniciar Núcleo Overseer ]",
+    "memory_shards_label": "Fragmentos de Memoria: {count}",
+    "talent_cost_text": "🧬 Costo: {cost} Fragmentos",
+    "talent_unlocked_text": "✅ Desbloqueado",
+    "talent_root_label": "Acceso al Núcleo",
+    "talent_root_description": "Punto de partida de tu Overseer.",
+    "talent_starter_drone_label": "Dron Inicial",
+    "talent_starter_drone_description": "Comienza con un dron aliado listo para defender la base.",
+    "talent_vision_boost_label": "Mejora de Visión",
+    "talent_vision_boost_description": "Empieza con +1 casilla de visión activa.",
+    "talent_resource_node_scanner_label": "Escáner de Recursos",
+    "talent_resource_node_scanner_description": "Detecta casillas especiales que aumentan la producción si se construye encima.",
+    "talent_artifact_scanner_label": "Escáner de Artefactos",
+    "talent_artifact_scanner_description": "Aumenta tus posibilidades de encontrar artefactos tras cada oleada.",
+    "talent_starter_spell_building_label": "Catalizador Inicial",
+    "talent_starter_spell_building_description": "Empieza la partida con una carta de Catalizador de Flujo."
+
   }
 }

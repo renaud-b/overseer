@@ -269,6 +269,25 @@
     "building_cycle": "Cycle :\n {seconds} sec",
     "building_cost": "Coût :\n {cost}",
     "building_cycle_consumption": "Consommation par cycle :\n {cost}",
-    "building_no_unit_cost": "Aucun coût"
+    "building_no_unit_cost": "Aucun coût",
+    "overseer_core_title": "🧠 Noyau Overseer",
+    "restart_game_button": "[ Relancer une partie ]",
+    "reset_overseer_core_button": "[ Réinitialiser le Noyau ]",
+    "memory_shards_label": "Fractales de Mémoire : {count}",
+    "talent_cost_text": "🧬 Coût : {cost} Fractales",
+    "talent_unlocked_text": "✅ Débloqué",
+    "talent_root_label": "Accès au Noyau",
+    "talent_root_description": "Point de départ de votre Overseer.",
+    "talent_starter_drone_label": "Drone de départ",
+    "talent_starter_drone_description": "Commencez avec un drone allié prêt à défendre la base.",
+    "talent_vision_boost_label": "Amélioration de la Vision",
+    "talent_vision_boost_description": "Commencez avec +1 tuile de vision active.",
+    "talent_resource_node_scanner_label": "Scanner de ressources",
+    "talent_resource_node_scanner_description": "Permet de détecter des nœuds de ressources spéciaux augmentant la production.",
+    "talent_artifact_scanner_label": "Scanner d’artefacts",
+    "talent_artifact_scanner_description": "Augmente vos chances d’obtenir des artefacts après chaque vague.",
+    "talent_starter_spell_building_label": "Catalyseur initial",
+    "talent_starter_spell_building_description": "Commencez la partie avec une carte de Catalyseur de Flux."
+
   }
 }

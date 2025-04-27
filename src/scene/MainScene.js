@@ -117,6 +117,11 @@ class MainScene extends Phaser.Scene {
             this.unitManager.addUnit('unit_dronoid', 1);
         }
 
+        if (this.isTalentUnlocked('starter_spell_building')) {
+            console.log("Talent débloqué : Catalyseur initial");
+            this.buildingManager.addCardById('flux_catalyst');
+        }
+
         this.baseTarget = this.add.rectangle(
             this.playerSpawnCircle.x-50,
             this.playerSpawnCircle.y,

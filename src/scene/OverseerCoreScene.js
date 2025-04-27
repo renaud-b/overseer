@@ -1,19 +1,35 @@
 const talentTree = [
-    { id: 'root', label: 'Core Access', x: 400, y: 100, cost: 0, unlocked: true, description: 'Point de départ.' },
-    { id: 'starter_drone', label: 'Starter Drone', x: 250, y: 250, cost: 5, parent: 'root', description: 'Commencer avec un drone.' },
-    { id: 'vision_boost', label: 'Vision Boost', x: 550, y: 250, cost: 8, parent: 'root', description: 'Vision +1 tuile au départ.' },
-    { id: 'resource_node_scanner', label: 'Resource Node Scanner', x: 350, y: 400, cost: 10, parent: 'vision_boost', description: 'Ajoute une tuile spéciale qui booste la production si construite dessus.' },
-    { id: 'artifact_scanner', label: 'Artifact Scanner', x: 550, y: 400, cost: 12, parent: 'vision_boost', description: 'Augmente la chance d’obtenir un artefact après une vague.' }
+    { id: 'root', x: 400, y: 100, cost: 0, unlocked: true },
+    { id: 'starter_drone', parent: 'root', x: 250, y: 250, cost: 5 },
+    { id: 'starter_spell_building', label: '', description: '', x: 150, y: 400, cost: 8, parent: 'starter_drone' },
+    { id: 'vision_boost', parent: 'root', x: 550, y: 250, cost: 8 },
+    { id: 'resource_node_scanner', parent: 'vision_boost', x: 350, y: 400, cost: 10 },
+    { id: 'artifact_scanner', parent: 'vision_boost', x: 550, y: 400, cost: 12 },
+
 ];
+
 
 class OverseerCoreScene extends Phaser.Scene {
     constructor() {
         super('OverseerCoreScene');
     }
 
-    preload() {}
+    preload() {
+        const lang = window.selectedLanguage || 'en';
+        console.log(lang)
+        this.load.json('gameTexts', `assets/game_texts_${lang}.json`);
+    }
+
+    translate(key, replacements = {}) {
+        const text = this.gameTexts?.ui?.[key] || key;
+        return Object.entries(replacements).reduce((acc, [k, v]) => {
+            return acc.replace(new RegExp(`{${k}}`, 'g'), v);
+        }, text);
+    }
+
 
     create() {
+        this.gameTexts = this.cache.json.get('gameTexts');
         this.memoryShards = parseInt(localStorage.getItem('memoryShards') || '0');
         this.unlockedTalents = JSON.parse(localStorage.getItem('unlockedTalents') || '["root"]');
 
@@ -45,7 +61,7 @@ class OverseerCoreScene extends Phaser.Scene {
             .setOrigin(0.5)
             .setInteractive();
 
-        const buttonText = this.add.text(centerX, btnY, '[ Réinitialiser l\'Overseer Core ]', {
+        const buttonText = this.add.text(centerX, btnY, this.translate('reset_overseer_core_button'), {
             fontSize: '18px',
             fill: '#ff4444',
             fontFamily: 'monospace'
@@ -67,7 +83,7 @@ class OverseerCoreScene extends Phaser.Scene {
     }
 
     createBackground() {
-        this.add.text(this.centerX, 30, '🧠 Overseer Core', {
+        this.add.text(this.centerX, 30, this.translate('overseer_core_title'), {
             fontSize: '32px',
             fill: '#00ffcc',
             fontFamily: 'monospace'
@@ -83,7 +99,7 @@ class OverseerCoreScene extends Phaser.Scene {
             .setOrigin(0.5)
             .setInteractive();
 
-        const buttonText = this.add.text(centerX, btnY, '[ Relancer une partie ]', {
+        const buttonText = this.add.text(centerX, btnY, this.translate('restart_game_button'), {
             fontSize: '20px',
             fill: '#00ff00',
             fontFamily: 'monospace'
@@ -105,7 +121,7 @@ class OverseerCoreScene extends Phaser.Scene {
 
 
     createShardDisplay() {
-        this.shardText = this.add.text(20, 20, `Memory Shards: ${this.memoryShards}`, {
+        this.shardText = this.add.text(20, 20, this.translate('memory_shards_label', {count: this.memoryShards}), {
             fontSize: '20px',
             fill: '#ffffff',
             fontFamily: 'monospace'
@@ -181,7 +197,7 @@ class OverseerCoreScene extends Phaser.Scene {
             const label = this.add.text(
                 talent.x + this.treeOffset.x,
                 talent.y + this.treeOffset.y + 40,
-                talent.label,
+                this.translate(`talent_${talent.id}_label`),
                 {
                     fontSize: '14px',
                     fill: '#ffffff',
@@ -202,11 +218,11 @@ class OverseerCoreScene extends Phaser.Scene {
         const padding = 20;
         const maxWidth = 350;
 
-        let infoString = `${talent.label}\n\n${talent.description}`;
+        let infoString = `${this.translate(`talent_${talent.id}_label`)}\n\n${this.translate(`talent_${talent.id}_description`)}\n\n`;
         if (!this.unlockedTalents.includes(talent.id)) {
-            infoString += `\n\n🧬 Coût: ${talent.cost} Shards`;
+            infoString += this.translate('talent_cost_text', {cost: talent.cost});
         } else {
-            infoString += `\n\n✅ Débloqué`;
+            infoString += this.translate('talent_unlocked_text');
         }
 
         // Crée le texte

@@ -268,6 +268,24 @@
     "building_cycle": "サイクル:\n {seconds}秒",
     "building_cost": "コスト：\n {cost}",
     "building_cycle_consumption": "サイクルごとの消費:\n {cost}",
-    "building_no_unit_cost": "コストなし"
+    "building_no_unit_cost": "コストなし",
+    "overseer_core_title": "🧠 オーバーシアコア",
+    "restart_game_button": "[ ゲームを再スタート ]",
+    "reset_overseer_core_button": "[ オーバーシアコアをリセット ]",
+    "memory_shards_label": "メモリーシャード: {count}",
+    "talent_cost_text": "🧬 コスト: {cost} シャード",
+    "talent_unlocked_text": "✅ 解放済み",
+    "talent_root_label": "コアアクセス",
+    "talent_root_description": "オーバーシアの出発点。",
+    "talent_starter_drone_label": "スタートドローン",
+    "talent_starter_drone_description": "味方ドローン1体を所持してスタートします。",
+    "talent_vision_boost_label": "ビジョン強化",
+    "talent_vision_boost_description": "開始時に+1タイル分の視界を得ます。",
+    "talent_resource_node_scanner_label": "リソースノードスキャナー",
+    "talent_resource_node_scanner_description": "特別な生産ブーストタイルを検出します。",
+    "talent_artifact_scanner_label": "アーティファクトスキャナー",
+    "talent_artifact_scanner_description": "ウェーブ終了後にアーティファクトを得る確率が上がります。",
+    "talent_starter_spell_building_label": "初期カタリスト",
+    "talent_starter_spell_building_description": "ゲーム開始時にフラックスカタリストの建物カードを持つ。"
   }
 }
