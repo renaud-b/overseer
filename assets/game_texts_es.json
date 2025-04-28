@@ -277,6 +277,8 @@
     "talent_unlocked_text": "✅ Desbloqueado",
     "talent_root_label": "Acceso al Núcleo",
     "talent_root_description": "Punto de partida de tu Overseer.",
+    "talent_starter_base_hp_label": "Base reforzada",
+    "talent_starter_base_hp_description": "Comienza la partida con 20 puntos de vida extra para la base.",
     "talent_starter_drone_label": "Dron Inicial",
     "talent_starter_drone_description": "Comienza con un dron aliado listo para defender la base.",
     "talent_vision_boost_label": "Mejora de Visión",
@@ -286,7 +288,10 @@
     "talent_artifact_scanner_label": "Escáner de Artefactos",
     "talent_artifact_scanner_description": "Aumenta tus posibilidades de encontrar artefactos tras cada oleada.",
     "talent_starter_spell_building_label": "Catalizador Inicial",
-    "talent_starter_spell_building_description": "Empieza la partida con una carta de Catalizador de Flujo."
-
+    "talent_starter_spell_building_description": "Empieza la partida con una carta de Catalizador de Flujo.",
+    "choose_next_waves_title": "🌌 Elige tus próximas oleadas",
+    "wave_choice_easy": "🌿 Fácil",
+    "wave_choice_medium": "⚔️ Medio",
+    "wave_choice_hard": "🔥 Difícil"
   }
 }

@@ -214,10 +214,13 @@ class HUDManager {
     }
 
 
-    showRewardPopupWithChoices(rewards) {
+    showRewardPopupWithChoices(rewards, onAllRewardsChosen = () => {}) {
         const resourcePacks = rewards.packs.filter(p => p.type === 'resource');
         const buildingPacks = rewards.packs.filter(p => p.type === 'building');
 
+        const restoreTimeScale = () => {
+            this.scene.setTimeScale(this.lastTimeScale);
+        }
         const showBuildingAndArtifactIfNeed = () => {
             if(buildingPacks.length > 0){
                 this.showRewardPackSelection(buildingPacks, 'building', (buildingChoices) => {
@@ -228,14 +231,14 @@ class HUDManager {
                     if (rewards.artifactReward) {
                         this.showArtifactChoicePopup(rewards.artifactReward);
                     } else {
-                        this.scene.setTimeScale(this.lastTimeScale);
+                        onAllRewardsChosen(restoreTimeScale);
                     }
                 });
             } else {
                 if (rewards.artifactReward) {
                     this.showArtifactChoicePopup(rewards.artifactReward);
                 } else {
-                    this.scene.setTimeScale(this.lastTimeScale);
+                    onAllRewardsChosen(restoreTimeScale);
                 }
             }
         }
@@ -470,6 +473,106 @@ class HUDManager {
         }).setDepth(1001);
     }
 
+
+    showWaveDraftPopup(choices) {
+        this.lastTimeScale = this.scene.timeScale;
+        this.scene.setTimeScale(0);
+
+        const overlay = this.scene.add.rectangle(
+            0, 0,
+            this.scene.scale.width,
+            this.scene.scale.height,
+            0x000000, 0.6
+        ).setOrigin(0).setDepth(400);
+
+        const panel = this.scene.add.rectangle(
+            this.scene.scale.width / 2,
+            this.scene.scale.height / 2,
+            700, 500,
+            0x222222, 0.95
+        ).setStrokeStyle(3, 0xffffff).setDepth(401);
+
+        const title = this.scene.add.text(
+            panel.x,
+            panel.y - 210,
+            this.scene.translate('choose_next_waves_title') || '🌌 Choisissez les prochaines vagues',
+            {
+                fontSize: '24px',
+                fill: '#ffffff',
+                fontFamily: 'monospace'
+            }
+        ).setOrigin(0.5).setDepth(402);
+
+        let selectedChoiceIndex = null;
+
+        const buttons = [];
+
+        choices.forEach((choice, i) => {
+            const x = panel.x - 200 + i * 200;
+            const y = panel.y;
+
+            const btn = this.scene.add.rectangle(x, y, 180, 350, 0x444444)
+                .setStrokeStyle(2, 0xffffff)
+                .setInteractive()
+                .setDepth(403);
+
+            const txt = this.scene.add.text(x, y - 150, choice.label, {
+                fontSize: '18px',
+                fill: '#ffff00',
+                fontFamily: 'monospace'
+            }).setOrigin(0.5).setDepth(404);
+
+            let content = choice.waves.map((comp, idx) => {
+                const enemies = Object.entries(comp).map(([id, count]) => `${id} x${count}`).join('\n');
+                return `🌊 Vague ${idx + 1}\n${enemies}`;
+            }).join('\n\n');
+
+            const detailText = this.scene.add.text(x, y, content, {
+                fontSize: '12px',
+                fill: '#ffffff',
+                fontFamily: 'monospace',
+                align: 'center',
+                wordWrap: { width: 160 }
+            }).setOrigin(0.5).setDepth(404);
+
+            btn.on('pointerdown', () => {
+                selectedChoiceIndex = i;
+                buttons.forEach(b => b.btn.setFillStyle(0x444444));
+                btn.setFillStyle(0x888888);
+            });
+
+            buttons.push({ btn, txt, detailText });
+        });
+
+        const confirmBtn = this.scene.add.text(panel.x, panel.y + 220, this.scene.translate('confirm_button') || '[ Valider ]', {
+            fontSize: '20px',
+            fill: '#00ff00',
+            fontFamily: 'monospace'
+        }).setOrigin(0.5).setInteractive().setDepth(405);
+
+        confirmBtn.on('pointerdown', () => {
+            if (selectedChoiceIndex === null) return;
+
+            const chosen = choices[selectedChoiceIndex];
+            chosen.waves.forEach(waveComp => {
+                const delay = Phaser.Math.Between(10000, 20000); // 10-20s entre chaque vague
+                const when = this.scene.globalGameTime + delay;
+
+                const waveId = this.scene.waveManager.currentWaveId++;
+                this.scene.waveManager.waves[waveId] = { alive: -1, composition: waveComp, rewards: this.scene.waveManager.generateWaveRewards(this.scene.waveManager.waveNumber) };
+
+                this.scene.waveManager.scheduledWaves.push({ time: when, waveId });
+                this.scene.timeline.addFlag(0, waveComp, null, waveId);
+
+                console.log(`✅ Nouvelle vague planifiée (draft) id=${waveId}`);
+            });
+
+            // Nettoyage
+            [overlay, panel, title, confirmBtn, ...buttons.flatMap(b => [b.btn, b.txt, b.detailText])].forEach(o => o.destroy());
+
+            this.scene.setTimeScale(this.lastTimeScale);
+        });
+    }
 
 
 

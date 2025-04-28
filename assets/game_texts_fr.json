@@ -279,6 +279,8 @@
     "talent_root_label": "Accès au Noyau",
     "talent_root_description": "Point de départ de votre Overseer.",
     "talent_starter_drone_label": "Drone de départ",
+    "talent_starter_base_hp_label": "Base renforcée",
+    "talent_starter_base_hp_description": "Commencez la partie avec 20 PV supplémentaires pour la base.",
     "talent_starter_drone_description": "Commencez avec un drone allié prêt à défendre la base.",
     "talent_vision_boost_label": "Amélioration de la Vision",
     "talent_vision_boost_description": "Commencez avec +1 tuile de vision active.",
@@ -287,7 +289,10 @@
     "talent_artifact_scanner_label": "Scanner d’artefacts",
     "talent_artifact_scanner_description": "Augmente vos chances d’obtenir des artefacts après chaque vague.",
     "talent_starter_spell_building_label": "Catalyseur initial",
-    "talent_starter_spell_building_description": "Commencez la partie avec une carte de Catalyseur de Flux."
-
+    "talent_starter_spell_building_description": "Commencez la partie avec une carte de Catalyseur de Flux.",
+    "choose_next_waves_title": "🌌 Choisissez vos prochaines vagues",
+    "wave_choice_easy": "🌿 Facile",
+    "wave_choice_medium": "⚔️ Moyen",
+    "wave_choice_hard": "🔥 Difficile"
   }
 }

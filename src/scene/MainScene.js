@@ -122,6 +122,12 @@ class MainScene extends Phaser.Scene {
             this.buildingManager.addCardById('flux_catalyst');
         }
 
+
+        let baseHp = 100;
+        if (this.isTalentUnlocked('starter_base_hp')) {
+            baseHp += 20;
+        }
+
         this.baseTarget = this.add.rectangle(
             this.playerSpawnCircle.x-50,
             this.playerSpawnCircle.y,
@@ -130,10 +136,11 @@ class MainScene extends Phaser.Scene {
             0.2
         ).setStrokeStyle(2, 0x00ff00).setDepth(3);
 
+
         this.baseTarget.hpText = this.add.text(
             this.baseTarget.x,
             this.baseTarget.y - 45,
-            `PV: ${this.baseTarget.hp}`,
+            `PV: ${baseHp}`,
             {
                 fontSize: '16px',
                 fill: '#00ff00',
@@ -141,8 +148,8 @@ class MainScene extends Phaser.Scene {
             }
         ).setOrigin(0.5).setDepth(10);
 
-        this.baseTarget.hp = 100;
-        this.baseTarget.maxHp = 100;
+        this.baseTarget.hp = baseHp;
+        this.baseTarget.maxHp = baseHp;
 
         this.timeline = new Timeline(this);
         this.waveManager = new WaveManager(this)

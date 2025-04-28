@@ -277,6 +277,8 @@
     "talent_unlocked_text": "✅ Unlocked",
     "talent_root_label": "Core Access",
     "talent_root_description": "Starting point of your Overseer.",
+    "talent_starter_base_hp_label": "Reinforced Base",
+    "talent_starter_base_hp_description": "Start the game with 20 extra HP for the base.",
     "talent_starter_drone_label": "Starter Drone",
     "talent_starter_drone_description": "Begin with a friendly drone ready to defend the base.",
     "talent_vision_boost_label": "Vision Boost",
@@ -286,7 +288,10 @@
     "talent_artifact_scanner_label": "Artifact Scanner",
     "talent_artifact_scanner_description": "Increases your chances to find artifacts after each wave.",
     "talent_starter_spell_building_label": "Starter Catalyst",
-    "talent_starter_spell_building_description": "Start the game with a Flux Catalyst building card."
-
+    "talent_starter_spell_building_description": "Start the game with a Flux Catalyst building card.",
+    "choose_next_waves_title": "🌌 Choose your next waves",
+    "wave_choice_easy": "🌿 Easy",
+    "wave_choice_medium": "⚔️ Medium",
+    "wave_choice_hard": "🔥 Hard"
   }
 }

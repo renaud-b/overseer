@@ -110,8 +110,60 @@ class WaveManager {
         console.log(`✅ Vague #${waveId} vaincue !`);
 
         const rewards = this.waves[waveId]?.rewards || this.generateWaveRewards(this.waveNumber);
-        this.scene.hud.showRewardPopupWithChoices(rewards);
+
+        this.scene.hud.showRewardPopupWithChoices(rewards, (restoreTimeScale) => {
+            // ➡️ Quand toutes les récompenses sont choisies et confirmées :
+            this.proposeWaveDraft();
+            restoreTimeScale()
+        });
     }
+
+    proposeWaveDraft() {
+        const generateComposition = (levelBias) => {
+            const originalLevels = [[1, 80], [2, 20], [3, 0], [4, 0]];
+            const harderLevels = [[1, 40], [2, 40], [3, 20], [4, 0]];
+            const hardestLevels = [[2, 30], [3, 50], [4, 20]];
+
+            const chances = levelBias === 'easy' ? originalLevels
+                : levelBias === 'medium' ? harderLevels
+                    : hardestLevels;
+
+            const weighted = [];
+            chances.forEach(([lvl, chance]) => {
+                for (let i = 0; i < chance; i++) weighted.push(lvl);
+            });
+
+            const composition = {};
+            const baseCount = Phaser.Math.Between(3, 6);
+            for (let i = 0; i < baseCount; i++) {
+                const lvl = Phaser.Utils.Array.GetRandom(weighted);
+                const pool = this.scene.gameData.enemies.filter(e => e.level === lvl);
+                const enemy = Phaser.Utils.Array.GetRandom(pool);
+                if (enemy) {
+                    composition[enemy.id] = (composition[enemy.id] || 0) + 1;
+                }
+            }
+            return composition;
+        };
+
+        const choices = [
+            {
+                label: this.scene.translate('wave_choice_easy') || '🌿 Facile',
+                waves: [generateComposition('easy'), generateComposition('easy')]
+            },
+            {
+                label: this.scene.translate('wave_choice_medium') || '⚔️ Moyen',
+                waves: [generateComposition('medium'), generateComposition('medium')]
+            },
+            {
+                label: this.scene.translate('wave_choice_hard') || '🔥 Difficile',
+                waves: [generateComposition('hard'), generateComposition('hard')]
+            }
+        ];
+
+        this.scene.hud.showWaveDraftPopup(choices);
+    }
+
 
 
     generateWaveRewards(waveNumber = 1, maxPacks = 2) {

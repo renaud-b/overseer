@@ -1,11 +1,11 @@
 const talentTree = [
     { id: 'root', x: 400, y: 100, cost: 0, unlocked: true },
-    { id: 'starter_drone', parent: 'root', x: 250, y: 250, cost: 5 },
-    { id: 'starter_spell_building', label: '', description: '', x: 150, y: 400, cost: 8, parent: 'starter_drone' },
+    { id: 'starter_base_hp', parent: 'root', x: 400, y: 250, cost: 5 },
+    { id: 'starter_drone', parent: 'starter_base_hp', x: 300, y: 400, cost: 5 },
+    { id: 'starter_spell_building', parent: 'starter_drone', x: 200, y: 550, cost: 8 },
     { id: 'vision_boost', parent: 'root', x: 550, y: 250, cost: 8 },
-    { id: 'resource_node_scanner', parent: 'vision_boost', x: 350, y: 400, cost: 10 },
-    { id: 'artifact_scanner', parent: 'vision_boost', x: 550, y: 400, cost: 12 },
-
+    { id: 'resource_node_scanner', parent: 'vision_boost', x: 450, y: 400, cost: 10 },
+    { id: 'artifact_scanner', parent: 'vision_boost', x: 650, y: 400, cost: 12 },
 ];
 
 

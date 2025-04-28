@@ -277,6 +277,8 @@
     "talent_unlocked_text": "✅ 解放済み",
     "talent_root_label": "コアアクセス",
     "talent_root_description": "オーバーシアの出発点。",
+    "talent_starter_base_hp_label": "強化された基地",
+    "talent_starter_base_hp_description": "ゲーム開始時に基地のHPが20ポイント増加します。",
     "talent_starter_drone_label": "スタートドローン",
     "talent_starter_drone_description": "味方ドローン1体を所持してスタートします。",
     "talent_vision_boost_label": "ビジョン強化",
@@ -286,6 +288,10 @@
     "talent_artifact_scanner_label": "アーティファクトスキャナー",
     "talent_artifact_scanner_description": "ウェーブ終了後にアーティファクトを得る確率が上がります。",
     "talent_starter_spell_building_label": "初期カタリスト",
-    "talent_starter_spell_building_description": "ゲーム開始時にフラックスカタリストの建物カードを持つ。"
+    "talent_starter_spell_building_description": "ゲーム開始時にフラックスカタリストの建物カードを持つ。",
+    "choose_next_waves_title": "🌌 次のウェーブを選択してください",
+    "wave_choice_easy": "🌿 簡単",
+    "wave_choice_medium": "⚔️ 普通",
+    "wave_choice_hard": "🔥 難しい"
   }
 }
