@@ -6,6 +6,7 @@ class WaveManager {
         this.waves = {};
         this.waveNumber = 0;
         this.scheduledWaves = [];
+        this.selectedWaves  = [];
     }
 
     update(enemyUnits){
@@ -40,7 +41,13 @@ class WaveManager {
         const when = this.scene.globalGameTime + (forcedDelay !== undefined ? forcedDelay : delay);
 
         const waveId = this.currentWaveId++;
-        const composition = this.generateWaveComposition(this.waveNumber);
+        let composition = null
+        if(this.selectedWaves.length > 0){
+            composition = this.selectedWaves.shift();
+        } else {
+            composition = this.generateWaveComposition(this.waveNumber);
+        }
+
         const rewards = this.generateWaveRewards(this.waveNumber);
 
         // Préparer une entrée pour cette vague
@@ -80,7 +87,7 @@ class WaveManager {
         } else if (waveNumber < 15) {
             levelChances.push([1, 65], [2, 25], [3, 10]);
         } else {
-            levelChances.push([1, 45], [2, 30], [3, 20], [4, 5]); // tu pourras ajouter les lvl 4+
+            levelChances.push([1, 45], [2, 30], [3, 20], [4, 5]);
         }
 
         // Création du tableau de choix pondéré

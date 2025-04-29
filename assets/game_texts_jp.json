@@ -292,6 +292,57 @@
     "choose_next_waves_title": "🌌 次のウェーブを選択してください",
     "wave_choice_easy": "🌿 簡単",
     "wave_choice_medium": "⚔️ 普通",
-    "wave_choice_hard": "🔥 難しい"
+    "wave_choice_hard": "🔥 難しい",
+    "tab_foundations": "基礎",
+    "tab_architecture": "構造",
+    "tab_evolution": "進化",
+    "tab_ascension": "昇華",
+    "talent_starter_guard_label": "ガードステーション",
+    "talent_starter_guard_description": "開始時に追加のガードユニットを配備します。",
+
+    "talent_vision_mastery_label": "視界マスタリー",
+    "talent_vision_mastery_description": "視界範囲が大幅に拡大します。",
+
+    "talent_starter_economy_label": "最適化された経済",
+    "talent_starter_economy_description": "初期の資源生産量を増加させます。",
+
+    "talent_extra_scrap_label": "スクラップ採掘",
+    "talent_extra_scrap_description": "基本的なスクラップ回収速度が上昇します。",
+
+    "talent_extra_alloy_label": "合金抽出",
+    "talent_extra_alloy_description": "合金の生産量を強化します。",
+
+    "talent_starter_tech_label": "先進プロトコル",
+    "talent_starter_tech_description": "ゲーム開始時にテクノロジービルディングをアンロックします。",
+
+    "talent_spell_charge_boost_label": "スペルチャージ最適化",
+    "talent_spell_charge_boost_description": "呪文のクールダウン時間を25%短縮し、建物による呪文生成も加速します。",
+
+    "talent_adjacency_bonus_scrap_label": "スクラップ鉱山の隣接",
+    "talent_adjacency_bonus_scrap_description": "隣接するスクラップ鉱山は資源生産量が10%増加する。",
+
+    "talent_resource_chain_hydronium_alloy_label": "水素合金チェーン",
+    "talent_resource_chain_hydronium_alloy_description": "コンデンサーが製錬所に隣接していると、合金生産が向上する。",
+
+    "talent_drone_bay_support_buff_label": "ドローンベイ最適化",
+    "talent_drone_bay_support_buff_description": "ドローンベイがロジッククラスターの隣にあると、1ユニット追加生産する。",
+
+    "talent_fusion_node_reactor_label": "融合炉ネットワーク",
+    "talent_fusion_node_reactor_description": "隣接する2つのリアクターが融合し、生産速度が50%アップする。",
+
+    "talent_bio_cuve_growth_label": "バイオ培養槽成長促進",
+    "talent_bio_cuve_growth_description": "スクラップ鉱山の隣のバイオ培養槽は凍結速度が2倍になる。",
+
+    "talent_defense_network_bonus_label": "スナイパーネットワーク",
+    "talent_defense_network_bonus_description": "隣接するスナイパータワーは攻撃速度が15%上昇する。",
+
+    "talent_xeno_synergy_label": "ゼノシナジー",
+    "talent_xeno_synergy_description": "バイオ培養槽に隣接したゼノエクストラクターがボーナスサンプルを生成する。",
+
+    "talent_temporal_link_label": "時空リンク",
+    "talent_temporal_link_description": "異なる2つの建物に隣接している建物はクールダウンが10%短縮される。",
+
+    "talent_unit_cap_increase_label": "ユニット施設拡張",
+    "talent_unit_cap_increase_description": "ユニット系建物の最大設置数が+1される。"
   }
 }

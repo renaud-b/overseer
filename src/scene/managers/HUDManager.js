@@ -555,15 +555,9 @@ class HUDManager {
 
             const chosen = choices[selectedChoiceIndex];
             chosen.waves.forEach(waveComp => {
-                const delay = Phaser.Math.Between(10000, 20000); // 10-20s entre chaque vague
-                const when = this.scene.globalGameTime + delay;
-
                 const waveId = this.scene.waveManager.currentWaveId++;
                 this.scene.waveManager.waves[waveId] = { alive: -1, composition: waveComp, rewards: this.scene.waveManager.generateWaveRewards(this.scene.waveManager.waveNumber) };
-
-                this.scene.waveManager.scheduledWaves.push({ time: when, waveId });
-                this.scene.timeline.addFlag(0, waveComp, null, waveId);
-
+                this.scene.waveManager.selectedWaves.push(waveComp)
                 console.log(`✅ Nouvelle vague planifiée (draft) id=${waveId}`);
             });
 

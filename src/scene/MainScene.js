@@ -85,6 +85,7 @@ class MainScene extends Phaser.Scene {
         this.buildingManager = new BuildingManager(this);
         this.spellManager = new SpellManager(this, this.gameData.spells)
 
+        this.resourceBonusMultipliers = {}
 
         this.gridWidth = 5;
         this.gridHeight = 5;
@@ -112,14 +113,30 @@ class MainScene extends Phaser.Scene {
         }
 
         this.createSpawnZones();
-        if (this.isTalentUnlocked('starter_drone')) {
-            console.log("Talent débloqué : Starter Drone");
-            this.unitManager.addUnit('unit_dronoid', 1);
-        }
 
-        if (this.isTalentUnlocked('starter_spell_building')) {
-            console.log("Talent débloqué : Catalyseur initial");
-            this.buildingManager.addCardById('flux_catalyst');
+        if (this.isTalentUnlocked('starter_guard')) {
+            this.unitManager.addUnit('unit_guard', 1);
+        }
+        if (this.isTalentUnlocked('starter_tech')) {
+            this.buildingManager.addCardById('quantum_compressor');
+        }
+        if (this.isTalentUnlocked('starter_economy')) {
+            this.resources['scrap'] += 20;
+            this.resources['hydronium'] += 20;
+        }
+        if (this.isTalentUnlocked('extra_scrap')) {
+            this.resourceBonusMultipliers['scrap'] = (this.resourceBonusMultipliers['scrap'] || 1) * 1.5;
+        }
+        if (this.isTalentUnlocked('extra_alloy')) {
+            this.resourceBonusMultipliers['alloy'] = (this.resourceBonusMultipliers['alloy'] || 1) * 1.5;
+        }
+        if (this.isTalentUnlocked('vision_mastery')) {
+            this.vision.level += 2;
+            this.vision.updatePatternForLevel();
+            this.vision.updatePosition();
+        }
+        if (this.isTalentUnlocked('spell_charge_boost')) {
+            this.spellManager.globalCooldownMultiplier = 0.75;
         }
 
 

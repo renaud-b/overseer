@@ -120,7 +120,6 @@ class Unit {
                     }
                 }
 
-                // ⬇️ Ajoute un mouvement de dispersion subtil
                 const { separation, cohesion } = this.computeCrowdForces(this.scene.playerUnits);
                 const adjust = separation.clone().add(cohesion).scale(delta / 1000);
                 this.sprite.x += adjust.x;

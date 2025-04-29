@@ -274,25 +274,86 @@
     "restart_game_button": "[ Relancer une partie ]",
     "reset_overseer_core_button": "[ Réinitialiser le Noyau ]",
     "memory_shards_label": "Fractales de Mémoire : {count}",
+    "choose_next_waves_title": "🌌 Choisissez vos prochaines vagues",
+
     "talent_cost_text": "🧬 Coût : {cost} Fractales",
     "talent_unlocked_text": "✅ Débloqué",
+
     "talent_root_label": "Accès au Noyau",
     "talent_root_description": "Point de départ de votre Overseer.",
+
     "talent_starter_drone_label": "Drone de départ",
     "talent_starter_base_hp_label": "Base renforcée",
+
     "talent_starter_base_hp_description": "Commencez la partie avec 20 PV supplémentaires pour la base.",
     "talent_starter_drone_description": "Commencez avec un drone allié prêt à défendre la base.",
+
     "talent_vision_boost_label": "Amélioration de la Vision",
     "talent_vision_boost_description": "Commencez avec +1 tuile de vision active.",
+
     "talent_resource_node_scanner_label": "Scanner de ressources",
     "talent_resource_node_scanner_description": "Permet de détecter des nœuds de ressources spéciaux augmentant la production.",
+
     "talent_artifact_scanner_label": "Scanner d’artefacts",
     "talent_artifact_scanner_description": "Augmente vos chances d’obtenir des artefacts après chaque vague.",
+
     "talent_starter_spell_building_label": "Catalyseur initial",
     "talent_starter_spell_building_description": "Commencez la partie avec une carte de Catalyseur de Flux.",
-    "choose_next_waves_title": "🌌 Choisissez vos prochaines vagues",
+
+    "talent_starter_guard_label": "Station Garde",
+    "talent_starter_guard_description": "Commencez avec une unité garde supplémentaire.",
+
+    "talent_vision_mastery_label": "Maîtrise de la Vision",
+    "talent_vision_mastery_description": "Améliore drastiquement la portée de vision.",
+
+    "talent_starter_economy_label": "Économie optimisée",
+    "talent_starter_economy_description": "Améliore la production initiale.",
+
+    "talent_extra_scrap_label": "Excavation de Ferraille",
+    "talent_extra_scrap_description": "Augmente les gains de ferraille de base.",
+
+    "talent_extra_alloy_label": "Extraction d'Alliages",
+    "talent_extra_alloy_description": "Booste la production d'alliages avancés.",
+
+    "talent_starter_tech_label": "Protocole Avancé",
+    "talent_starter_tech_description": "Déverrouille un bâtiment technologique au départ.",
+
+    "talent_spell_charge_boost_label": "Optimisation de Sorts",
+    "talent_spell_charge_boost_description": "Réduit de 25% le temps de recharge des sorts et accélère la production de sorts par les bâtiments.",
+
+    "talent_adjacency_bonus_scrap_label": "Adjacence Mines de Ferraille",
+    "talent_adjacency_bonus_scrap_description": "Les mines de ferraille côte à côte produisent +10% de ressources.",
+
+    "talent_resource_chain_hydronium_alloy_label": "Chaîne Hydronium-Alliage",
+    "talent_resource_chain_hydronium_alloy_description": "La production d'alliage est améliorée si un Condenseur est adjacent à une Raffinerie.",
+
+    "talent_drone_bay_support_buff_label": "Optimisation Station Drone",
+    "talent_drone_bay_support_buff_description": "Les Stations Drone à côté d'un Cluster Logique produisent 1 unité supplémentaire par cycle.",
+
+    "talent_fusion_node_reactor_label": "Réacteurs Fusionnés",
+    "talent_fusion_node_reactor_description": "Deux réacteurs côte à côte fusionnent leur puissance pour accélérer leur production (+50%).",
+
+    "talent_bio_cuve_growth_label": "Croissance Biocuve",
+    "talent_bio_cuve_growth_description": "Les Biocuves près des Mines de Ferraille doublent leur vitesse de gel.",
+
+    "talent_defense_network_bonus_label": "Réseau de Snipers",
+    "talent_defense_network_bonus_description": "Les Tours Sniper adjacentes gagnent +15% de vitesse d'attaque.",
+
+    "talent_xeno_synergy_label": "Synergie Xéno",
+    "talent_xeno_synergy_description": "Les Extracteurs Xéno connectés à des Biocuves génèrent des échantillons xéno bonus périodiquement.",
+
+    "talent_temporal_link_label": "Lien Temporel",
+    "talent_temporal_link_description": "Un bâtiment connecté à deux bâtiments différents voit son temps de recharge réduit de 10%.",
+
+    "talent_unit_cap_increase_label": "Extension des Structures d'Unités",
+    "talent_unit_cap_increase_description": "Augmente la limite maximale de bâtiments d'unités de +1.",
+
     "wave_choice_easy": "🌿 Facile",
     "wave_choice_medium": "⚔️ Moyen",
-    "wave_choice_hard": "🔥 Difficile"
+    "wave_choice_hard": "🔥 Difficile",
+    "tab_foundations": "Fondations",
+    "tab_architecture": "Architecture",
+    "tab_evolution": "Évolution",
+    "tab_ascension": "Ascension"
   }
 }

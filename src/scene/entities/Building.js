@@ -5,6 +5,10 @@ class Building {
         this.type = type;
         this.productionTimer = 0;
         this.cooldown = this.scene.buildingManager.buildingMap[type]?.cooldown || 1000; // en ms
+        if (this.scene.isTalentUnlocked('spell_charge_boost') && this.scene.buildingManager.buildingMap[type]?.producesType === 'spell') {
+            this.cooldown *= 0.75; // réduction de 25%
+        }
+
         this.totalProduced = 0;
 
         this.sprite = scene.add.rectangle(x, y, scene.tileSize * 0.8, scene.tileSize * 0.8, 0xffffff)
@@ -99,7 +103,15 @@ class Building {
 
 
         this.scene.payCost(consume);
-        this.scene.addResource(data.produces, rate || 1);
+
+        let bonusRate = rate || 1;
+
+        // Vérifie s'il y a un bonus
+        if (this.scene.resourceBonusMultipliers && this.scene.resourceBonusMultipliers[data.produces]) {
+            bonusRate *= this.scene.resourceBonusMultipliers[data.produces];
+        }
+
+        this.scene.addResource(data.produces, bonusRate);
         this.totalProduced += data.rate || 1;
 
         const max = data.max_produced;

@@ -4,7 +4,9 @@ class SpellManager {
         this.spellPreviewCircle = null;
         this.spellData = spellData;
         this.spellCooldowns = {};
+
         this.spellButtons = [];
+        this.globalCooldownMultiplier = 1;
         this.createSpellDropZone();
     }
 
@@ -133,7 +135,7 @@ class SpellManager {
             const remaining = cd - now;
 
             if (remaining > 0) {
-                const ratio = Phaser.Math.Clamp(remaining / spell.cooldown, 0, 1);
+                const ratio = Phaser.Math.Clamp(remaining / (spell.cooldown * this.globalCooldownMultiplier), 0, 1);
                 btn.setAlpha(0.3);
                 txt.setText(`${spell.name} (${Math.ceil(remaining / 1000)}s)`);
             } else {

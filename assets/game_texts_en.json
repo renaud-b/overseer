@@ -292,6 +292,57 @@
     "choose_next_waves_title": "🌌 Choose your next waves",
     "wave_choice_easy": "🌿 Easy",
     "wave_choice_medium": "⚔️ Medium",
-    "wave_choice_hard": "🔥 Hard"
+    "wave_choice_hard": "🔥 Hard",
+    "tab_foundations": "Foundations",
+    "tab_architecture": "Architecture",
+    "tab_evolution": "Evolution",
+    "tab_ascension": "Ascension",
+    "talent_starter_guard_label": "Guard Station",
+    "talent_starter_guard_description": "Start with an extra guard unit ready to defend.",
+
+    "talent_vision_mastery_label": "Vision Mastery",
+    "talent_vision_mastery_description": "Greatly increases your vision range.",
+
+    "talent_starter_economy_label": "Optimized Economy",
+    "talent_starter_economy_description": "Boosts your initial resource production.",
+
+    "talent_extra_scrap_label": "Scrap Excavation",
+    "talent_extra_scrap_description": "Increases basic scrap collection rate.",
+
+    "talent_extra_alloy_label": "Alloy Extraction",
+    "talent_extra_alloy_description": "Boosts the production of structured alloys.",
+
+    "talent_starter_tech_label": "Advanced Protocol",
+    "talent_starter_tech_description": "Unlocks a tech building at the start.",
+
+    "talent_spell_charge_boost_label": "Spell Charge Optimization",
+    "talent_spell_charge_boost_description": "Reduces spell cooldowns by 25% and speeds up spell generation from buildings.",
+
+    "talent_adjacency_bonus_scrap_label": "Scrap Mine Adjacency",
+    "talent_adjacency_bonus_scrap_description": "Scrap Mines placed side by side produce +10% more resources.",
+
+    "talent_resource_chain_hydronium_alloy_label": "Hydronium Alloy Chain",
+    "talent_resource_chain_hydronium_alloy_description": "Alloy production is boosted when a Condensor is adjacent to a Refinery.",
+
+    "talent_drone_bay_support_buff_label": "Drone Bay Optimization",
+    "talent_drone_bay_support_buff_description": "Drone Bays next to Logic Clusters produce 1 extra unit per cycle.",
+
+    "talent_fusion_node_reactor_label": "Fusion Reactors",
+    "talent_fusion_node_reactor_description": "Two adjacent Reactors merge their power to accelerate production by +50%.",
+
+    "talent_bio_cuve_growth_label": "Bio-Cuve Expansion",
+    "talent_bio_cuve_growth_description": "Bio-Cuves near Scrap Mines have double freezing growth rate.",
+
+    "talent_defense_network_bonus_label": "Sniper Network",
+    "talent_defense_network_bonus_description": "Adjacent Sniper Towers gain +15% attack speed.",
+
+    "talent_xeno_synergy_label": "Xeno Synergy",
+    "talent_xeno_synergy_description": "Xeno Extractors linked to Bio-Cuves generate bonus Xeno Samples every few cycles.",
+
+    "talent_temporal_link_label": "Temporal Link",
+    "talent_temporal_link_description": "A building adjacent to two different buildings has -10% cooldown.",
+
+    "talent_unit_cap_increase_label": "Unit Bay Expansion",
+    "talent_unit_cap_increase_description": "Increase the maximum number of unit buildings by +1."
   }
 }

@@ -292,6 +292,56 @@
     "choose_next_waves_title": "🌌 Elige tus próximas oleadas",
     "wave_choice_easy": "🌿 Fácil",
     "wave_choice_medium": "⚔️ Medio",
-    "wave_choice_hard": "🔥 Difícil"
+    "wave_choice_hard": "🔥 Difícil",
+    "tab_foundations": "Fundaciones",
+    "tab_architecture": "Arquitectura",
+    "tab_evolution": "Evolución",
+    "tab_ascension": "Ascensión",
+    "talent_starter_guard_label": "Estación de Guardia",
+    "talent_starter_guard_description": "Empieza con una unidad de guardia adicional lista para defender.",
+
+    "talent_vision_mastery_label": "Maestría de Visión",
+    "talent_vision_mastery_description": "Aumenta enormemente tu rango de visión.",
+
+    "talent_starter_economy_label": "Economía Optimizada",
+    "talent_starter_economy_description": "Mejora la producción inicial de recursos.",
+
+    "talent_extra_scrap_label": "Excavación de Chatarra",
+    "talent_extra_scrap_description": "Aumenta la recolección básica de chatarra.",
+
+    "talent_extra_alloy_label": "Extracción de Aleaciones",
+    "talent_extra_alloy_description": "Mejora la producción de aleaciones avanzadas.",
+
+    "talent_starter_tech_label": "Protocolo Avanzado",
+    "talent_starter_tech_description": "Desbloquea un edificio tecnológico al inicio.",
+
+    "talent_spell_charge_boost_label": "Optimización de Hechizos",
+    "talent_spell_charge_boost_description": "Reduce el tiempo de recarga de los hechizos en un 25% y acelera la generación de hechizos en los edificios.",
+    "talent_adjacency_bonus_scrap_label": "Adyacencia de Minas de Chatarra",
+    "talent_adjacency_bonus_scrap_description": "Las minas de chatarra juntas producen un +10% de recursos.",
+
+    "talent_resource_chain_hydronium_alloy_label": "Cadena Hidronio-Aleación",
+    "talent_resource_chain_hydronium_alloy_description": "La producción de aleación se potencia si un Condensador está junto a una Refinería.",
+
+    "talent_drone_bay_support_buff_label": "Optimización de Bahía de Drones",
+    "talent_drone_bay_support_buff_description": "Las Bahías de Drones junto a Clusters Lógicos producen 1 unidad extra por ciclo.",
+
+    "talent_fusion_node_reactor_label": "Reactores Fusionados",
+    "talent_fusion_node_reactor_description": "Dos reactores adyacentes fusionan su energía y aceleran su producción un +50%.",
+
+    "talent_bio_cuve_growth_label": "Expansión de Biocuvas",
+    "talent_bio_cuve_growth_description": "Las Biocuvas cercanas a minas de chatarra duplican su velocidad de crecimiento.",
+
+    "talent_defense_network_bonus_label": "Red de Francotiradores",
+    "talent_defense_network_bonus_description": "Las Torres Francotirador adyacentes obtienen +15% de velocidad de ataque.",
+
+    "talent_xeno_synergy_label": "Sinergia Xeno",
+    "talent_xeno_synergy_description": "Los Extractores Xeno conectados a Biocuvas generan muestras extra periódicamente.",
+
+    "talent_temporal_link_label": "Vínculo Temporal",
+    "talent_temporal_link_description": "Un edificio conectado a dos diferentes reduce su enfriamiento en un 10%.",
+
+    "talent_unit_cap_increase_label": "Ampliación de Estructuras de Unidades",
+    "talent_unit_cap_increase_description": "Aumenta en +1 el límite máximo de edificios de unidades."
   }
 }
