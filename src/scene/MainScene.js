@@ -333,19 +333,18 @@ class MainScene extends Phaser.Scene {
 
     setupDragDrop() {
         this.input.on('drop', (pointer, gameObject, dropZone) => {
+            const tile = dropZone.getData('tileRef');
 
-            // ---- Construction depuis une carte
+            // ⚙️ Cas 1 : Placement depuis une carte
             if (gameObject.cardType && !gameObject.originTile) {
-                const tile = dropZone.getData('tileRef');
-                if (!tile) return;
-                if (tile.building) return;
+                if (!tile || tile.building) return;
 
                 const buildingData = this.buildingManager.buildingMap[gameObject.cardType];
                 if (!buildingData) return;
 
                 const canAfford = this.checkCost(buildingData.cost || {});
                 if (!canAfford && !buildingData.unlimited) {
-                    console.log("Pas assez de ressources !");
+                    // Repositionner la carte à son point d’origine
                     this.tweens.add({
                         targets: gameObject,
                         x: gameObject.startX || gameObject.input.dragStartX,
@@ -370,7 +369,7 @@ class MainScene extends Phaser.Scene {
                 tile.building = building;
                 this.buildingManager.buildings.push(building);
 
-                // 👇 Ici : gestion du stack de cartes
+                // 🔁 Gère les cartes à usage limité
                 if (!buildingData.unlimited) {
                     const cardStack = this.buildingManager.cards.find(c => c.id === gameObject.cardType);
                     if (cardStack) {
@@ -385,7 +384,7 @@ class MainScene extends Phaser.Scene {
                         this.buildingManager.reorganizeCards();
                     }
                 } else {
-                    // Si carte illimitée : repositionne la carte proprement
+                    // repositionner proprement la carte
                     this.tweens.add({
                         targets: gameObject,
                         x: gameObject.startX || gameObject.input.dragStartX,
@@ -396,47 +395,50 @@ class MainScene extends Phaser.Scene {
                 }
             }
 
-            // ---- Déplacement d’un bâtiment existant
+            // ⚙️ Cas 2 : Déplacement d’un bâtiment existant (container)
             else if (gameObject.originTile) {
                 const oldTile = gameObject.originTile;
-                const newTile = dropZone.getData('tileRef');
+                if (!tile) return;
 
-                if (newTile.building === null) {
-                    gameObject.x = dropZone.x + this.tileSize / 2;
-                    gameObject.y = dropZone.y + this.tileSize / 2;
+                if (!tile.building) {
+                    gameObject.setPosition(
+                        tile.rect.x + this.tileSize / 2,
+                        tile.rect.y + this.tileSize / 2
+                    );
 
                     const building = oldTile.building;
                     oldTile.building = null;
-                    newTile.building = building;
+                    tile.building = building;
 
-                    building.tile = newTile;
-                    gameObject.originTile = newTile;
+                    building.tile = tile;
+                    gameObject.originTile = tile;
 
-                    console.log(`Déplacement du bâtiment ${gameObject.cardType} vers [${newTile.x}, ${newTile.y}]`);
+                    console.log(`Déplacement du bâtiment ${gameObject.cardType} vers [${tile.x}, ${tile.y}]`);
                 } else {
-                    gameObject.x = oldTile.rect.x + this.tileSize / 2;
-                    gameObject.y = oldTile.rect.y + this.tileSize / 2;
+                    // retour à la position d’origine
+                    gameObject.setPosition(
+                        oldTile.rect.x + this.tileSize / 2,
+                        oldTile.rect.y + this.tileSize / 2
+                    );
                 }
             }
 
-            console.log("spellId: ", gameObject.spellId)
-            // ---- Sorts (inchangé)
-            if (gameObject.spellId) {
+            // ⚙️ Cas 3 : Sorts (inchangé)
+            else if (gameObject.spellId) {
                 const spell = this.spellManager.spellData.find(s => s.id === gameObject.spellId);
                 if (!spell) return;
 
                 const now = this.time.now;
-                if (!gameObject.oneTime &&  this.spellManager.spellCooldowns[spell.id] > now) {
+                if (!gameObject.oneTime && this.spellManager.spellCooldowns[spell.id] > now) {
                     console.log("Sort en recharge.");
                     return;
                 }
 
-                console.log("launch the spell")
                 const x = pointer.worldX;
                 const y = pointer.worldY;
                 this.spellManager.castSpellAt(spell, x, y);
+
                 if (gameObject.oneTime) {
-                    // Supprimer le sort de la barre
                     const index = this.spellManager.spellButtons.findIndex(s => s.btn === gameObject);
                     if (index !== -1) {
                         this.spellManager.spellButtons[index].btn.destroy();
@@ -451,12 +453,10 @@ class MainScene extends Phaser.Scene {
         });
 
 
-
         this.input.on('dragstart', (_, g) => g.setAlpha(0.5));
-        this.input.on('drag', (_, g, x, y) => { g.x = x; g.y = y; });
+        this.input.on('drag', (_, g, x, y) => { g.setPosition(x, y) });
         this.input.on('drag', (pointer, gameObject, x, y) => {
-            gameObject.x = x;
-            gameObject.y = y;
+            gameObject.setPosition(x, y)
 
             if (gameObject.spellId) {
                 const spell = this.spellManager.spellData.find(s => s.id === gameObject.spellId);

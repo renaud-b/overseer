@@ -41,6 +41,11 @@ class OverseerCoreScene extends Phaser.Scene {
         };
     }
 
+
+    init(data) {
+        this.fromMenu = data.fromMenu ?? false;
+    }
+
     preload() {
         const lang = window.selectedLanguage || 'en';
         console.log(lang)
@@ -57,7 +62,7 @@ class OverseerCoreScene extends Phaser.Scene {
 
     create() {
         this.gameTexts = this.cache.json.get('gameTexts');
-        this.memoryShards = parseInt(localStorage.getItem('memoryShards') || '37');
+        this.memoryShards = parseInt(localStorage.getItem('memoryShards') || '0');
         this.unlockedTalents = JSON.parse(localStorage.getItem('unlockedTalents') || '[]');
 
         // Forcer root à être débloqué
@@ -75,8 +80,7 @@ class OverseerCoreScene extends Phaser.Scene {
         this.drawConnections();
         this.createNodes();
         this.createShardDisplay();
-        this.createRestartButton();
-        this.createResetButton();
+        this.createContinueButton();
     }
 
     autoLayoutTree(treeId) {
@@ -180,36 +184,6 @@ class OverseerCoreScene extends Phaser.Scene {
         return false;
     }
 
-    createResetButton() {
-        const centerX = this.scale.width / 2;
-        const btnY = this.scale.height - 120; // au-dessus du bouton relancer
-
-        const button = this.add.rectangle(centerX, btnY, 360, 50, 0x440000, 1)
-            .setStrokeStyle(2, 0xff0000)
-            .setOrigin(0.5)
-            .setInteractive();
-
-        const buttonText = this.add.text(centerX, btnY, this.translate('reset_overseer_core_button'), {
-            fontSize: '18px',
-            fill: '#ff4444',
-            fontFamily: 'monospace'
-        }).setOrigin(0.5);
-
-        button.on('pointerover', () => {
-            button.setFillStyle(0x660000);
-        });
-        button.on('pointerout', () => {
-            button.setFillStyle(0x440000);
-        });
-
-        button.on('pointerdown', () => {
-            // Réinitialiser tout
-            localStorage.removeItem('memoryShards');
-            localStorage.removeItem('unlockedTalents');
-            this.scene.restart();
-        });
-    }
-
     createBackground() {
         this.add.text(this.centerX, 30, this.translate('overseer_core_title'), {
             fontSize: '32px',
@@ -218,7 +192,7 @@ class OverseerCoreScene extends Phaser.Scene {
         }).setOrigin(0.5);
     }
 
-    createRestartButton() {
+    createContinueButton() {
         const centerX = this.scale.width / 2;
         const btnY = this.scale.height - 60;
 
@@ -227,7 +201,12 @@ class OverseerCoreScene extends Phaser.Scene {
             .setOrigin(0.5)
             .setInteractive();
 
-        const buttonText = this.add.text(centerX, btnY, this.translate('restart_game_button'), {
+        let buttonTextValue = this.translate('restart_game_button')
+        if(this.fromMenu){
+            buttonTextValue = this.translate('return_to_menu_button')
+        }
+
+        const buttonText = this.add.text(centerX, btnY, buttonTextValue, {
             fontSize: '20px',
             fill: '#00ff00',
             fontFamily: 'monospace'
@@ -243,7 +222,11 @@ class OverseerCoreScene extends Phaser.Scene {
 
         // Au clic ➔ relancer MainScene
         button.on('pointerdown', () => {
-            this.scene.start('MainScene');
+            if(this.fromMenu){
+                this.scene.start('MainMenuScene');
+            } else {
+                this.scene.start('MainScene');
+            }
         });
     }
 

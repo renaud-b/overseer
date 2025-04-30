@@ -271,7 +271,6 @@
     "building_no_unit_cost": "Sin costo",
     "overseer_core_title": "🧠 Núcleo Overseer",
     "restart_game_button": "[ Reiniciar partida ]",
-    "reset_overseer_core_button": "[ Reiniciar Núcleo Overseer ]",
     "memory_shards_label": "Fragmentos de Memoria: {count}",
     "talent_cost_text": "🧬 Costo: {cost} Fragmentos",
     "talent_unlocked_text": "✅ Desbloqueado",
@@ -343,5 +342,15 @@
 
     "talent_unit_cap_increase_label": "Ampliación de Estructuras de Unidades",
     "talent_unit_cap_increase_description": "Aumenta en +1 el límite máximo de edificios de unidades."
+  },
+  "menu": {
+    "start": "Iniciar",
+    "options": "Opciones",
+    "quit": "Salir",
+    "talents": "Talentos",
+    "delete_all_data": "Eliminar todos los datos",
+    "data_deleted_success": "Todos los datos han sido eliminados.",
+    "back": "Volver",
+    "language_select": "Elige tu idioma"
   }
 }

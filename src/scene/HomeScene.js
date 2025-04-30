@@ -61,7 +61,8 @@ class HomeScene extends Phaser.Scene {
             });
             button.on('pointerdown', () => {
                 window.selectedLanguage = lang.code;
-                this.scene.start('MainScene');
+                localStorage.setItem('selectedLanguage', lang.code);
+                this.scene.start('MainMenuScene');
             });
         });
     }

@@ -271,7 +271,6 @@
     "building_no_unit_cost": "コストなし",
     "overseer_core_title": "🧠 オーバーシアコア",
     "restart_game_button": "[ ゲームを再スタート ]",
-    "reset_overseer_core_button": "[ オーバーシアコアをリセット ]",
     "memory_shards_label": "メモリーシャード: {count}",
     "talent_cost_text": "🧬 コスト: {cost} シャード",
     "talent_unlocked_text": "✅ 解放済み",
@@ -344,5 +343,15 @@
 
     "talent_unit_cap_increase_label": "ユニット施設拡張",
     "talent_unit_cap_increase_description": "ユニット系建物の最大設置数が+1される。"
+  },
+  "menu": {
+    "start": "スタート",
+    "options": "オプション",
+    "quit": "終了",
+    "talents": "才能",
+    "delete_all_data": "すべてのデータを削除",
+    "data_deleted_success": "すべてのデータが削除されました。",
+    "back": "戻る",
+    "language_select": "言語を選択してください"
   }
 }

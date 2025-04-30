@@ -4,45 +4,56 @@ class Building {
         this.tile = tile;
         this.type = type;
         this.productionTimer = 0;
-        this.cooldown = this.scene.buildingManager.buildingMap[type]?.cooldown || 1000; // en ms
-        if (this.scene.isTalentUnlocked('spell_charge_boost') && this.scene.buildingManager.buildingMap[type]?.producesType === 'spell') {
-            this.cooldown *= 0.75; // réduction de 25%
-        }
-
+        this.cooldown = scene.buildingManager.buildingMap[type]?.cooldown || 1000;
         this.totalProduced = 0;
 
-        this.sprite = scene.add.rectangle(x, y, scene.tileSize * 0.8, scene.tileSize * 0.8, 0xffffff)
+        const size = scene.tileSize * 0.8;
+
+        // Rectangle visuel principal
+        const sprite = scene.add.rectangle(0, 0, size, size, 0xffffff)
             .setStrokeStyle(2, 0xffffff)
-            .setOrigin(0.5)
-            .setInteractive({ draggable: true }); // <- ici !
+            .setOrigin(0.5);
 
-        this.sprite.cardType = type; // utile pour l’identification
-        this.sprite.originTile = tile;
-        this.scene.input.setDraggable(this.sprite);
+        this.setColorByType(type, sprite);
 
-        this.setColorByType(type);
+        // Cercle de cooldown (graphics)
+        const progressCircle = scene.add.graphics().setDepth(1);
 
-        this.sprite.on('pointerover', () => {
-            const info = this.scene.buildingManager.getBuildingRuntimeInfo(this);
-            this.scene.hud.showInfoPanel(info.name, info.desc, this.sprite.x, this.sprite.y);
-        });
-        this.sprite.on('pointerout', () => {
-            this.scene.hud.hideInfoPanel();
-        });
 
-        this.progressCircle = scene.add.graphics().setDepth(12);
+
+        // Conteneur du bâtiment
+        this.container = scene.add.container(x, y, [sprite, progressCircle])
+            .setSize(size, size)
+            .setDepth(1)
+            .setInteractive(new Phaser.Geom.Rectangle(0, 0, size, size), Phaser.Geom.Rectangle.Contains);
+
+
+        this.sprite = sprite;
+        this.progressCircle = progressCircle;
         this.progressRadius = 10;
 
+        this.container.cardType = type;
+        this.container.originTile = tile;
+        scene.input.setDraggable(this.container);
+
+        this.container.on('pointerover', () => {
+            const info = this.scene.buildingManager.getBuildingRuntimeInfo(this);
+            this.scene.hud.showInfoPanel(info.name, info.desc, this.container.x, this.container.y);
+        });
+        this.container.on('pointerout', () => {
+            this.scene.hud.hideInfoPanel();
+        });
     }
 
-    setColorByType(type) {
+    setColorByType(type, spriteRef = this.sprite) {
         const building = this.scene.buildingManager.buildingMap[type];
-        if (building && building.color) {
-            this.sprite.fillColor = Phaser.Display.Color.HexStringToColor(building.color).color;
+        if (building?.color) {
+            spriteRef.fillColor = Phaser.Display.Color.HexStringToColor(building.color).color;
         } else {
-            this.sprite.fillColor = 0xffffff;
+            spriteRef.fillColor = 0xffffff;
         }
     }
+
 
 
     update(delta) {
@@ -53,6 +64,7 @@ class Building {
         if (this.productionTimer < this.cooldown) return;
 
         this.productionTimer = 0;
+
         const data = this.scene.buildingManager.buildingMap[this.type];
         if (!data) return;
 
@@ -64,6 +76,7 @@ class Building {
 
         handlers[data.producesType]?.(data);
     }
+
 
     handleUnitProduction(data) {
         const unitData = this.scene.gameData.units.find(u => u.id === data.produces);
@@ -121,40 +134,22 @@ class Building {
             this.scene.buildingManager.buildings = this.scene.buildingManager.buildings.filter(b => b !== this);
             this.destroy();
         }
-
-
     }
 
     handleSpellProduction() {
         const spell = Phaser.Utils.Array.GetRandom(this.scene.spellManager.spellData);
-        console.log(`✨ Catalyseur génère : ${spell.name}`);
         this.scene.spellManager.addSpellToBar(spell);
     }
 
 
     updateCooldownVisual() {
-        if (!this.tile.isActive || !this.cooldown) {
-            this.progressCircle.clear();
-            return;
-        }
-
         const progress = Phaser.Math.Clamp(this.productionTimer / this.cooldown, 0, 1);
-
-        const x = this.sprite.x - this.sprite.width / 2 + 12;
-        const y = this.sprite.y - this.sprite.height / 2 + 12;
-
-        // Ici : pas besoin de repositionner progressCircle (Graphics), on redessine directement
         this.progressCircle.clear();
 
-        const producesType = this.scene.buildingManager.buildingMap[this.type]?.producesType;
-        const color = {
-            unit: 0x000000,
-            resource: 0x000000,
-            spell: 0x000000
-        }[producesType] ?? 0xffffff;
-
+        const color = 0x000000;
         this.progressCircle.fillStyle(color, 0.2);
-        this.progressCircle.slice(x, y, this.progressRadius, Phaser.Math.DegToRad(-90), Phaser.Math.DegToRad(-90 + 360 * progress), false);
+        this.progressCircle.slice(-this.sprite.width / 2 + 12, -this.sprite.height / 2 + 12,
+            this.progressRadius, Phaser.Math.DegToRad(-90), Phaser.Math.DegToRad(-90 + 360 * progress), false);
         this.progressCircle.fillPath();
     }
 
@@ -164,7 +159,7 @@ class Building {
 
 
     destroy() {
-        [this.sprite, this.progressCircle].forEach(obj => obj?.destroy());
+        this.container?.destroy();
     }
 
 }

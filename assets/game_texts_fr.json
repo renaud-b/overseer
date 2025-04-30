@@ -272,7 +272,7 @@
     "building_no_unit_cost": "Aucun coût",
     "overseer_core_title": "🧠 Noyau Overseer",
     "restart_game_button": "[ Relancer une partie ]",
-    "reset_overseer_core_button": "[ Réinitialiser le Noyau ]",
+    "return_to_menu_button": "[ Retour au menu ]",
     "memory_shards_label": "Fractales de Mémoire : {count}",
     "choose_next_waves_title": "🌌 Choisissez vos prochaines vagues",
 
@@ -355,5 +355,15 @@
     "tab_architecture": "Architecture",
     "tab_evolution": "Évolution",
     "tab_ascension": "Ascension"
+  },
+  "menu": {
+    "start": "Démarrer",
+    "options": "Options",
+    "quit": "Quitter",
+    "talents": "Talents",
+    "delete_all_data": "Supprimer toutes les données",
+    "data_deleted_success": "Toutes les données ont été supprimées.",
+    "back": "Retour",
+    "language_select": "Sélectionner la langue"
   }
 }

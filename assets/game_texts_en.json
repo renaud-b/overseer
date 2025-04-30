@@ -271,7 +271,7 @@
     "building_no_unit_cost": "No cost",
     "overseer_core_title": "🧠 Overseer Core",
     "restart_game_button": "[ Restart Game ]",
-    "reset_overseer_core_button": "[ Reset Overseer Core ]",
+    "return_to_menu_button": "[ Return to menu ]",
     "memory_shards_label": "Memory Shards: {count}",
     "talent_cost_text": "🧬 Cost: {cost} Shards",
     "talent_unlocked_text": "✅ Unlocked",
@@ -344,5 +344,16 @@
 
     "talent_unit_cap_increase_label": "Unit Bay Expansion",
     "talent_unit_cap_increase_description": "Increase the maximum number of unit buildings by +1."
+  },
+  "menu": {
+    "start": "Start",
+    "options": "Options",
+    "quit": "Quit",
+    "talents": "Talents",
+    "delete_all_data": "Delete all data",
+    "data_deleted_success": "All data has been deleted.",
+    "back": "Back",
+    "language_select": "Choose your language"
+
   }
 }
