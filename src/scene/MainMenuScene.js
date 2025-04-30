@@ -48,9 +48,24 @@ class MainMenuScene extends Phaser.Scene {
         };
 
         // Boutons
-        createMenuButton(height / 2 - 90, "start", () => this.scene.start('MainScene'));
-        createMenuButton(height / 2 - 30, "options", () => this.scene.start('OptionsScene'));
-        createMenuButton(height / 2 + 30, "talents", () => this.scene.start('OverseerCoreScene', { fromMenu: true }));
+        createMenuButton(height / 2 - 90, "start", () => {
+            this.cameras.main.fadeOut(500, 0, 0, 0);
+            this.time.delayedCall(500, () => {
+                this.scene.start('MainScene');
+            });
+        });
+        createMenuButton(height / 2 - 30, "options", () => {
+            this.cameras.main.fadeOut(500, 0, 0, 0);
+            this.time.delayedCall(500, () => {
+                this.scene.start('OptionsScene')
+            });
+        });
+        createMenuButton(height / 2 + 30, "talents", () => {
+            this.cameras.main.fadeOut(500, 0, 0, 0);
+            this.time.delayedCall(500, () => {
+                this.scene.start('OverseerCoreScene', {fromMenu: true})
+            });
+        });
         createMenuButton(height / 2 + 90, "quit", () => window.close());
     }
 }

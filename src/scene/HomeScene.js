@@ -9,6 +9,7 @@ class HomeScene extends Phaser.Scene {
     }
 
     create() {
+        this.cameras.main.fadeIn(500, 0, 0, 0);
         const centerX = this.scale.width / 2;
         const centerY = this.scale.height / 2;
 
@@ -62,7 +63,10 @@ class HomeScene extends Phaser.Scene {
             button.on('pointerdown', () => {
                 window.selectedLanguage = lang.code;
                 localStorage.setItem('selectedLanguage', lang.code);
-                this.scene.start('MainMenuScene');
+                this.cameras.main.fadeOut(500, 0, 0, 0);
+                this.time.delayedCall(500, () => {
+                    this.scene.start('MainMenuScene')
+                });
             });
         });
     }

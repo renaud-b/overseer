@@ -52,15 +52,8 @@ class OverseerCoreScene extends Phaser.Scene {
         this.load.json('gameTexts', `assets/game_texts_${lang}.json`);
     }
 
-    translate(key, replacements = {}) {
-        const text = this.gameTexts?.ui?.[key] || key;
-        return Object.entries(replacements).reduce((acc, [k, v]) => {
-            return acc.replace(new RegExp(`{${k}}`, 'g'), v);
-        }, text);
-    }
-
-
     create() {
+        this.cameras.main.fadeIn(500, 0, 0, 0);
         this.gameTexts = this.cache.json.get('gameTexts');
         this.memoryShards = parseInt(localStorage.getItem('memoryShards') || '0');
         this.unlockedTalents = JSON.parse(localStorage.getItem('unlockedTalents') || '[]');
@@ -81,6 +74,13 @@ class OverseerCoreScene extends Phaser.Scene {
         this.createNodes();
         this.createShardDisplay();
         this.createContinueButton();
+    }
+
+    translate(key, replacements = {}) {
+        const text = this.gameTexts?.ui?.[key] || key;
+        return Object.entries(replacements).reduce((acc, [k, v]) => {
+            return acc.replace(new RegExp(`{${k}}`, 'g'), v);
+        }, text);
     }
 
     autoLayoutTree(treeId) {
@@ -223,9 +223,16 @@ class OverseerCoreScene extends Phaser.Scene {
         // Au clic ➔ relancer MainScene
         button.on('pointerdown', () => {
             if(this.fromMenu){
-                this.scene.start('MainMenuScene');
+                this.cameras.main.fadeOut(500, 0, 0, 0);
+                this.time.delayedCall(500, () => {
+                    this.scene.start('MainMenuScene');
+                });
+
             } else {
-                this.scene.start('MainScene');
+                this.cameras.main.fadeOut(500, 0, 0, 0);
+                this.time.delayedCall(500, () => {
+                    this.scene.start('MainScene');
+                });
             }
         });
     }

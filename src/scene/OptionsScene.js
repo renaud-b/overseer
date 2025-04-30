@@ -17,6 +17,7 @@ class OptionsScene extends Phaser.Scene {
     }
 
     create() {
+        this.cameras.main.fadeIn(500, 0, 0, 0);
         this.gameData = this.cache.json.get('gameTexts');
         const { width, height } = this.scale;
 
@@ -84,7 +85,11 @@ class OptionsScene extends Phaser.Scene {
                 this.cache.json.remove('gameTexts');
 
                 // 🔄 Relancer la scène proprement
-                this.scene.restart();
+                this.cameras.main.fadeOut(500, 0, 0, 0);
+                this.time.delayedCall(500, () => {
+                    this.scene.restart();
+                });
+
             });
         });
 
@@ -97,6 +102,11 @@ class OptionsScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true })
             .on('pointerover', () => backButton.setStyle({ fill: '#fff' }))
             .on('pointerout', () => backButton.setStyle({ fill: '#888' }))
-            .on('pointerdown', () => this.scene.start('MainMenuScene'));
+            .on('pointerdown', () => {
+                this.cameras.main.fadeOut(500, 0, 0, 0);
+                this.time.delayedCall(500, () => {
+                    this.scene.start('MainMenuScene')
+                });
+            });
     }
 }

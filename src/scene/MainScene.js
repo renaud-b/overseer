@@ -22,39 +22,9 @@ class MainScene extends Phaser.Scene {
         });
     }
 
-    mergeStatsAndTexts(stats, texts) {
-        const merged = {};
-
-        for (let category of Object.keys(stats)) {
-            merged[category] = stats[category].map(item => {
-                const textItem = (texts[category] || []).find(t => t.id === item.id);
-                if (!textItem) {
-                    console.warn(`⚠️ Texte manquant pour ${category}/${item.id}`);
-                }
-                return { ...item, ...(textItem || {}) };
-
-            });
-        }
-
-        // Fusion spéciale pour les textes d'interface (ui)
-        merged.ui = texts.ui || {};
-
-        return merged;
-    }
-
-    translate(key, replacements = {}) {
-        const text = this.gameData.ui[key] || key; // Si pas trouvé, retourne la clé brute
-
-        return Object.entries(replacements).reduce((acc, [k, v]) => {
-            return acc.replace(new RegExp(`{${k}}`, 'g'), v);
-        }, text);
-    }
-
-    isTalentUnlocked(id) {
-        return this.unlockedTalents.includes(id);
-    }
 
     create() {
+        this.cameras.main.fadeIn(500, 0, 0, 0);
         this.unlockedTalents = JSON.parse(localStorage.getItem('unlockedTalents') || '[]');
 
 
@@ -185,6 +155,39 @@ class MainScene extends Phaser.Scene {
         this.setupDragDrop();
     }
 
+
+    mergeStatsAndTexts(stats, texts) {
+        const merged = {};
+
+        for (let category of Object.keys(stats)) {
+            merged[category] = stats[category].map(item => {
+                const textItem = (texts[category] || []).find(t => t.id === item.id);
+                if (!textItem) {
+                    console.warn(`⚠️ Texte manquant pour ${category}/${item.id}`);
+                }
+                return { ...item, ...(textItem || {}) };
+
+            });
+        }
+
+        // Fusion spéciale pour les textes d'interface (ui)
+        merged.ui = texts.ui || {};
+
+        return merged;
+    }
+
+    translate(key, replacements = {}) {
+        const text = this.gameData.ui[key] || key; // Si pas trouvé, retourne la clé brute
+
+        return Object.entries(replacements).reduce((acc, [k, v]) => {
+            return acc.replace(new RegExp(`{${k}}`, 'g'), v);
+        }, text);
+    }
+
+    isTalentUnlocked(id) {
+        return this.unlockedTalents.includes(id);
+    }
+
     update(time, delta) {
         if (this.timeScale === 0) return;
         const scaledDelta = delta * this.timeScale;
@@ -264,8 +267,12 @@ class MainScene extends Phaser.Scene {
             });
 
             this.restartBtn.on('pointerdown', () => {
-                this.scene.start('OverseerCoreScene');
+                this.cameras.main.fadeOut(500, 0, 0, 0);
+                this.time.delayedCall(500, () => {
+                    this.scene.start('OverseerCoreScene');
+                });
             });
+
         }
 
         this.artifactManager.update(scaledDelta)
