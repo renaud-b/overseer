@@ -13,16 +13,23 @@ class SpellManager {
 
     createSpellDropZone(){
 
-        const dropZoneOffsetX = 530;
+        const dropZoneOffsetX = 540;
         const dropZoneOffsetY = 100;
         const dropZoneWidth = this.scene.scale.width - dropZoneOffsetX;
         const dropZoneHeight = this.scene.scale.height - dropZoneOffsetY - 450;
+
 
 // 1. Zone interactive invisible
         this.spellDropZone = this.scene.add.zone(dropZoneOffsetX, dropZoneOffsetY, dropZoneWidth, dropZoneHeight)
             .setOrigin(0)
             .setRectangleDropZone(dropZoneWidth, dropZoneHeight)
             .setDepth(0);
+
+/*
+        this.scene.add.sprite(dropZoneOffsetX, dropZoneOffsetY-50, 'ground')
+            .setDisplaySize(dropZoneWidth, dropZoneHeight+100)
+            .setOrigin(0)
+            .setDepth(0);*/
 
 // 2. Rectangle visuel de debug aligné
         this.spellDropZoneOutline = this.scene.add.rectangle(
@@ -33,7 +40,8 @@ class SpellManager {
         )
             .setStrokeStyle(2, 0xff00ff)
             .setFillStyle(0x000000, 0.05)
-            .setDepth(1);
+            .setDepth(1)
+            .setAlpha(0.2);
     }
 
 

@@ -139,6 +139,8 @@ class Unit {
 
     attackBaseDirectly(delta) {
         const target = this.scene.baseTarget;
+        if (!target || target.hp <= 0) return;
+
         const dx = target.x - this.sprite.x;
         const dy = target.y - this.sprite.y;
         const dist = Math.sqrt(dx * dx + dy * dy);

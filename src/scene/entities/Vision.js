@@ -134,29 +134,36 @@ class Vision {
         });
 
         this.scene.input.keyboard.on('keydown', (event) => {
-            let moved = false;
+            let newX = this.pos.x;
+            let newY = this.pos.y;
 
             if (event.key === 'z') {
-                this.pos.y--;
-                moved = true;
+                newY--;
             } else if (event.key === 's') {
-                this.pos.y++;
-                moved = true;
+                newY++;
             } else if (event.key === 'q') {
-                this.pos.x--;
-                moved = true;
+                newX--;
             } else if (event.key === 'd') {
-                this.pos.x++;
-                moved = true;
+                newX++;
             } else if (event.key === 'e') {
                 this.patternIndex = (this.patternIndex + 1) % this.visionPatterns.length;
-                console.log("Rotation demandée, visionPatterns.length = ", this.visionPatterns.length);
-                moved = true;
+                this.updatePosition(); // rotation autorisée sans vérif
+                return;
             }
 
-            if (moved) {
+            const pattern = this.visionPatterns[this.patternIndex];
+            const inBounds = pattern.every(offset => {
+                const tx = newX + offset.x;
+                const ty = newY + offset.y;
+                return tx >= 0 && ty >= 0 && tx < this.gridWidth && ty < this.gridHeight;
+            });
+
+            if (inBounds) {
+                this.pos.x = newX;
+                this.pos.y = newY;
                 this.updatePosition();
             }
         });
+
     }
 }

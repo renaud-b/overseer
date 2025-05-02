@@ -119,13 +119,17 @@ class WaveManager {
         const rewards = this.waves[waveId]?.rewards || this.generateWaveRewards(this.waveNumber);
 
         this.scene.hud.showRewardPopupWithChoices(rewards, (restoreTimeScale) => {
-            // ➡️ Quand toutes les récompenses sont choisies et confirmées :
-            this.proposeWaveDraft();
-            restoreTimeScale()
+            // ➡️ Quand toutes les récompenses sont choisies et confirmées, et que la vague est un multiple de 5, on propose un choix de vague:
+            if (this.waveNumber % 5 === 0) {
+                this.proposeWaveDraft(restoreTimeScale);
+            } else {
+                restoreTimeScale()
+            }
+
         });
     }
 
-    proposeWaveDraft() {
+    proposeWaveDraft(then = () => {}) {
         const generateComposition = (levelBias) => {
             const originalLevels = [[1, 80], [2, 20], [3, 0], [4, 0]];
             const harderLevels = [[1, 40], [2, 40], [3, 20], [4, 0]];
@@ -168,7 +172,7 @@ class WaveManager {
             }
         ];
 
-        this.scene.hud.showWaveDraftPopup(choices);
+        this.scene.hud.showWaveDraftPopup(choices, then);
     }
 
 

@@ -11,6 +11,8 @@ class MainScene extends Phaser.Scene {
 
 
         this.load.image('droneSprite', 'assets/sprites/drone_01.png');
+        this.load.image('cityWall', 'assets/city-wall.png');
+        this.load.image('ground', 'assets/ground_02.png');
 
         // 🔽 Charge chaque icône de ressource
         const resources = [
@@ -24,6 +26,7 @@ class MainScene extends Phaser.Scene {
 
 
     create() {
+        this.gameOverTriggered = false;
         this.cameras.main.fadeIn(500, 0, 0, 0);
         this.unlockedTalents = JSON.parse(localStorage.getItem('unlockedTalents') || '[]');
 
@@ -121,7 +124,7 @@ class MainScene extends Phaser.Scene {
             40, 40,
             0x00ff00,
             0.2
-        ).setStrokeStyle(2, 0x00ff00).setDepth(3);
+        ).setStrokeStyle(2, 0x00ff00).setDepth(11).setAlpha(0);
 
 
         this.baseTarget.hpText = this.add.text(
@@ -133,7 +136,7 @@ class MainScene extends Phaser.Scene {
                 fill: '#00ff00',
                 fontFamily: 'monospace'
             }
-        ).setOrigin(0.5).setDepth(10);
+        ).setOrigin(0.5).setDepth(11);
 
         this.baseTarget.hp = baseHp;
         this.baseTarget.maxHp = baseHp;
@@ -152,6 +155,10 @@ class MainScene extends Phaser.Scene {
         this.input.keyboard.on('keydown-TWO', () => this.setTimeScale(3));
         this.input.keyboard.on('keydown-THREE', () => this.setTimeScale(5));
 
+        this.add.sprite(-10, 50, 'cityWall')
+            .setDisplaySize(this.tileSize*this.gridWidth+85, this.tileSize*this.gridHeight+100)
+            .setOrigin(0)
+            .setDepth(10);
         this.setupDragDrop();
     }
 
@@ -193,6 +200,17 @@ class MainScene extends Phaser.Scene {
         const scaledDelta = delta * this.timeScale;
         this.globalGameTime += scaledDelta;
 
+        if (this.baseTarget.hp <= 0 && !this.gameOverTriggered) {
+            console.log("base destroyed")
+            this.baseTarget.hp = 0; // clamp visuel
+            this.setTimeScale(0);
+            this.triggerGameOver(); // isole le bloc dans une fonction
+            return;
+        } else if(this.baseTarget.hp <= 0) {
+            console.log("target hp", this.baseTarget.hp)
+            console.log("base destroyed", this.gameOverTriggered)
+        }
+
         this.buildingManager.updateAll(scaledDelta);
         this.timeline.update(scaledDelta);
         this.projectiles.forEach(p => p.update(scaledDelta));
@@ -210,72 +228,63 @@ class MainScene extends Phaser.Scene {
         this.baseTarget.hpText.setText(this.translate("base_hp")+`: ${Math.max(0, Math.floor(this.baseTarget.hp))}`);
         this.baseTarget.hpText.setFill(this.baseTarget.hp > 40 ? '#00ff00' : this.baseTarget.hp > 15 ? '#ffff00' : '#ff0000');
 
-        if (this.baseTarget.hp <= 0 && !this.baseDestroyed) {
-            this.baseDestroyed = true;
-            this.setTimeScale(0);
-
-            const wavesSurvived = this.waveManager.waveNumber || 0;
-            const shardsEarned = Math.floor(wavesSurvived / 2); // Ex : 1 shard toutes les 2 vagues
-
-            const currentShards = parseInt(localStorage.getItem('memoryShards') || '0');
-            localStorage.setItem('memoryShards', ""+(currentShards + shardsEarned));
-
-            // Overlay semi-transparent
-            this.gameOverOverlay = this.add.rectangle(
-                0, 0,
-                this.scale.width,
-                this.scale.height,
-                0x000000,
-                0.7
-            ).setOrigin(0).setDepth(999);
-
-            // Message central
-            this.gameOverText = this.add.text(
-                this.scale.width / 2,
-                this.scale.height / 2 - 80,
-                this.translate('base_destroyed_title'),
-                {
-                    fontSize: '32px',
-                    fill: '#ffffff',
-                    align: 'center',
-                    fontFamily: 'monospace'
-                }
-            ).setOrigin(0.5).setDepth(1000);
-
-            // Bouton [Recommencer]
-            const btnX = this.scale.width / 2;
-            const btnY = this.scale.height / 2 + 20;
-
-            this.restartBtn = this.add.rectangle(btnX, btnY, 200, 50, 0x333333, 1)
-                .setStrokeStyle(2, 0xffffff)
-                .setOrigin(0.5)
-                .setInteractive()
-                .setDepth(1001);
-
-            this.restartText = this.add.text(btnX, btnY, this.translate('restart_button'), {
-                fontSize: '20px',
-                fill: '#00ff00',
-                fontFamily: 'monospace'
-            }).setOrigin(0.5).setDepth(1002);
-
-            this.restartBtn.on('pointerover', () => {
-                this.restartBtn.setFillStyle(0x555555);
-            });
-
-            this.restartBtn.on('pointerout', () => {
-                this.restartBtn.setFillStyle(0x333333);
-            });
-
-            this.restartBtn.on('pointerdown', () => {
-                this.cameras.main.fadeOut(500, 0, 0, 0);
-                this.time.delayedCall(500, () => {
-                    this.scene.start('OverseerCoreScene');
-                });
-            });
-
-        }
 
         this.artifactManager.update(scaledDelta)
+    }
+
+    triggerGameOver() {
+
+        console.log("🛑 triggerGameOver called");
+        try {
+        this.gameOverTriggered = true;
+
+        const wavesSurvived = this.waveManager.waveNumber || 0;
+        const shardsEarned = Math.floor(wavesSurvived / 2);
+        const currentShards = parseInt(localStorage.getItem('memoryShards') || '0');
+        localStorage.setItem('memoryShards', "" + (currentShards + shardsEarned));
+
+        this.gameOverOverlay = this.add.rectangle(
+            0, 0, this.scale.width, this.scale.height,
+            0x000000, 0.7
+        ).setOrigin(0).setDepth(999);
+
+        this.gameOverText = this.add.text(
+            this.scale.width / 2, this.scale.height / 2 - 80,
+            this.translate('base_destroyed_title'),
+            {
+                fontSize: '32px',
+                fill: '#ffffff',
+                align: 'center',
+                fontFamily: 'monospace'
+            }
+        ).setOrigin(0.5).setDepth(1000);
+
+        const btnX = this.scale.width / 2;
+        const btnY = this.scale.height / 2 + 20;
+
+        this.restartBtn = this.add.rectangle(btnX, btnY, 200, 50, 0x333333, 1)
+            .setStrokeStyle(2, 0xffffff)
+            .setOrigin(0.5)
+            .setInteractive()
+            .setDepth(1001);
+
+        this.restartText = this.add.text(btnX, btnY, this.translate('restart_button'), {
+            fontSize: '20px',
+            fill: '#00ff00',
+            fontFamily: 'monospace'
+        }).setOrigin(0.5).setDepth(1002);
+
+        this.restartBtn.on('pointerover', () => this.restartBtn.setFillStyle(0x555555));
+        this.restartBtn.on('pointerout', () => this.restartBtn.setFillStyle(0x333333));
+        this.restartBtn.on('pointerdown', () => {
+            this.cameras.main.fadeOut(500, 0, 0, 0);
+            this.time.delayedCall(500, () => {
+                this.scene.start('OverseerCoreScene');
+            });
+        });
+        }catch(e){
+            console.error("❌ ERREUR dans triggerGameOver :", e);
+        }
     }
 
 
@@ -308,7 +317,7 @@ class MainScene extends Phaser.Scene {
 
         this.playerSpawnCircle = this.add.circle(
             600,
-            200,
+            350,
             playerSpawnRadius,
             0x00ff00,
             0.2

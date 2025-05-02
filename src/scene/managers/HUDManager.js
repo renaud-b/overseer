@@ -100,21 +100,48 @@ class HUDManager {
         const padding = 10;
         const maxWidth = 250;
 
-        this.infoText.setText(`${title}\n\n${description}`);
+        const fullText = `${title}\n\n${description}`;
+        this.infoText.setText(fullText);
         this.infoText.setWordWrapWidth(maxWidth);
-        this.infoText.setPosition(x + padding, y - padding);
+
+        // Force une mise à jour des dimensions (sinon le getBounds est vide ou décalé)
+        this.infoText.setPosition(0, 0);
+        this.infoText.setVisible(true); // nécessaire pour getBounds correct
+        this.scene.children.bringToTop(this.infoText);
 
         const textBounds = this.infoText.getBounds();
-        const panelWidth = Math.min(maxWidth + padding * 2, textBounds.width + padding * 2);
+        const panelWidth = textBounds.width + padding * 2;
         const panelHeight = textBounds.height + padding * 2;
 
-        this.infoPanel.setSize(panelWidth, panelHeight);
-        this.infoPanel.setPosition(x, y);
-        this.infoPanel.setOrigin(0, 1);
+        let panelX = x;
+        let panelY = y - panelHeight;
 
+        if (panelY < 0) {
+            panelY = y;
+        }
+
+        // Réajuste si le panneau dépasse les bords latéraux
+        if (panelX + panelWidth > this.scene.scale.width) {
+            panelX = this.scene.scale.width - panelWidth - 10;
+        }
+        if (panelX < 10) {
+            panelX = 10;
+        }
+
+        // Positionne le panneau
+        this.infoPanel.setSize(panelWidth, panelHeight);
+        this.infoPanel.setPosition(panelX, panelY);
+        this.infoPanel.setOrigin(0, 0);
         this.infoPanel.setVisible(true);
-        this.infoText.setVisible(true);
+
+        // Positionne le texte à l’intérieur avec padding
+        this.infoText.setPosition(panelX + padding, panelY + padding);
+        this.infoText.setOrigin(0, 0);
+        this.scene.children.bringToTop(this.infoPanel);
+        this.scene.children.bringToTop(this.infoText);
     }
+
+
 
     hideInfoPanel() {
         this.infoPanel.setVisible(false);
@@ -474,7 +501,7 @@ class HUDManager {
     }
 
 
-    showWaveDraftPopup(choices) {
+    showWaveDraftPopup(choices, then = () => {}) {
         this.lastTimeScale = this.scene.timeScale;
         this.scene.setTimeScale(0);
 
@@ -559,6 +586,7 @@ class HUDManager {
                 this.scene.waveManager.waves[waveId] = { alive: -1, composition: waveComp, rewards: this.scene.waveManager.generateWaveRewards(this.scene.waveManager.waveNumber) };
                 this.scene.waveManager.selectedWaves.push(waveComp)
                 console.log(`✅ Nouvelle vague planifiée (draft) id=${waveId}`);
+                then()
             });
 
             // Nettoyage

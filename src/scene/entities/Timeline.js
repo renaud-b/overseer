@@ -4,15 +4,16 @@ class Timeline {
         this.flags = [];
         this.width = 700;
         this.offsetX = 500;
-        this.track = scene.add.rectangle(this.offsetX, 0, this.width, 10, 0x888888)
-            .setOrigin(0).setY(60);
+        this.offsetY = 30
+        this.track = scene.add.rectangle(this.offsetX, this.offsetY, this.width, 10, 0x888888)
+            .setOrigin(0);
 
         this.waveSpeed = 10; // px/s
     }
 
     addFlag(delayMs, composition, rewards = null, waveId = null) {
         const startX = this.width + this.offsetX;
-        const y = 55;
+        const y = this.offsetY-5;
 
         const flag = this.scene.add.rectangle(startX, y, 12, 20, 0xff0000)
             .setOrigin(0);
