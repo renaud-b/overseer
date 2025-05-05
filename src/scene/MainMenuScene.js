@@ -6,7 +6,14 @@ class MainMenuScene extends Phaser.Scene {
     preload() {
         this.load.image('background', 'assets/background.png');
         const lang = window.selectedLanguage || 'en';
-        this.load.json('gameTexts', `assets/game_texts_${lang}.json`);
+        const assets = {
+            'en': '/ipfs/QmZofYpipse1sKMx3XXZwmvMU4VHE5ofgGNbAdg17rHFGp', // game_texts_en.json
+            'fr': '/ipfs/Qmdsk7ZTq4t6WmhTfUZrYzAmqVPeSwEVs84v2D4tzoToye', // game_texts_fr.json
+            'es': '/ipfs/QmbACgTSvzUZhePYnANCz5wjDJotMfBPatCH4NpvpZgFgD', // game_texts_es.json
+            'jp': '/ipfs/QmawNsDeTEbYcbfDRZFo8kMT2pit8fCcg1hGqQdKkfMbZR' // game_texts_jp.json
+        }
+        this.load.json('gameTexts', assets[lang]);
+
     }
 
     translate(key, replacements = {}) {
