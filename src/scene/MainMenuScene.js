@@ -4,7 +4,7 @@ class MainMenuScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('background', 'assets/background.png');
+        this.load.image('background', '/ipfs/QmeDz1q97tup4bUfNM8nJRRhP5iXHPWTHqC479R9K6eJMx');
         const lang = window.selectedLanguage || 'en';
         const assets = {
             'en': '/ipfs/QmZofYpipse1sKMx3XXZwmvMU4VHE5ofgGNbAdg17rHFGp', // game_texts_en.json

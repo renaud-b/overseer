@@ -5,7 +5,7 @@ class HomeScene extends Phaser.Scene {
 
     preload() {
 
-        this.load.image('homeBackground', 'assets/background.png');
+        this.load.image('homeBackground', '/ipfs/QmeDz1q97tup4bUfNM8nJRRhP5iXHPWTHqC479R9K6eJMx');
     }
 
     create() {

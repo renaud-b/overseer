@@ -13,7 +13,7 @@ class OptionsScene extends Phaser.Scene {
         }
         this.load.json('gameTexts', assets[lang]);
 
-        this.load.image('background', 'assets/background.png');
+        this.load.image('background', '/ipfs/QmeDz1q97tup4bUfNM8nJRRhP5iXHPWTHqC479R9K6eJMx');
     }
 
     translate(key, replacements = {}) {

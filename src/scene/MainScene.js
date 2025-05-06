@@ -17,18 +17,23 @@ class MainScene extends Phaser.Scene {
         this.load.json('gameTexts', assets[lang]);
 
 
-        this.load.image('droneSprite', 'assets/sprites/drone_01.png');
-        this.load.image('cityWall', 'assets/city-wall.png');
+        this.load.image('droneSprite', '/ipfs/QmYErvepdimDUM1e4z8gaFae9PNJDTZviH82bStroZ8Zt7');
+        this.load.image('cityWall', '/ipfs/QmersD3rk1iekUPFwmLvDQfEQWoNBw33bJHPj7Nwd37ZRw');
         this.load.image('ground', 'assets/ground_02.png');
 
-        // 🔽 Charge chaque icône de ressource
-        const resources = [
-            'hydronium', 'scrap', 'alloy', 'flux_crystal',
-            'ion_field', 'bio_gel', 'compute_units', 'xeno_sample'
-        ];
-        resources.forEach(id => {
-            this.load.image(`icon_${id}`, `assets/sprites/${id}.png`);
-        });
+        const resources = {
+            'alloy': '/ipfs/Qmb15cJwdHdRYooAuV1JXRVFVnbdgxDp1iRFuS5CzXjjW5',
+            'bio_gel': '/ipfs/QmerB6FwyHxpnF2Hh7n1SUdXx4tHHaudAZtUH9gaNYLXRp',
+            'compute_units': '/ipfs/Qma5uUerFkPPELBK96JSUTuTa37gkQC5qx7TcG2c7esbt1',
+            'flux_crystal': '/ipfs/QmTTAF11tC87HzS35iU3Jw21BLrPTHdoorZrEmvYhSL2NM',
+            'hydronium': '/ipfs/QmbLsNWyeYaH2ksJTatU2pB1MBVtEK28fbDPayDt5EF375',
+            'ion_field': '/ipfs/Qmb4sWJQUupXkCU3qPZAwyk1f8RhckK4RL7ko6j6Mt3CdZ',
+            'scrap': '/ipfs/QmUKc1CXyX7r44dxaH1PNQRQ8buHGJhEhDGsPdrkQgSBmg',
+            'xeno_sample': '/ipfs/QmU3qnRHF2PreAPSzLrvegAjSGTVSEXZjz3PFzc9SFf7QW'
+        }
+        Object.keys(resources).forEach((resource) => {
+            this.load.json(resource, resources[resource]);
+        })
     }
 
 
