@@ -184,7 +184,6 @@ class HUDManager {
             }).setOrigin(0.5).setDepth(51);
 
             btn.on('pointerdown', () => {
-                console.log("selected speed: ", speeds[index]);
                 this.scene.setTimeScale(speeds[index]);
             });
 
@@ -522,7 +521,7 @@ class HUDManager {
         const title = this.scene.add.text(
             panel.x,
             panel.y - 210,
-            this.scene.translate('choose_next_waves_title') || '🌌 Choisissez les prochaines vagues',
+            this.scene.translate('choose_next_waves_title') || 'Choisissez les prochaines vagues',
             {
                 fontSize: '24px',
                 fill: '#ffffff',
@@ -585,7 +584,7 @@ class HUDManager {
                 const waveId = this.scene.waveManager.currentWaveId++;
                 this.scene.waveManager.waves[waveId] = { alive: -1, composition: waveComp, rewards: this.scene.waveManager.generateWaveRewards(this.scene.waveManager.waveNumber) };
                 this.scene.waveManager.selectedWaves.push(waveComp)
-                console.log(`✅ Nouvelle vague planifiée (draft) id=${waveId}`);
+                console.log(`Nouvelle vague planifiée (draft) id=${waveId}`);
                 then()
             });
 

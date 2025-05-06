@@ -50,9 +50,13 @@ class Vision {
 
     updatePatternForLevel() {
         const rotatePattern = (pattern, times = 1) => {
-            let rotated = pattern.map(p => ({ ...p }));
+            let rotated = pattern.map(p => {
+                return { ...p}
+            });
             for (let t = 0; t < times; t++) {
-                rotated = rotated.map(({ x, y }) => ({ x: -y, y: x }));
+                rotated = rotated.map(({ x, y }) => {
+                    return {x: -y, y: x}
+                });
             }
             return rotated;
         };

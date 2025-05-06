@@ -65,8 +65,6 @@ class SpellManager {
     }
 
     castSpellAt(spell, x, y) {
-        console.log(`✨ Sort ${spell.name} à (${x}, ${y})`);
-
         if (spell.effect === 'stun') {
             this.scene.enemyUnits.forEach(unit => {
                 const dist = Phaser.Math.Distance.Between(unit.sprite.x, unit.sprite.y, x, y);

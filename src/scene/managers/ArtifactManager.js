@@ -9,7 +9,7 @@ class ArtifactManager {
         if (!artifact) return;
 
         this.artifacts.push(artifact);
-        console.log(`✨ Artifact obtenu : ${artifact.name}`);
+        console.log(`Artifact obtenu : ${artifact.name}`);
     }
 
     getArtifactData(id) {
@@ -35,7 +35,7 @@ class ArtifactManager {
                 });
                 if (count > 0) {
                     this.scene.addResource('xeno_sample', count);
-                    console.log(`🧬 Gagné ${count} xeno_sample via artifact`);
+                    console.log(`Gagné ${count} xeno_sample via artifact`);
                 }
             }
         }

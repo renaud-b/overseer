@@ -159,15 +159,15 @@ class WaveManager {
 
         const choices = [
             {
-                label: this.scene.translate('wave_choice_easy') || '🌿 Facile',
+                label: this.scene.translate('wave_choice_easy') || 'Facile',
                 waves: [generateComposition('easy'), generateComposition('easy')]
             },
             {
-                label: this.scene.translate('wave_choice_medium') || '⚔️ Moyen',
+                label: this.scene.translate('wave_choice_medium') || 'Moyen',
                 waves: [generateComposition('medium'), generateComposition('medium')]
             },
             {
-                label: this.scene.translate('wave_choice_hard') || '🔥 Difficile',
+                label: this.scene.translate('wave_choice_hard') || 'Difficile',
                 waves: [generateComposition('hard'), generateComposition('hard')]
             }
         ];
@@ -221,7 +221,7 @@ class WaveManager {
     spawnWave(waveId) {
         const wave = this.waves[waveId];
         if (!wave) {
-            console.warn("❌ Aucune donnée pour waveId:", waveId);
+            console.warn("Aucune donnée pour waveId:", waveId);
             return;
         }
 
@@ -247,8 +247,6 @@ class WaveManager {
                 this.scene.enemyUnits.push(unit);
             }
         }
-
-        console.log(`🌊 Vague #${waveId} déclenchée : ${total} ennemis`);
     }
 
 

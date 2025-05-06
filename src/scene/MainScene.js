@@ -86,7 +86,6 @@ class MainScene extends Phaser.Scene {
         this.vision = new Vision(this, this.tileSize, this.gridWidth, this.gridHeight, this.gridManager.tiles);
 
         if (this.isTalentUnlocked('vision_boost')) {
-            console.log("Talent débloqué : Vision Boost");
             this.vision.level++;
             this.vision.updatePatternForLevel(); // Important ! Recalcule le pattern
             this.vision.updatePosition();        // Important ! Redessine la vision
@@ -177,7 +176,7 @@ class MainScene extends Phaser.Scene {
             merged[category] = stats[category].map(item => {
                 const textItem = (texts[category] || []).find(t => t.id === item.id);
                 if (!textItem) {
-                    console.warn(`⚠️ Texte manquant pour ${category}/${item.id}`);
+                    console.warn(`Texte manquant pour ${category}/${item.id}`);
                 }
                 return { ...item, ...(textItem || {}) };
 
@@ -241,7 +240,6 @@ class MainScene extends Phaser.Scene {
 
     triggerGameOver() {
 
-        console.log("🛑 triggerGameOver called");
         try {
         this.gameOverTriggered = true;
 
@@ -290,7 +288,7 @@ class MainScene extends Phaser.Scene {
             });
         });
         }catch(e){
-            console.error("❌ ERREUR dans triggerGameOver :", e);
+            console.error("ERREUR dans triggerGameOver :", e);
         }
     }
 
@@ -435,8 +433,6 @@ class MainScene extends Phaser.Scene {
 
                     building.tile = tile;
                     gameObject.originTile = tile;
-
-                    console.log(`Déplacement du bâtiment ${gameObject.cardType} vers [${tile.x}, ${tile.y}]`);
                 } else {
                     // retour à la position d’origine
                     gameObject.setPosition(
@@ -453,7 +449,6 @@ class MainScene extends Phaser.Scene {
 
                 const now = this.time.now;
                 if (!gameObject.oneTime && this.spellManager.spellCooldowns[spell.id] > now) {
-                    console.log("Sort en recharge.");
                     return;
                 }
 
@@ -568,7 +563,6 @@ class MainScene extends Phaser.Scene {
 
     setTimeScale(scale) {
         this.timeScale = scale;
-        console.log(`⏱️ Temps réglé sur x${scale}`);
 
         const speedMap = { 0: 0, 1: 1, 3: 2, 5: 3 };
         const index = speedMap[scale] ?? 1;

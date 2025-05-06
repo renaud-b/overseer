@@ -19,7 +19,7 @@ class HomeScene extends Phaser.Scene {
             .setDisplaySize(this.scale.width, this.scale.height);
 
         // ✨ Titre principal du jeu
-        this.add.text(centerX, centerY - 250, '🤖 OVERSEER', {
+        this.add.text(centerX, centerY - 250, 'OVERSEER', {
             fontSize: '48px',
             fill: '#00ffff',
             fontFamily: 'monospace'

@@ -17,7 +17,6 @@ class UnitManager {
             );
 
             const unitData = this.scene.gameData.units.find(u => u.id === type);
-            console.log("type: ", type)
             const unit = new Unit(this.scene, x, y, 'player', null, unitData);
             unit.unitType = type;
             this.scene.playerUnits.push(unit);

@@ -129,7 +129,7 @@ class Building {
 
         const max = data.max_produced;
         if (max && this.totalProduced >= max) {
-            console.log(`💥 Le bâtiment ${this.type} s'est épuisé et est détruit.`);
+            console.log(`Le bâtiment ${this.type} s'est épuisé et est détruit.`);
             this.tile.building = null;
             this.scene.buildingManager.buildings = this.scene.buildingManager.buildings.filter(b => b !== this);
             this.destroy();
