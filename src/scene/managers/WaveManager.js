@@ -16,7 +16,7 @@ class WaveManager {
         }
         while (this.scheduledWaves.length > 0 && this.scene.globalGameTime >= this.scheduledWaves[0].time) {
             const next = this.scheduledWaves.shift();
-            this.scene.timeline.addFlag(0, next.composition, next.rewards);
+                this.scene.timeline.addFlag(0, next.composition, next.rewards);
 
 
         }
@@ -28,6 +28,9 @@ class WaveManager {
         }
         console.log(this.waves)
         for (let entry of Object.entries(this.waves)) {
+            if(!entry.waveIdStr || entry.wave){
+                continue
+            }
             const waveId = parseInt(entry.waveIdStr);
             const stillAlive = waveAlive[waveId] || 0;
             if (entry.wave.alive > 0 && stillAlive === 0) {
