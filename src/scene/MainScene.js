@@ -31,8 +31,8 @@ class MainScene extends Phaser.Scene {
             'scrap': '/ipfs/QmUKc1CXyX7r44dxaH1PNQRQ8buHGJhEhDGsPdrkQgSBmg',
             'xeno_sample': '/ipfs/QmU3qnRHF2PreAPSzLrvegAjSGTVSEXZjz3PFzc9SFf7QW'
         }
-        Object.keys(resources).forEach((resource) => {
-            this.load.json(resource, resources[resource]);
+        Object.keys(resources).forEach((resourceName) => {
+            this.load.image(`icon_${resourceName}`, resources[resourceName]);
         })
     }
 
