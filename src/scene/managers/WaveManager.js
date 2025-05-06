@@ -26,6 +26,7 @@ class WaveManager {
         for (let unit of enemyUnits) {
             if (unit.waveId !== undefined) waveAlive[unit.waveId] = (waveAlive[unit.waveId] || 0) + 1;
         }
+        console.log(this.waves)
         for (let entry of Object.entries(this.waves)) {
             const waveId = parseInt(entry.waveIdStr);
             const stillAlive = waveAlive[waveId] || 0;
