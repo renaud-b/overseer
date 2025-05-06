@@ -26,12 +26,11 @@ class WaveManager {
         for (let unit of enemyUnits) {
             if (unit.waveId !== undefined) waveAlive[unit.waveId] = (waveAlive[unit.waveId] || 0) + 1;
         }
-        for (let e of Object.entries(this.waves)) {
-            const [waveIdStr, wave] = e
-            const waveId = parseInt(waveIdStr);
+        for (let entry of Object.entries(this.waves)) {
+            const waveId = parseInt(entry.waveIdStr);
             const stillAlive = waveAlive[waveId] || 0;
-            if (wave.alive > 0 && stillAlive === 0) {
-                wave.alive = 0;
+            if (entry.wave.alive > 0 && stillAlive === 0) {
+                entry.wave.alive = 0;
                 this.handleWaveVictory(waveId);
             }
         }
