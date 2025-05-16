@@ -127,31 +127,35 @@ class Vision {
             }
         });
     }
-
     bindControls() {
-        this.keys = this.scene.input.keyboard.addKeys({
-            up: 'Z',
+        const isAzerty = window.keyboardLayout === 'azerty';
+
+        const keys = {
+            up: isAzerty ? 'Z' : 'W',
             down: 'S',
-            left: 'Q',
+            left: isAzerty ? 'Q' : 'A',
             right: 'D',
             rotate: 'E'
-        });
+        };
+
+        this.keys = this.scene.input.keyboard.addKeys(keys);
 
         this.scene.input.keyboard.on('keydown', (event) => {
+            const key = event.key.toLowerCase();
             let newX = this.pos.x;
             let newY = this.pos.y;
 
-            if (event.key === 'z') {
+            if (key === keys.up.toLowerCase()) {
                 newY--;
-            } else if (event.key === 's') {
+            } else if (key === keys.down.toLowerCase()) {
                 newY++;
-            } else if (event.key === 'q') {
+            } else if (key === keys.left.toLowerCase()) {
                 newX--;
-            } else if (event.key === 'd') {
+            } else if (key === keys.right.toLowerCase()) {
                 newX++;
-            } else if (event.key === 'e') {
+            } else if (key === keys.rotate.toLowerCase()) {
                 this.patternIndex = (this.patternIndex + 1) % this.visionPatterns.length;
-                this.updatePosition(); // rotation autorisée sans vérif
+                this.updatePosition();
                 return;
             }
 
@@ -168,6 +172,6 @@ class Vision {
                 this.updatePosition();
             }
         });
-
     }
+
 }

@@ -346,6 +346,7 @@
     "talent_unit_cap_increase_description": "Increase the maximum number of unit buildings by +1."
   },
   "menu": {
+    "keyboard_layout": "Keyboard layout",
     "start": "Start",
     "options": "Options",
     "quit": "Quit",

@@ -5,35 +5,22 @@ class MainScene extends Phaser.Scene {
     }
 
     preload() {
-
-        this.load.json('gameStats', '/ipfs/Qmavvk4HtB7cwrn3TVZ9RuspmahDAW3TjtMYcadAvYs1Ze'); // game_stats.json
+        this.load.json('gameStats', 'assets/game_stats.json');
         const lang = window.selectedLanguage || 'en';
-        const assets = {
-            'en': '/ipfs/QmZofYpipse1sKMx3XXZwmvMU4VHE5ofgGNbAdg17rHFGp', // game_texts_en.json
-            'fr': '/ipfs/Qmdsk7ZTq4t6WmhTfUZrYzAmqVPeSwEVs84v2D4tzoToye', // game_texts_fr.json
-            'es': '/ipfs/QmbACgTSvzUZhePYnANCz5wjDJotMfBPatCH4NpvpZgFgD', // game_texts_es.json
-            'jp': '/ipfs/QmawNsDeTEbYcbfDRZFo8kMT2pit8fCcg1hGqQdKkfMbZR' // game_texts_jp.json
-        }
-        this.load.json('gameTexts', assets[lang]);
+        this.load.json('gameTexts', `assets/game_texts_${lang}.json`);
 
 
-        this.load.image('droneSprite', '/ipfs/QmYErvepdimDUM1e4z8gaFae9PNJDTZviH82bStroZ8Zt7');
-        this.load.image('cityWall', '/ipfs/QmersD3rk1iekUPFwmLvDQfEQWoNBw33bJHPj7Nwd37ZRw');
+        this.load.image('droneSprite', 'assets/sprites/drone_01.png');
+        this.load.image('cityWall', 'assets/city-wall.png');
         this.load.image('ground', 'assets/ground_02.png');
 
-        const resources = {
-            'alloy': '/ipfs/Qmb15cJwdHdRYooAuV1JXRVFVnbdgxDp1iRFuS5CzXjjW5',
-            'bio_gel': '/ipfs/QmerB6FwyHxpnF2Hh7n1SUdXx4tHHaudAZtUH9gaNYLXRp',
-            'compute_units': '/ipfs/Qma5uUerFkPPELBK96JSUTuTa37gkQC5qx7TcG2c7esbt1',
-            'flux_crystal': '/ipfs/QmTTAF11tC87HzS35iU3Jw21BLrPTHdoorZrEmvYhSL2NM',
-            'hydronium': '/ipfs/QmbLsNWyeYaH2ksJTatU2pB1MBVtEK28fbDPayDt5EF375',
-            'ion_field': '/ipfs/Qmb4sWJQUupXkCU3qPZAwyk1f8RhckK4RL7ko6j6Mt3CdZ',
-            'scrap': '/ipfs/QmUKc1CXyX7r44dxaH1PNQRQ8buHGJhEhDGsPdrkQgSBmg',
-            'xeno_sample': '/ipfs/QmU3qnRHF2PreAPSzLrvegAjSGTVSEXZjz3PFzc9SFf7QW'
-        }
-        Object.keys(resources).forEach((resourceName) => {
-            this.load.image(`icon_${resourceName}`, resources[resourceName]);
-        })
+        const resources = [
+            'hydronium', 'scrap', 'alloy', 'flux_crystal',
+            'ion_field', 'bio_gel', 'compute_units', 'xeno_sample'
+        ];
+        resources.forEach(id => {
+            this.load.image(`icon_${id}`, `assets/sprites/${id}.png`);
+        });
     }
 
 
@@ -70,6 +57,7 @@ class MainScene extends Phaser.Scene {
         this.buildingManager = new BuildingManager(this);
         this.spellManager = new SpellManager(this, this.gameData.spells)
 
+
         this.resourceBonusMultipliers = {}
 
         this.gridWidth = 5;
@@ -97,6 +85,8 @@ class MainScene extends Phaser.Scene {
         }
 
         this.createSpawnZones();
+
+        this.unitManager.addUnit('unit_guard', 10);
 
         if (this.isTalentUnlocked('starter_guard')) {
             this.unitManager.addUnit('unit_guard', 1);

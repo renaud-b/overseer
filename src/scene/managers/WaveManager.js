@@ -17,24 +17,22 @@ class WaveManager {
         while (this.scheduledWaves.length > 0 && this.scene.globalGameTime >= this.scheduledWaves[0].time) {
             const next = this.scheduledWaves.shift();
                 this.scene.timeline.addFlag(0, next.composition, next.rewards);
-
-
         }
 
 
         const waveAlive = {};
+
         for (let unit of enemyUnits) {
             if (unit.waveId !== undefined) waveAlive[unit.waveId] = (waveAlive[unit.waveId] || 0) + 1;
         }
-        console.log(this.waves)
-        for (let entry of Object.entries(this.waves)) {
-            if(!entry.waveIdStr || entry.wave){
+        for (let [waveIdStr, wave] of Object.entries(this.waves)) {
+            if(!waveIdStr || !wave){
                 continue
             }
-            const waveId = parseInt(entry.waveIdStr);
+            const waveId = parseInt(waveIdStr);
             const stillAlive = waveAlive[waveId] || 0;
-            if (entry.wave.alive > 0 && stillAlive === 0) {
-                entry.wave.alive = 0;
+            if (wave.alive > 0 && stillAlive === 0) {
+                wave.alive = 0;
                 this.handleWaveVictory(waveId);
             }
         }
@@ -125,6 +123,7 @@ class WaveManager {
         this.scene.hud.showRewardPopupWithChoices(rewards, (restoreTimeScale) => {
             // ➡️ Quand toutes les récompenses sont choisies et confirmées, et que la vague est un multiple de 5, on propose un choix de vague:
             if (this.waveNumber % 5 === 0) {
+
                 this.proposeWaveDraft(restoreTimeScale);
             } else {
                 restoreTimeScale()
@@ -228,14 +227,9 @@ class WaveManager {
             console.warn("Aucune donnée pour waveId:", waveId);
             return;
         }
-
         const composition = wave.composition;
-        const rewards = wave.rewards;
-
         this.waveNumber++; // 👈 important, incrémente le compteur
-
-        const total = Object.values(composition).reduce((a, b) => a + b, 0);
-        this.waves[waveId].alive = total;
+        this.waves[waveId].alive = Object.values(composition).reduce((a, b) => a + b, 0);
 
         for (let [enemyId, count] of Object.entries(composition)) {
             const enemyData = this.scene.gameData.enemies.find(e => e.id === enemyId);

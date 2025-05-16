@@ -5,15 +5,8 @@ class OptionsScene extends Phaser.Scene {
 
     preload() {
         const lang = window.selectedLanguage || 'en';
-        const assets = {
-            'en': '/ipfs/QmZofYpipse1sKMx3XXZwmvMU4VHE5ofgGNbAdg17rHFGp', // game_texts_en.json
-            'fr': '/ipfs/Qmdsk7ZTq4t6WmhTfUZrYzAmqVPeSwEVs84v2D4tzoToye', // game_texts_fr.json
-            'es': '/ipfs/QmbACgTSvzUZhePYnANCz5wjDJotMfBPatCH4NpvpZgFgD', // game_texts_es.json
-            'jp': '/ipfs/QmawNsDeTEbYcbfDRZFo8kMT2pit8fCcg1hGqQdKkfMbZR' // game_texts_jp.json
-        }
-        this.load.json('gameTexts', assets[lang]);
-
-        this.load.image('background', '/ipfs/QmeDz1q97tup4bUfNM8nJRRhP5iXHPWTHqC479R9K6eJMx');
+        this.load.json('gameTexts', `assets/game_texts_${lang}.json`);
+        this.load.image('background', 'assets/background.png');
     }
 
     translate(key, replacements = {}) {
@@ -100,6 +93,46 @@ class OptionsScene extends Phaser.Scene {
             });
         });
 
+
+        // Clavier
+        y += 200;
+        this.createKeyboardLayoutButton(centerX, y);
+        this.createBackButton(centerX, height);
+
+    }
+
+
+    createKeyboardLayoutButton(centerX, y) {
+        // 🧠 Config clavier
+        this.add.text(centerX, y, this.translate("keyboard_layout") || "Keyboard Layout:", {
+            fontSize: '24px',
+            fill: '#fff'
+        }).setOrigin(0.5);
+        y += 40;
+
+        const layouts = [
+            { code: 'azerty', label: '🇫🇷 AZERTY' },
+            { code: 'qwerty', label: '🇺🇸 QWERTY' }
+        ];
+
+        layouts.forEach((layout, index) => {
+            const layoutBtn = this.add.text(centerX, y + index * 40, layout.label, {
+                fontSize: '22px',
+                fill: '#00ff00',
+                fontFamily: 'monospace'
+            }).setOrigin(0.5).setInteractive();
+
+            layoutBtn.on('pointerover', () => layoutBtn.setFill('#88ff88'));
+            layoutBtn.on('pointerout', () => layoutBtn.setFill('#00ff00'));
+            layoutBtn.on('pointerdown', () => {
+                localStorage.setItem('keyboardLayout', layout.code);
+                window.keyboardLayout = layout.code;
+                this.scene.restart(); // pour appliquer immédiatement si nécessaire
+            });
+        });
+    }
+
+    createBackButton(centerX, height) {
         // 🔙 Retour
         const backButton = this.add.text(centerX, height * 0.9, this.translate("back"), {
             fontSize: '24px',

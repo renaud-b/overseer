@@ -344,6 +344,7 @@
     "talent_unit_cap_increase_description": "Aumenta en +1 el límite máximo de edificios de unidades."
   },
   "menu": {
+    "keyboard_layout": "Distribución del teclado",
     "start": "Iniciar",
     "options": "Opciones",
     "quit": "Salir",

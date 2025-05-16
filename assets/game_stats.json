@@ -37,7 +37,6 @@
     {
       "id": "condensor",
       "produces": "hydronium",
-      "unlimited": true,
       "rate": 1,
       "producesType": "resource",
       "color": "#3cb9fc",

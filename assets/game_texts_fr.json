@@ -357,6 +357,7 @@
     "tab_ascension": "Ascension"
   },
   "menu": {
+    "keyboard_layout": "Disposition du clavier",
     "start": "Démarrer",
     "options": "Options",
     "quit": "Quitter",

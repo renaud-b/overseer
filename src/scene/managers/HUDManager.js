@@ -241,6 +241,7 @@ class HUDManager {
 
 
     showRewardPopupWithChoices(rewards, onAllRewardsChosen = () => {}) {
+        this.lastTimeScale = this.scene.timeScale;
         const resourcePacks = rewards.packs.filter(p => p.type === 'resource');
         const buildingPacks = rewards.packs.filter(p => p.type === 'building');
 
@@ -255,14 +256,26 @@ class HUDManager {
                     });
 
                     if (rewards.artifactReward) {
-                        this.showArtifactChoicePopup(rewards.artifactReward);
+                        this.showRewardPackSelection([{
+                            type: 'artifact',
+                            options: rewards.artifactReward
+                        }], 'artifact', (choices) => {
+                            choices.forEach(({ id }) => this.scene.artifactManager.addArtifact(id));
+                            onAllRewardsChosen(restoreTimeScale);
+                        });
                     } else {
                         onAllRewardsChosen(restoreTimeScale);
                     }
                 });
             } else {
                 if (rewards.artifactReward) {
-                    this.showArtifactChoicePopup(rewards.artifactReward);
+                    this.showRewardPackSelection([{
+                        type: 'artifact',
+                        options: rewards.artifactReward
+                    }], 'artifact', (choices) => {
+                        choices.forEach(({ id }) => this.scene.artifactManager.addArtifact(id));
+                        onAllRewardsChosen(restoreTimeScale);
+                    });
                 } else {
                     onAllRewardsChosen(restoreTimeScale);
                 }
@@ -279,10 +292,8 @@ class HUDManager {
         } else {
             showBuildingAndArtifactIfNeed()
         }
-
     }
     showRewardPackSelection(packs, type, onDone) {
-        this.lastTimeScale = this.scene.timeScale;
         this.scene.setTimeScale(0);
 
         const overlay = this.scene.add.rectangle(0, 0, this.scene.scale.width, this.scene.scale.height, 0x000000, 0.6)
@@ -296,7 +307,8 @@ class HUDManager {
 
         const titleText = {
             resource: this.scene.translate('reward_choose_resources'),
-            building: this.scene.translate('reward_choose_buildings')
+            building: this.scene.translate('reward_choose_buildings'),
+            artifact: this.scene.translate('reward_choose_artifact')
         };
 
         const title = this.scene.add.text(panel.x, panel.y - 120, titleText[type] || 'Récompenses', {
@@ -326,8 +338,11 @@ class HUDManager {
                 if (type === 'resource') {
                     const res = this.scene.gameData.resources.find(r => r.id === id);
                     labelText = `${res?.name || id} +${pack.quantity}`;
-                } else {
+                } else if (type === 'building') {
                     labelText = this.scene.buildingManager.buildingMap[id]?.name || id;
+                } else if (type === 'artifact') {
+                    const artifact = pack.options[i];
+                    labelText = artifact.name || artifact.id;
                 }
 
                 const btn = this.scene.add.rectangle(x, y, 100, 50, 0x444444)
@@ -356,6 +371,9 @@ class HUDManager {
                     btn.on('pointerout', () => {
                         this.hideInfoPanel();
                     });
+                } else if (type === 'artifact') {
+                    btn.on('pointerover', () => this.showInfoPanel(id.name, id.desc, btn.x + 40, btn.y));
+                    btn.on('pointerout', () => this.hideInfoPanel());
                 }
 
                 group.push(btn);
@@ -374,85 +392,6 @@ class HUDManager {
             [overlay, panel, title, confirmBtn, ...this.scene.children.list.filter(o => o.depth >= 202 && o.depth <= 210)].forEach(o => o.destroy());
             const finalChoices = selectedChoices.filter(c => c && c.id);
             onDone(finalChoices);
-        });
-    }
-
-
-    showArtifactChoicePopup(artifacts) {
-        this.lastTimeScale = this.scene.timeScale;
-        this.scene.setTimeScale(0);
-
-        const overlay = this.scene.add.rectangle(
-            0, 0,
-            this.scene.scale.width,
-            this.scene.scale.height,
-            0x000000, 0.6
-        ).setOrigin(0).setDepth(300);
-
-        const panel = this.scene.add.rectangle(
-            this.scene.scale.width / 2,
-            this.scene.scale.height / 2,
-            600, 300,
-            0x222222, 0.95
-        ).setStrokeStyle(3, 0xffffff).setDepth(301);
-
-        const title = this.scene.add.text(
-            panel.x,
-            panel.y - 120,
-            this.scene.translate('reward_choose_artifact'),
-            {
-                fontSize: '22px',
-                fill: '#ffffff',
-                fontFamily: 'monospace'
-            }
-        ).setOrigin(0.5).setDepth(302);
-
-        let selectedId = null;
-
-        const buttons = artifacts.map((artifact, i) => {
-            const x = panel.x - 180 + i * 180;
-            const y = panel.y;
-
-            const btn = this.scene.add.rectangle(x, y, 160, 50, 0x444444)
-                .setStrokeStyle(2, 0xffffff)
-                .setInteractive()
-                .setDepth(302);
-
-            const txt = this.scene.add.text(x, y, artifact.name, {
-                fontSize: '14px',
-                fill: '#ffffff',
-                fontFamily: 'monospace'
-            }).setOrigin(0.5).setDepth(303);
-
-            btn.on('pointerover', () => {
-                this.showInfoPanel(artifact.name, artifact.desc, x + 100, y);
-            });
-            btn.on('pointerout', () => {
-                this.hideInfoPanel();
-            });
-
-            btn.on('pointerdown', () => {
-                selectedId = artifact.id;
-                buttons.forEach(b => b.btn.setFillStyle(0x444444));
-                btn.setFillStyle(0x888888);
-            });
-
-            return { btn, txt, id: artifact.id };
-        });
-
-        const confirmBtn = this.scene.add.text(panel.x, panel.y + 100, this.scene.translate('confirm_artifact_button'), {
-            fontSize: '20px',
-            fill: '#00ff00',
-            fontFamily: 'monospace'
-        }).setOrigin(0.5).setInteractive().setDepth(304);
-
-        confirmBtn.on('pointerdown', () => {
-            if (!selectedId) return;
-            this.scene.artifactManager.addArtifact(selectedId);
-
-            // Nettoyage
-            this.scene.setTimeScale(this.lastTimeScale);
-            [overlay, panel, title, confirmBtn, ...buttons.flatMap(b => [b.btn, b.txt])].forEach(obj => obj.destroy());
         });
     }
 

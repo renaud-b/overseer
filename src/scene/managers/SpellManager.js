@@ -151,6 +151,15 @@ class SpellManager {
         });
     }
 
+    addSpellById(spellId) {
+        const spell = this.spellData.find(s => s.id === spellId);
+        if (spell) {
+            this.addSpellToBar(spell);
+            return true
+        }
+        return false
+    }
+
     addSpellToBar(spell) {
         const spacing = 120;
         const index = this.spellButtons.length;

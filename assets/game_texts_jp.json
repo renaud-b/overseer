@@ -345,6 +345,7 @@
     "talent_unit_cap_increase_description": "ユニット系建物の最大設置数が+1される。"
   },
   "menu": {
+    "keyboard_layout": "キーボード配列",
     "start": "スタート",
     "options": "オプション",
     "quit": "終了",
