@@ -343,7 +343,16 @@
     "talent_temporal_link_description": "A building adjacent to two different buildings has -10% cooldown.",
 
     "talent_unit_cap_increase_label": "Unit Bay Expansion",
-    "talent_unit_cap_increase_description": "Increase the maximum number of unit buildings by +1."
+    "talent_unit_cap_increase_description": "Increase the maximum number of unit buildings by +1.",
+
+    "talent_blood_adaptation_label": "Biological Adaptation",
+    "talent_blood_adaptation_description": "Gain 1 bio_gel whenever an allied unit dies.",
+
+    "talent_spiritual_salvage_label": "Spiritual Salvage",
+    "talent_spiritual_salvage_description": "5% chance to obtain a free tech protocol when a unit dies.",
+
+    "talent_wave_reward_boost_label": "Post-Wave Optimization",
+    "talent_wave_reward_boost_description": "Gain 5 compute_units after each victorious wave."
   },
   "menu": {
     "keyboard_layout": "Keyboard layout",

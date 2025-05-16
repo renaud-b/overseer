@@ -348,6 +348,15 @@
     "talent_unit_cap_increase_label": "Extension des Structures d'Unités",
     "talent_unit_cap_increase_description": "Augmente la limite maximale de bâtiments d'unités de +1.",
 
+    "talent_blood_adaptation_label": "Adaptation biologique",
+    "talent_blood_adaptation_description": "À chaque mort d’une unité alliée, gagnez 1 bio_gel.",
+
+    "talent_spiritual_salvage_label": "Sauvetage spirituel",
+    "talent_spiritual_salvage_description": "5% de chance de récupérer un protocole technologique gratuit à chaque mort d’unité alliée.",
+
+    "talent_wave_reward_boost_label": "Optimisation post-vague",
+    "talent_wave_reward_boost_description": "Gagne 5 unités de calcul après chaque vague vaincue.",
+
     "wave_choice_easy": "🌿 Facile",
     "wave_choice_medium": "⚔️ Moyen",
     "wave_choice_hard": "🔥 Difficile",

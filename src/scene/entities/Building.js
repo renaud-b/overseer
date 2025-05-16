@@ -5,6 +5,9 @@ class Building {
         this.type = type;
         this.productionTimer = 0;
         this.cooldown = scene.buildingManager.buildingMap[type]?.cooldown || 1000;
+
+        this.scene.talentManager?.applyBehavioralTalentModifiers(this);
+
         this.totalProduced = 0;
 
         const size = scene.tileSize * 0.8;
@@ -97,11 +100,10 @@ class Building {
         this.scene.unitManager.addUnit(data.produces, data.rate || 1);
     }
 
-    handleResourceProduction(data) {
-        const consume = data.consumePerCycle || {};
-        if (!this.scene.checkCost(consume)) return;
-
+    computeBonusRate() {
+        const data = this
         let rate = data.rate || 1;
+        rate *= this.scene.talentManager.getPlacementBonusMultiplier(this.tile, this.type);
         const effectList = this.scene.artifactManager?.getAllActiveEffects() || [];
 
         if (effectList.includes('boost_condensor') && this.type === 'condensor') {
@@ -114,9 +116,6 @@ class Building {
             rate += 1;
         }
 
-
-        this.scene.payCost(consume);
-
         let bonusRate = rate || 1;
 
         // Vérifie s'il y a un bonus
@@ -124,8 +123,18 @@ class Building {
             bonusRate *= this.scene.resourceBonusMultipliers[data.produces];
         }
 
+        return bonusRate
+    }
+
+    handleResourceProduction(data) {
+        const consume = data.consumePerCycle || {};
+        if (!this.scene.checkCost(consume)) return;
+        this.scene.payCost(consume);
+
+        const bonusRate = this.computeBonusRate(data);
+        this.currentRate = bonusRate;
         this.scene.addResource(data.produces, bonusRate);
-        this.totalProduced += data.rate || 1;
+        this.totalProduced += bonusRate || 1;
 
         const max = data.max_produced;
         if (max && this.totalProduced >= max) {
@@ -153,13 +162,40 @@ class Building {
         this.progressCircle.fillPath();
     }
 
+    getBaseRate() {
+        const data = this.scene.buildingManager.buildingMap[this.type];
+        return data?.rate || 1;
+    }
+
+    getEffectiveRate() {
+        return this.currentRate || this.getBaseRate();
+    }
 
 
+    updateTalentVisualBadge() {
+        // Supprimer le précédent si besoin
+        if (this.talentBadge) {
+            this.container.remove(this.talentBadge, true); // true = destroy
+            this.talentBadge = null;
+        }
 
+        const rateBonus = this.getEffectiveRate() > this.getBaseRate();
+        const hasBonus = this.attackSpeedMultiplier > 1 || rateBonus;
 
+        if (hasBonus) {
+            this.talentBadge = this.scene.add.circle(
+                25, -25, // position relative au container
+                8,
+                0xffff00,
+                1
+            );
+            this.container.add(this.talentBadge);
+        }
+    }
 
     destroy() {
         this.container?.destroy();
+        this.talentBadge?.destroy();
     }
 
 }

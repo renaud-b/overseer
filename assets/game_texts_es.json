@@ -341,7 +341,15 @@
     "talent_temporal_link_description": "Un edificio conectado a dos diferentes reduce su enfriamiento en un 10%.",
 
     "talent_unit_cap_increase_label": "Ampliación de Estructuras de Unidades",
-    "talent_unit_cap_increase_description": "Aumenta en +1 el límite máximo de edificios de unidades."
+    "talent_unit_cap_increase_description": "Aumenta en +1 el límite máximo de edificios de unidades.",
+    "talent_blood_adaptation_label": "Adaptación Biológica",
+    "talent_blood_adaptation_description": "Gana 1 bio_gel cada vez que muere una unidad aliada.",
+
+    "talent_spiritual_salvage_label": "Rescate Espiritual",
+    "talent_spiritual_salvage_description": "5% de probabilidad de obtener un protocolo gratuito al morir una unidad.",
+
+    "talent_wave_reward_boost_label": "Optimización Post-Oleada",
+    "talent_wave_reward_boost_description": "Gana 5 unidades de cálculo tras cada oleada victoriosa."
   },
   "menu": {
     "keyboard_layout": "Distribución del teclado",

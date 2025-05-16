@@ -342,7 +342,16 @@
     "talent_temporal_link_description": "異なる2つの建物に隣接している建物はクールダウンが10%短縮される。",
 
     "talent_unit_cap_increase_label": "ユニット施設拡張",
-    "talent_unit_cap_increase_description": "ユニット系建物の最大設置数が+1される。"
+    "talent_unit_cap_increase_description": "ユニット系建物の最大設置数が+1される。",
+
+    "talent_blood_adaptation_label": "生物適応",
+    "talent_blood_adaptation_description": "味方ユニットが死亡するたびに bio_gel を1獲得します。",
+
+    "talent_spiritual_salvage_label": "精神の回収",
+    "talent_spiritual_salvage_description": "味方ユニットの死亡時に5%の確率で無料の技術プロトコルを取得。",
+
+    "talent_wave_reward_boost_label": "波動後の最適化",
+    "talent_wave_reward_boost_description": "各ウェーブ勝利後に計算ユニットを5獲得します。"
   },
   "menu": {
     "keyboard_layout": "キーボード配列",

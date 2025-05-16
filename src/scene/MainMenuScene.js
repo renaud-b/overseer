@@ -52,7 +52,7 @@ class MainMenuScene extends Phaser.Scene {
         createMenuButton(height / 2 - 90, "start", () => {
             this.cameras.main.fadeOut(500, 0, 0, 0);
             this.time.delayedCall(500, () => {
-                this.scene.start('MainScene');
+                this.scene.start('GameScene');
             });
         });
         createMenuButton(height / 2 - 30, "options", () => {
@@ -64,7 +64,7 @@ class MainMenuScene extends Phaser.Scene {
         createMenuButton(height / 2 + 30, "talents", () => {
             this.cameras.main.fadeOut(500, 0, 0, 0);
             this.time.delayedCall(500, () => {
-                this.scene.start('OverseerCoreScene', {fromMenu: true})
+                this.scene.start('TalentScene', {fromMenu: true})
             });
         });
         createMenuButton(height / 2 + 90, "quit", () => window.close());

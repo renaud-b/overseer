@@ -36,6 +36,7 @@ class UnitManager {
     update(){
         this.scene.playerUnits = this.scene.playerUnits.filter(unit => {
             if (!unit.isAlive()) {
+                this.scene.talentManager?.applyOnUnitDeath(unit); // 🔥 Hook ici
                 this.scene.artifactManager?.getAllActiveEffects().forEach(effect => {
                     if (effect === 'heal_random_on_death') {
                         const allies = this.scene.playerUnits.filter(u => u.isAlive());

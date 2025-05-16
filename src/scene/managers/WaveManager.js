@@ -120,6 +120,8 @@ class WaveManager {
 
         const rewards = this.waves[waveId]?.rewards || this.generateWaveRewards(this.waveNumber);
 
+        this.scene.talentManager?.applyOnWaveVictory();
+
         this.scene.hud.showRewardPopupWithChoices(rewards, (restoreTimeScale) => {
             // ➡️ Quand toutes les récompenses sont choisies et confirmées, et que la vague est un multiple de 5, on propose un choix de vague:
             if (this.waveNumber % 5 === 0) {

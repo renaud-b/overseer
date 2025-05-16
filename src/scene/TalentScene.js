@@ -1,6 +1,6 @@
-class OverseerCoreScene extends Phaser.Scene {
+class TalentScene extends Phaser.Scene {
     constructor() {
-        super('OverseerCoreScene');
+        super('TalentScene');
         this.talentTrees = {
             foundation: [
                 { id: 'root', x: 700, y: 100, cost: 0, unlocked: true },
@@ -35,9 +35,15 @@ class OverseerCoreScene extends Phaser.Scene {
                 { id: 'xeno_synergy', parent: 'bio_cuve_growth', x: 1200, y: 700, cost: 10 },
                 { id: 'temporal_link', parent: 'defense_network_bonus', x: 700, y: 700, cost: 10 },
                 { id: 'unit_cap_increase', parent: 'resource_chain_hydronium_alloy', x: 300, y: 700, cost: 10 },
-            ], // Vide pour l’instant
-            evolution: [],    // Vide pour l’instant
-            ascension: []     // Vide pour l’instant
+            ],
+            evolution: [
+                { id: 'root', x: 700, y: 100, cost: 0, unlocked: false },
+                { id: 'blood_adaptation', parent: 'root', x: 600, y: 300, cost: 6 },
+                { id: 'spiritual_salvage', parent: 'blood_adaptation', x: 600, y: 480, cost: 10 }
+            ],
+            ascension: [
+                { id: 'wave_reward_boost', parent: 'root', x: 800, y: 300, cost: 8 }
+            ]
         };
     }
 
@@ -220,7 +226,7 @@ class OverseerCoreScene extends Phaser.Scene {
             button.setFillStyle(0x333333);
         });
 
-        // Au clic ➔ relancer MainScene
+        // Au clic ➔ relancer GameScene
         button.on('pointerdown', () => {
             if(this.fromMenu){
                 this.cameras.main.fadeOut(500, 0, 0, 0);
@@ -231,7 +237,7 @@ class OverseerCoreScene extends Phaser.Scene {
             } else {
                 this.cameras.main.fadeOut(500, 0, 0, 0);
                 this.time.delayedCall(500, () => {
-                    this.scene.start('MainScene');
+                    this.scene.start('GameScene');
                 });
             }
         });
@@ -441,14 +447,43 @@ class OverseerCoreScene extends Phaser.Scene {
         if (talent.cost > this.memoryShards) return;
 
         this.memoryShards -= talent.cost;
+
+        // 🔍 Sauvegarde l’état précédent
+        const oldStates = {
+            architecture: this.isTreeUnlocked('architecture'),
+            evolution: this.isTreeUnlocked('evolution'),
+            ascension: this.isTreeUnlocked('ascension')
+        };
+
+
         this.unlockedTalents.push(talent.id);
+
+
+        // 🧠 Détection de changement ➔ rafraîchit les onglets si besoin
+        const newStates = {
+            architecture: this.isTreeUnlocked('architecture'),
+            evolution: this.isTreeUnlocked('evolution'),
+            ascension: this.isTreeUnlocked('ascension')
+        };
+
+        let changed = false;
+        for (const tree of ['architecture', 'evolution', 'ascension']) {
+            if (!oldStates[tree] && newStates[tree]) changed = true;
+        }
+
+        if (changed) {
+            this.updateTalentTabs();
+        }
 
         localStorage.setItem('memoryShards', this.memoryShards.toString());
         localStorage.setItem('unlockedTalents', JSON.stringify(this.unlockedTalents));
 
+
+
         // 🛠️ Faire l'animation directement sur l'élément existant
         this.animateTalentUnlock(talent);
         this.animateConnectionUnlock(talent);
+
 
         // 🛠️ Juste mettre à jour l'affichage du nombre de shards
         if (this.shardText) {
@@ -457,6 +492,34 @@ class OverseerCoreScene extends Phaser.Scene {
 
         // ❌ Ne pas appeler tout de suite refreshTalentTreeDisplay() (sauf cas très spécifiques)
     }
+
+    updateTalentTabs() {
+        const labels = {
+            foundation: this.translate('tab_foundations') || 'Fondations',
+            architecture: this.translate('tab_architecture') || 'Architecture',
+            evolution: this.translate('tab_evolution') || 'Évolution',
+            ascension: this.translate('tab_ascension') || 'Ascension'
+        };
+
+        this.tabButtons.forEach((button, index) => {
+            const tree = ['foundation', 'architecture', 'evolution', 'ascension'][index];
+            const isUnlocked = this.isTreeUnlocked(tree);
+
+            button.setText(labels[tree]);
+            button.setFill(isUnlocked ? '#ffffff' : '#888888');
+            button.removeAllListeners();
+
+            if (isUnlocked) {
+                button.setInteractive();
+                button.on('pointerdown', () => {
+                    this.switchTalentTree(tree);
+                });
+            } else {
+                button.disableInteractive();
+            }
+        });
+    }
+
 
     animateConnectionUnlock(talent) {
         const parent = this.talentTrees[this.activeTree].find(t => t.id === talent.parent);

@@ -13,9 +13,9 @@ const config = {
 const savedLang = localStorage.getItem('selectedLanguage');
 if (savedLang) {
     window.selectedLanguage = savedLang;
-    config.scene = [MainMenuScene, OptionsScene, MainScene, OverseerCoreScene];
+    config.scene = [MainMenuScene, OptionsScene, GameScene, TalentScene];
 } else {
-    config.scene = [HomeScene, OptionsScene, MainMenuScene, MainScene, OverseerCoreScene];
+    config.scene = [HomeScene, OptionsScene, MainMenuScene, GameScene, TalentScene];
 }
 
 // Clavier

@@ -1,6 +1,6 @@
-class MainScene extends Phaser.Scene {
+class GameScene extends Phaser.Scene {
     constructor() {
-        super('MainScene');
+        super('GameScene');
         this.waveNumber = 0;
     }
 
@@ -25,9 +25,12 @@ class MainScene extends Phaser.Scene {
 
 
     create() {
+
+
         this.gameOverTriggered = false;
         this.cameras.main.fadeIn(500, 0, 0, 0);
         this.unlockedTalents = JSON.parse(localStorage.getItem('unlockedTalents') || '[]');
+        this.talentManager = new TalentManager(this, this.unlockedTalents);
 
 
         this.globalGameTime = 0;
@@ -78,46 +81,13 @@ class MainScene extends Phaser.Scene {
         this.createCardZone();
         this.vision = new Vision(this, this.tileSize, this.gridWidth, this.gridHeight, this.gridManager.tiles);
 
-        if (this.isTalentUnlocked('vision_boost')) {
-            this.vision.level++;
-            this.vision.updatePatternForLevel(); // Important ! Recalcule le pattern
-            this.vision.updatePosition();        // Important ! Redessine la vision
-        }
 
         this.createSpawnZones();
 
         this.unitManager.addUnit('unit_guard', 10);
 
-        if (this.isTalentUnlocked('starter_guard')) {
-            this.unitManager.addUnit('unit_guard', 1);
-        }
-        if (this.isTalentUnlocked('starter_tech')) {
-            this.buildingManager.addCardById('quantum_compressor');
-        }
-        if (this.isTalentUnlocked('starter_economy')) {
-            this.resources['scrap'] += 20;
-            this.resources['hydronium'] += 20;
-        }
-        if (this.isTalentUnlocked('extra_scrap')) {
-            this.resourceBonusMultipliers['scrap'] = (this.resourceBonusMultipliers['scrap'] || 1) * 1.5;
-        }
-        if (this.isTalentUnlocked('extra_alloy')) {
-            this.resourceBonusMultipliers['alloy'] = (this.resourceBonusMultipliers['alloy'] || 1) * 1.5;
-        }
-        if (this.isTalentUnlocked('vision_mastery')) {
-            this.vision.level += 2;
-            this.vision.updatePatternForLevel();
-            this.vision.updatePosition();
-        }
-        if (this.isTalentUnlocked('spell_charge_boost')) {
-            this.spellManager.globalCooldownMultiplier = 0.75;
-        }
-
 
         let baseHp = 100;
-        if (this.isTalentUnlocked('starter_base_hp')) {
-            baseHp += 20;
-        }
 
         this.baseTarget = this.add.rectangle(
             this.playerSpawnCircle.x-50,
@@ -161,6 +131,8 @@ class MainScene extends Phaser.Scene {
             .setOrigin(0)
             .setDepth(10);
         this.setupDragDrop();
+
+        this.talentManager.applyAll(); // applique tous les effets globaux
     }
 
 
@@ -279,7 +251,7 @@ class MainScene extends Phaser.Scene {
         this.restartBtn.on('pointerdown', () => {
             this.cameras.main.fadeOut(500, 0, 0, 0);
             this.time.delayedCall(500, () => {
-                this.scene.start('OverseerCoreScene');
+                this.scene.start('TalentScene');
             });
         });
         }catch(e){
@@ -385,6 +357,8 @@ class MainScene extends Phaser.Scene {
                 tile.building = building;
                 this.buildingManager.buildings.push(building);
 
+                this.refreshAllTalentEffects()
+
                 // 🔁 Gère les cartes à usage limité
                 if (!buildingData.unlimited) {
                     const cardStack = this.buildingManager.cards.find(c => c.id === gameObject.cardType);
@@ -428,6 +402,9 @@ class MainScene extends Phaser.Scene {
 
                     building.tile = tile;
                     gameObject.originTile = tile;
+
+
+                    this.refreshAllTalentEffects()
                 } else {
                     // retour à la position d’origine
                     gameObject.setPosition(
@@ -562,6 +539,19 @@ class MainScene extends Phaser.Scene {
         const speedMap = { 0: 0, 1: 1, 3: 2, 5: 3 };
         const index = speedMap[scale] ?? 1;
         this.hud.highlightSelectedSpeed(index);
+    }
+
+    refreshAllTalentEffects() {
+        this.buildingManager.buildings.forEach(b => {
+            // Réinitialiser les effets modifiables
+            b.attackSpeedMultiplier = 1;
+            b.cooldown = this.buildingManager.buildingMap[b.type]?.cooldown || 1000;
+
+            this.talentManager.applyBehavioralTalentModifiers(b);
+            b.currentRate = b.computeBonusRate(b);
+
+            b.updateTalentVisualBadge();
+        });
     }
 
 }
