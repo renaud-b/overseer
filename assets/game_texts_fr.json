@@ -43,6 +43,41 @@
   ],
   "buildings": [
     {
+      "id": "hydrosmelt_forge",
+      "name": "Forge Hydrofusion",
+      "desc": "Convertit de grandes quantités d’Hydronium en Champs d’ionisation instables."
+    },
+    {
+      "id": "scrap_logic_bridge",
+      "name": "Pont Logique de Ferraille",
+      "desc": "Recycle la ferraille pour produire des unités de calcul rudimentaires."
+    },
+    {
+      "id": "bio_distiller",
+      "name": "Distillateur Organique",
+      "desc": "Extrait du gel organique depuis des restes de matière brute."
+    },
+    {
+      "id": "hydro_computer_pylon",
+      "name": "Pylône Hydro-Calculateur",
+      "desc": "Utilise l’hydronium pour générer directement des unités de calcul."
+    },
+    {
+      "id": "gel_injector",
+      "name": "Injecteur de Gènes",
+      "desc": "Utilise le bio_gel pour extraire des fragments xéno instables."
+    },
+    {
+      "id": "xeno_biocompressor",
+      "name": "Biocompresseur Xéno",
+      "desc": "Comprime des masses biologiques en Cristaux de Flux rares."
+    },
+    {
+      "id": "auto_compiler",
+      "name": "Auto-Compilateur",
+      "desc": "Génère passivement des unités de calcul à partir d’alliage et de flux stabilisé."
+    },
+    {
       "id": "condensor",
       "name": "Condenseur d’Hydronium",
       "desc": "Génère du condensat pour l’usage énergétique de base."

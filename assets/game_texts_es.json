@@ -121,6 +121,41 @@
       "id": "xeno_extractor",
       "name": "Extractor Xeno",
       "desc": "Recolecta muestras genéticas de cadáveres alienígenas."
+    },
+    {
+      "id": "hydrosmelt_forge",
+      "name": "Forja Hidrosmelt",
+      "desc": "Convierte grandes cantidades de hidronio en campos de iones inestables."
+    },
+    {
+      "id": "scrap_logic_bridge",
+      "name": "Puente Lógico de Chatarra",
+      "desc": "Recicla chatarra para producir unidades de cómputo primitivas."
+    },
+    {
+      "id": "bio_distiller",
+      "name": "Destilador Orgánico",
+      "desc": "Extrae bio-gel a partir de residuos materiales."
+    },
+    {
+      "id": "hydro_computer_pylon",
+      "name": "Pilón Hidrocomputacional",
+      "desc": "Usa hidronio para generar directamente unidades de cómputo."
+    },
+    {
+      "id": "gel_injector",
+      "name": "Inyector Genético",
+      "desc": "Usa bio_gel para extraer fragmentos xeno inestables."
+    },
+    {
+      "id": "xeno_biocompressor",
+      "name": "Biocompresor Xeno",
+      "desc": "Comprime biomasa para obtener cristales de flujo raros."
+    },
+    {
+      "id": "auto_compiler",
+      "name": "Autocompilador",
+      "desc": "Genera unidades de cómputo de forma pasiva usando aleación y flujo."
     }
   ],
   "enemies": [

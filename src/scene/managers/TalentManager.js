@@ -96,12 +96,12 @@ class TalentManager {
 
         // ➕ Scrap Mine adjacente
         if (this.isUnlocked('adjacency_bonus_scrap') && buildingType === 'scrap_mine') {
-            if (neighborTypes.includes('scrap_mine')) multiplier *= 1.1;
+            if (neighborTypes.includes('scrap_mine')) multiplier *= 1.3;
         }
 
         // 🔄 Condensor + Refinery
         if (this.isUnlocked('resource_chain_hydronium_alloy') && buildingType === 'refinery') {
-            if (neighborTypes.includes('condensor')) multiplier *= 1.2;
+            if (neighborTypes.includes('condensor')) multiplier *= 1.5;
         }
 
         // 🌱 Bio Cuve + Scrap Mine

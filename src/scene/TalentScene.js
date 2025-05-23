@@ -332,6 +332,8 @@ class TalentScene extends Phaser.Scene {
 
     createNodes(skipAnimation = false) {
         const currentTree = this.talentTrees[this.activeTree] || [];
+        const currentTreeId = this.activeTree;
+
         currentTree.forEach(talent => {
             const isUnlocked = this.unlockedTalents.includes(talent.id) || talent.unlocked;
 
@@ -357,6 +359,8 @@ class TalentScene extends Phaser.Scene {
                     delay: 100 + Math.random() * 400, // petit décalage aléatoire pour effet organique
                     ease: 'Cubic.easeOut',
                     onComplete: () => {
+
+                        if (this.activeTree !== currentTreeId) return;
 
                         const label = this.add.text(
                             talent.x + this.treeOffset.x,

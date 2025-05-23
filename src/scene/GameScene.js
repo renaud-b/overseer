@@ -84,8 +84,6 @@ class GameScene extends Phaser.Scene {
 
         this.createSpawnZones();
 
-        this.unitManager.addUnit('unit_guard', 10);
-
 
         let baseHp = 100;
 

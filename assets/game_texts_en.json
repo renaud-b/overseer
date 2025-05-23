@@ -121,6 +121,41 @@
       "id": "xeno_extractor",
       "name": "Xeno Extractor",
       "desc": "Harvests genetic samples from alien corpses."
+    },
+    {
+      "id": "hydrosmelt_forge",
+      "name": "Hydrosmelt Forge",
+      "desc": "Converts large amounts of Hydronium into unstable Ion Fields."
+    },
+    {
+      "id": "scrap_logic_bridge",
+      "name": "Scrap Logic Bridge",
+      "desc": "Recycles scrap into primitive compute units."
+    },
+    {
+      "id": "bio_distiller",
+      "name": "Organic Distiller",
+      "desc": "Extracts bio-gel from raw matter remains."
+    },
+    {
+      "id": "hydro_computer_pylon",
+      "name": "Hydro-Computer Pylon",
+      "desc": "Uses Hydronium to directly generate compute units."
+    },
+    {
+      "id": "gel_injector",
+      "name": "Gene Injector",
+      "desc": "Uses bio_gel to extract unstable xeno fragments."
+    },
+    {
+      "id": "xeno_biocompressor",
+      "name": "Xeno Biocompressor",
+      "desc": "Compresses biomass into rare Flux Crystals."
+    },
+    {
+      "id": "auto_compiler",
+      "name": "Auto-Compiler",
+      "desc": "Passively generates compute units using alloy and flux."
     }
   ],
   "enemies": [

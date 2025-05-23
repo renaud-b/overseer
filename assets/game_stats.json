@@ -13,20 +13,20 @@
       "color": "#aaaaaa"
     },
     {
-      "id": "flux_crystal",
-      "color": "#9400d3"
-    },
-    {
       "id": "ion_field",
       "color": "#ffff00"
     },
     {
-      "id": "bio_gel",
-      "color": "#7fff00"
-    },
-    {
       "id": "compute_units",
       "color": "#00ffff"
+    },
+    {
+      "id": "flux_crystal",
+      "color": "#9400d3"
+    },
+    {
+      "id": "bio_gel",
+      "color": "#7fff00"
     },
     {
       "id": "xeno_sample",
@@ -67,7 +67,7 @@
       "cost": { "scrap": 20, "alloy": 20 },
       "producesType": "resource",
       "color": "#ffff00",
-      "level": 1
+      "level": 2
     },
     {
       "id": "flux_catalyst",
@@ -76,7 +76,7 @@
       "producesType": "spell",
       "cost": { "hydronium": 5, "scrap": 10 },
       "color": "#9400d3",
-      "level": 1
+      "level": 2
     },
     {
       "id": "drone_bay",
@@ -107,7 +107,7 @@
         "alloy": 5
       },
       "color": "#a07040",
-      "level": 1
+      "level": 2
     },
     {
       "id": "ion_refinery",
@@ -124,7 +124,7 @@
         "scrap": 1
       },
       "color": "#ffee88",
-      "level": 1
+      "level": 2
     },
     {
       "id": "sniper_tower",
@@ -136,7 +136,7 @@
       "unitCap": 2,
       "rate": 1,
       "color": "#ff9900",
-      "level": 1
+      "level": 2
     },
     {
       "id": "guard_bunker",
@@ -151,7 +151,7 @@
         "compute_units": 1
       },
       "color": "#1e90ff",
-      "level": 1
+      "level": 3
     },{
       "id": "mecha_forge",
       "produces": "unit_mecha",
@@ -165,7 +165,7 @@
         "compute_units": 3
       },
       "color": "#8b0000",
-      "level": 1
+      "level": 3
     },
     {
       "id": "bio_cuve",
@@ -179,7 +179,7 @@
         "hydronium": 5
       },
       "color": "#7fff00",
-      "level": 1
+      "level": 2
     },
     {
       "id": "quantum_compressor",
@@ -190,7 +190,7 @@
       "cost": { "ion_field": 2, "compute_units": 1 },
       "consumePerCycle": { "ion_field": 1 },
       "color": "#dd66ff",
-      "level": 2
+      "level": 3
     },
     {
       "id": "logic_cluster",
@@ -207,7 +207,7 @@
         "ion_field": 2
       },
       "color": "#00ffff",
-      "level": 1
+      "level": 2
     },
     {
       "id": "supercluster",
@@ -218,7 +218,7 @@
       "cost": { "alloy": 10, "ion_field": 3 },
       "consumePerCycle": { "hydronium": 2, "alloy": 2 },
       "color": "#00ffee",
-      "level": 2
+      "level": 3
     },
     {
       "id": "xeno_extractor",
@@ -231,7 +231,84 @@
         "compute_units": 2
       },
       "color": "#ff69b4",
+      "level": 3
+    },
+    {
+      "id": "hydrosmelt_forge",
+      "produces": "ion_field",
+      "producesType": "resource",
+      "rate": 1,
+      "cooldown": 8000,
+      "cost": { "scrap": 5, "hydronium": 5 },
+      "consumePerCycle": { "hydronium": 2, "hydronium_extra": 2 },
+      "color": "#ffeedd",
       "level": 1
+    },
+    {
+      "id": "scrap_logic_bridge",
+      "produces": "compute_units",
+      "producesType": "resource",
+      "rate": 1,
+      "cooldown": 8000,
+      "cost": { "scrap": 10 },
+      "consumePerCycle": { "scrap": 2, "scrap_extra": 2 },
+      "color": "#ccffaa",
+      "level": 1
+    },
+    {
+      "id": "bio_distiller",
+      "produces": "bio_gel",
+      "producesType": "resource",
+      "rate": 1,
+      "cooldown": 10000,
+      "cost": { "scrap": 5, "hydronium": 5 },
+      "consumePerCycle": { "scrap": 2, "hydronium": 1 },
+      "color": "#aaffaa",
+      "level": 1
+    },
+    {
+      "id": "hydro_computer_pylon",
+      "produces": "compute_units",
+      "producesType": "resource",
+      "rate": 1,
+      "cooldown": 7000,
+      "cost": { "hydronium": 10 },
+      "consumePerCycle": { "hydronium": 2 },
+      "color": "#00dddd",
+      "level": 2
+    },
+    {
+      "id": "gel_injector",
+      "produces": "xeno_sample",
+      "producesType": "resource",
+      "rate": 1,
+      "cooldown": 12000,
+      "cost": { "bio_gel": 5 },
+      "consumePerCycle": { "bio_gel": 2 },
+      "color": "#ff99dd",
+      "level": 2
+    },
+    {
+      "id": "xeno_biocompressor",
+      "produces": "flux_crystal",
+      "producesType": "resource",
+      "rate": 1,
+      "cooldown": 15000,
+      "cost": { "bio_gel": 4, "compute_units": 3 },
+      "consumePerCycle": { "bio_gel": 2, "bio_gel_extra": 2 },
+      "color": "#ff44cc",
+      "level": 3
+    },
+    {
+      "id": "auto_compiler",
+      "produces": "compute_units",
+      "producesType": "resource",
+      "rate": 1,
+      "cooldown": 20000,
+      "cost": { "alloy": 10, "flux_crystal": 1 },
+      "consumePerCycle": {},
+      "color": "#ccffff",
+      "level": 3
     }
   ],
   "enemies": [
