@@ -37,6 +37,19 @@ class GameScene extends Phaser.Scene {
         this.timeScale = 1;
         this.tileSize = 100;
 
+        const OverseerGameStateGraph = "6f7dc4fb-23f5-478a-9e56-e43b5a373721"
+        Blackhole.getGraph(OverseerGameStateGraph).then((graph) => {
+            const stats = graph.root
+            this.cache.json.add('gameStats', stats);
+            this.initAfterStatsLoaded();
+        }).catch((err) => {
+            this.load.json('gameStats', 'assets/game_stats.json');
+            this.initAfterStatsLoaded();
+        })
+
+    }
+
+    initAfterStatsLoaded() {
         const stats = this.cache.json.get('gameStats');
         const texts = this.cache.json.get('gameTexts');
         this.gameData = this.mergeStatsAndTexts(stats, texts);
