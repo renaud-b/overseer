@@ -118,6 +118,10 @@ class Building {
 
         let bonusRate = rate || 1;
 
+        if(this.tile.isResourceBoost){
+            bonusRate *= this.tile.resourceBoost;
+        }
+
         // Vérifie s'il y a un bonus
         if (this.scene.resourceBonusMultipliers && this.scene.resourceBonusMultipliers[data.produces]) {
             bonusRate *= this.scene.resourceBonusMultipliers[data.produces];
@@ -134,11 +138,11 @@ class Building {
         const bonusRate = this.computeBonusRate(data);
         this.currentRate = bonusRate;
         this.scene.addResource(data.produces, bonusRate);
-        this.totalProduced += bonusRate || 1;
+
+        this.totalProduced += data.rate || 1;
 
         const max = data.max_produced;
         if (max && this.totalProduced >= max) {
-            console.log(`Le bâtiment ${this.type} s'est épuisé et est détruit.`);
             this.tile.building = null;
             this.scene.buildingManager.buildings = this.scene.buildingManager.buildings.filter(b => b !== this);
             this.destroy();

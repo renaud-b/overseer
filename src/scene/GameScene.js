@@ -27,6 +27,32 @@ class GameScene extends Phaser.Scene {
     create() {
 
 
+        const SmartContractID = "e975a90a-3116-468d-9f61-96ad4a1f363c"
+        const functionName ="GetGameStats"
+
+
+
+
+
+        Wormhole.executeContract(
+            SmartContractID,
+            functionName,
+            [],
+            "https://utopixia.com",
+        ).then((stats) => {
+            console.log("Game stats loaded from Wormhole:", stats);
+            this.cache.json.add('gameStats', stats);
+            this.startGame(stats);
+        }).catch((err) => {
+            console.error(err);
+            this.load.json('gameStats', 'assets/game_stats.json');
+            //this.initAfterStatsLoaded();
+        })
+
+    }
+    startGame (gameStats) {
+
+
         this.gameOverTriggered = false;
         this.cameras.main.fadeIn(500, 0, 0, 0);
         this.unlockedTalents = JSON.parse(localStorage.getItem('unlockedTalents') || '[]');
@@ -37,20 +63,7 @@ class GameScene extends Phaser.Scene {
         this.timeScale = 1;
         this.tileSize = 100;
 
-        const OverseerGameStateGraph = "6f7dc4fb-23f5-478a-9e56-e43b5a373721"
-        Blackhole.getGraph(OverseerGameStateGraph).then((graph) => {
-            const stats = graph.root
-            this.cache.json.add('gameStats', stats);
-            this.initAfterStatsLoaded();
-        }).catch((err) => {
-            this.load.json('gameStats', 'assets/game_stats.json');
-            this.initAfterStatsLoaded();
-        })
-
-    }
-
-    initAfterStatsLoaded() {
-        const stats = this.cache.json.get('gameStats');
+        const stats = gameStats//this.cache.json.get('gameStats');
         const texts = this.cache.json.get('gameTexts');
         this.gameData = this.mergeStatsAndTexts(stats, texts);
 
@@ -83,7 +96,8 @@ class GameScene extends Phaser.Scene {
         if (this.isTalentUnlocked('resource_node_scanner')) {
             const tile = Phaser.Utils.Array.GetRandom(this.gridManager.getAllTiles());
             tile.isResourceBoost = true;
-            tile.rect.setFillStyle(0x00ff00, 0.2); // Visuel de tuile spéciale
+            tile.resourceBoost = 1.5
+            tile.rect.setFillStyle(0x00ff00, 1.0);
         }
 
         this.zoneEffects = [];
@@ -184,6 +198,9 @@ class GameScene extends Phaser.Scene {
         const scaledDelta = delta * this.timeScale;
         this.globalGameTime += scaledDelta;
 
+        if(!this.baseTarget){
+            return
+        }
         if (this.baseTarget.hp <= 0 && !this.gameOverTriggered) {
             console.log("base destroyed")
             this.baseTarget.hp = 0; // clamp visuel

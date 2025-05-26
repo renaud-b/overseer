@@ -281,7 +281,7 @@
     "upgrade_vision_title": "Upgrade Vision",
     "current_level_text": "Current level: {level}",
     "upgrade_cost_text": "Cost: {cost} compute units",
-    "units_label": "Units:",
+    "units_label": "Units",
     "rewards_label": "Rewards:",
     "resource_pack_label": "🔧 Resource (x{quantity})",
     "building_pack_label": "🏗️ Building",

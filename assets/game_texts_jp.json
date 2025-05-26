@@ -281,7 +281,7 @@
     "upgrade_vision_title": "視界をアップグレード",
     "current_level_text": "現在レベル: {level}",
     "upgrade_cost_text": "コスト: {cost}演算ユニット",
-    "units_label": "ユニット:",
+    "units_label": "ユニット",
     "rewards_label": "報酬:",
     "resource_pack_label": "🔧 資源 (x{quantity})",
     "building_pack_label": "🏗️ 建物",

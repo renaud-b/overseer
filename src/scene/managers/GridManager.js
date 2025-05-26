@@ -30,21 +30,8 @@ class GridManager {
         return this.tiles[y * this.width + x];
     }
 
-    getTileByIndex(index) {
-        return this.tiles[index] || null;
-    }
-
-    getTileAtPixel(px, py) {
-        const col = Math.floor((px - this.offsetX) / this.tileSize);
-        const row = Math.floor((py - this.offsetY) / this.tileSize);
-        return this.getTileByCoord(col, row);
-    }
-
     getAllTiles() {
         return this.tiles;
     }
 
-    highlightAll(fn) {
-        this.tiles.forEach(tile => fn(tile));
-    }
 }

@@ -281,7 +281,7 @@
     "upgrade_vision_title": "Mejorar Visión",
     "current_level_text": "Nivel actual: {level}",
     "upgrade_cost_text": "Costo: {cost} unidades de cómputo",
-    "units_label": "Unidades:",
+    "units_label": "Unidades",
     "rewards_label": "Recompensas:",
     "resource_pack_label": "🔧 Recurso (x{quantity})",
     "building_pack_label": "🏗️ Edificio",

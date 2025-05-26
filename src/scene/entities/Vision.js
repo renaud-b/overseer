@@ -107,7 +107,11 @@ class Vision {
         // Reset all tiles
         this.tiles.forEach(t => {
             t.isActive = false;
-            t.rect.setFillStyle(t.building ? t.building.fillColor : 0x333333);
+            if(t.isResourceBoost){
+                t.rect.setFillStyle(0x5d975d, 1.0);
+            } else {
+                t.rect.setFillStyle(t.building ? t.building.fillColor : 0x333333);
+            }
         });
 
         pattern.forEach((offset, i) => {
@@ -119,7 +123,10 @@ class Vision {
                 const tile = this.tiles[index];
                 tile.isActive = true;
                 if (!tile.building) {
-                    tile.rect.setFillStyle(0x666666);
+
+                    if(!tile.isResourceBoost){
+                        tile.rect.setFillStyle(0x666666);
+                    }
                 }
                 this.rects[i].setPosition(tile.rect.x, tile.rect.y).setVisible(true);
             } else {
