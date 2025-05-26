@@ -113,6 +113,11 @@
       "desc": "Démonte les alliages avancés pour récupérer de la ferraille brute."
     },
     {
+      "id": "scrap_reassembler",
+      "name": "Décompilateur de Structures",
+      "desc": "Démonte les alliages avancés pour récupérer de la ferraille brute."
+    },
+    {
       "id": "ion_refinery",
       "name": "Raffinerie d’Ions",
       "desc": "Convertit du condensat d’hydronium et de la ferraille brute en champs d’ionisation."

@@ -78,6 +78,11 @@
       "desc": "Desmantela aleaciones avanzadas para recuperar chatarra."
     },
     {
+      "id": "scrap_reassembler",
+      "name": "Descompilador de Estructuras",
+      "desc": "Desmonta aleaciones avanzadas para recuperar chatarra bruta."
+    },
+    {
       "id": "ion_refinery",
       "name": "Refinería de Iones",
       "desc": "Convierte hidronio y chatarra en campos iónicos."

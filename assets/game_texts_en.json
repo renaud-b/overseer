@@ -78,6 +78,11 @@
       "desc": "Disassembles advanced alloys to recover raw scrap."
     },
     {
+      "id": "scrap_reassembler",
+      "name": "Structure Decompiler",
+      "desc": "Dismantles advanced alloys to recover raw scrap."
+    },
+    {
       "id": "ion_refinery",
       "name": "Ion Refinery",
       "desc": "Converts hydronium condensate and raw scrap into ion fields."
