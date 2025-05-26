@@ -150,9 +150,9 @@ class BuildingManager {
             const costText = Object.entries(data.cost)
                 .map(([k, v]) => {
                     const res = this.scene.gameData.resources.find(r => r.id === k);
-                    return `${this.scene.translate(res?.name) || k}: ${v}`;
+                    return `  - ${this.scene.translate(res?.name) || k}: ${v}`;
                 })
-                .join(', ');
+                .join('\n');
             desc += `\n\n${this.scene.translate('building_cost', { cost: costText })}`;
         }
 
@@ -161,8 +161,8 @@ class BuildingManager {
             const costText = unitData?.cost
                 ? Object.entries(unitData.cost).map(([k, v]) => {
                     const res = this.scene.gameData.resources.find(r => r.id === k);
-                    return `${this.scene.translate(res?.name) || k}: ${v}`;
-                }).join(', ')
+                    return `  - ${this.scene.translate(res?.name) || k}: ${v}`;
+                }).join('\n')
                 : this.scene.translate('building_no_unit_cost');
 
             desc += `\n` + this.scene.translate('building_product_unit', {
@@ -180,18 +180,17 @@ class BuildingManager {
             desc += `\n` + this.scene.translate('building_product_spell');
         }
 
-        if (data.cooldown) {
-            desc += `\n` + this.scene.translate('building_cycle', { seconds: Math.round(data.cooldown / 1000) });
-        }
 
         if (data.consumePerCycle) {
+            let seconds = data.cooldown ? Math.round(data.cooldown / 1000) : 0;
+
             const costText = Object.entries(data.consumePerCycle)
                 .map(([k, v]) => {
                     const res = this.scene.gameData.resources.find(r => r.id === k);
                     return `${this.scene.translate(res?.name) || k}: ${v}`;
                 })
                 .join(', ');
-            desc += `\n` + this.scene.translate('building_cycle_consumption', { cost: costText });
+            desc += `\n` + this.scene.translate('building_cycle_consumption', { seconds: seconds, cost: costText });
         }
 
         return { name, desc };

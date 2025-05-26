@@ -105,7 +105,7 @@
     {
       "id": "drone_bay",
       "name": "Station Drone",
-      "desc": "Produit des dronoïdes de base.\nProduit : Unité (+1 par cycle, Capacité: 3)"
+      "desc": "Produit des dronoïdes de base."
     },
     {
       "id": "decompiler",
@@ -298,13 +298,12 @@
     "building_unknown": "Bâtiment inconnu.",
     "building_no_data": "Aucune donnée.",
     "building_no_description": "Aucune description disponible.",
-    "building_product_unit": "Produit :\n {unit} (+{rate})",
-    "building_product_resource": "Produit :\n {resource} (+{rate})",
-    "building_product_spell": "Produit :\n Protocole technologique aléatoire (sort)",
-    "building_unit_cost": "Coût unitaire :\n {cost}",
-    "building_cycle": "Cycle :\n {seconds} sec",
-    "building_cost": "Coût :\n {cost}",
-    "building_cycle_consumption": "Consommation par cycle :\n {cost}",
+    "building_product_unit": "\nProduit :\n{unit} (+{rate})",
+    "building_product_resource": "\nProduit :\n{resource} (+{rate})",
+    "building_product_spell": "\nProduit :\nProtocole technologique aléatoire (sort)",
+    "building_unit_cost": "\nCoût unitaire :\n{cost}",
+    "building_cost": "\nCoût :\n{cost}",
+    "building_cycle_consumption": "\nConsommation par cycle ({seconds} sec):\n{cost}",
     "building_no_unit_cost": "Aucun coût",
     "overseer_core_title": "🧠 Noyau Overseer",
     "restart_game_button": "[ Relancer une partie ]",

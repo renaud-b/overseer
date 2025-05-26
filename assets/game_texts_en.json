@@ -70,7 +70,7 @@
     {
       "id": "drone_bay",
       "name": "Drone Station",
-      "desc": "Produces basic dronoids.\nProduct: Unit (+1 per cycle, Capacity: 3)"
+      "desc": "Produces basic dronoids."
     },
     {
       "id": "decompiler",
@@ -272,6 +272,7 @@
     }
   ],
   "ui": {
+    "wave_label": "Wave",
     "reward_choose_resources": "🔧 Choose your resources",
     "reward_choose_buildings": "🏗️ Choose your buildings",
     "reward_choose_artifact": "🧬 Choose an artifact",
@@ -296,13 +297,12 @@
     "building_unknown": "Unknown building.",
     "building_no_data": "No data.",
     "building_no_description": "No description available.",
-    "building_product_unit": "Produces:\n {unit} (+{rate})",
-    "building_product_resource": "Produces:\n {resource} (+{rate})",
-    "building_product_spell": "Produces:\n Random Tech Protocol (spell)",
-    "building_unit_cost": "Unit Cost:\n {cost}",
-    "building_cycle": "Cycle:\n {seconds} sec",
-    "building_cost": "Cost :\n {cost}",
-    "building_cycle_consumption": "Consumes per cycle:\n {cost}",
+    "building_product_unit": "\nProduces:\n{unit} (+{rate})",
+    "building_product_resource": "\nProduces:\n{resource} (+{rate})",
+    "building_product_spell": "\nProduces:\nRandom Tech Protocol (spell)",
+    "building_unit_cost": "\nUnit Cost:\n{cost}",
+    "building_cost": "\nCost ({seconds} sec):\n{cost}",
+    "building_cycle_consumption": "\nConsumes per cycle:\n{cost}",
     "building_no_unit_cost": "No cost",
     "overseer_core_title": "🧠 Overseer Core",
     "restart_game_button": "[ Restart Game ]",

@@ -98,7 +98,7 @@ class HUDManager {
         if (!this.infoText || !this.infoPanel || !title || !description) return;
 
         const padding = 10;
-        const maxWidth = 250;
+        const maxWidth = 300;
 
         const fullText = `${title}\n\n${description}`;
         this.infoText.setText(fullText);
@@ -515,8 +515,8 @@ class HUDManager {
                 return lines.join('\n');
             }).join('\n\n');
 
-
-            const fullText = `${content}\n\n🎁 Récompenses:\n${rewardText}`;
+            const rewardLabel = this.scene.translate('rewards_label') || 'Récompenses';
+            const fullText = `${content}\n\n🎁 ${rewardLabel} \n${rewardText}`;
 
 
 
