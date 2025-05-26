@@ -187,12 +187,17 @@ class Building {
         const hasBonus = this.attackSpeedMultiplier > 1 || rateBonus;
 
         if (hasBonus) {
-            this.talentBadge = this.scene.add.circle(
-                25, -25, // position relative au container
-                8,
-                0xffff00,
-                1
+            this.talentBadge = this.scene.add.text(
+                20, -28, // position relative au container
+                '+',
+                {
+                    fontSize: '16px',
+                    fill: '#00ff00',
+                    fontFamily: 'monospace',
+                    fontStyle: 'bold'
+                }
             );
+            this.talentBadge.setOrigin(0.5).setDepth(2);
             this.container.add(this.talentBadge);
         }
     }

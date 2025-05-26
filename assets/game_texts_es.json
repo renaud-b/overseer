@@ -277,6 +277,14 @@
     }
   ],
   "ui": {
+    "overlay_stats_title": "Análisis estratégico",
+    "overlay_artifact_title": "🔮 Artefactos activos",
+    "overlay_waves_survived": "⏱️ Oleadas superadas",
+    "overlay_resources_collected": "⚙️ Recursos recolectados",
+    "overlay_units_produced": "🦾 Unidades producidas",
+    "overlay_units_lost": "⚰️ Unidades perdidas",
+    "resume_button": "Reanudar",
+    "quit_button": "Abandonar",
     "wave_label": "Oleada",
     "reward_choose_resources": "🔧 Elige tus recursos",
     "reward_choose_buildings": "🏗️ Elige tus edificios",

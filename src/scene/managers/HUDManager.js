@@ -2,6 +2,10 @@ class HUDManager {
     constructor(scene, resources, units) {
         this.scene = scene;
 
+        this.statsOverlayElements = [];
+        this.menuOpen = false;
+
+
         this.createHUD();
         this.createInfoPanel();
         this.createTimeControlButtons()
@@ -10,6 +14,109 @@ class HUDManager {
             resources, units, {}
         );
     }
+
+    showStatsOverlay() {
+        if (this.menuOpen) return;
+        this.menuOpen = true;
+
+        const { width, height } = this.scene.scale;
+        const centerX = width / 2;
+        const centerY = height / 2;
+
+        const bg = this.scene.add.rectangle(0, 0, width, height, 0x000000, 0.85)
+            .setOrigin(0)
+            .setDepth(900);
+        this.statsOverlayElements.push(bg);
+
+        const title = this.scene.add.text(centerX, 80,
+            this.scene.translate('overlay_stats_title') || 'Analyse stratégique', {
+            fontSize: '32px',
+            fill: '#00ffff',
+            fontFamily: 'monospace'
+        }).setOrigin(0.5).setDepth(901);
+        this.statsOverlayElements.push(title);
+
+        const artifactTitle = this.scene.add.text(centerX, 140,
+            this.scene.translate('overlay_artifact_title') || '🔮 Artefacts actifs', {
+            fontSize: '20px',
+            fill: '#ffffff',
+            fontFamily: 'monospace'
+        }).setOrigin(0.5).setDepth(901);
+        this.statsOverlayElements.push(artifactTitle);
+
+        const startY = 180;
+        const lineSpacing = 24;
+        const artifacts = this.scene.artifactManager?.artifacts || [];
+
+        artifacts.forEach((a, i) => {
+            const txt = this.scene.add.text(centerX, startY + i * lineSpacing,
+                `✅ ${a.name || a.id}  →  ${a.desc || a.effect}`, {
+                    fontSize: '16px',
+                    fill: '#7fffaa',
+                    fontFamily: 'monospace'
+                }).setOrigin(0.5).setDepth(901);
+            this.statsOverlayElements.push(txt);
+        });
+
+        // Statistiques de partie
+        const statY = startY + artifacts.length * lineSpacing + 40;
+        const totalCollected = Object.entries(this.scene.collectedResources)
+            .map(([k, v]) => `${this.scene.translate(k)}: ${Math.floor(v)}`).join(' / ');
+
+        const totalProduced = Object.values(this.scene.unitStats.produced).reduce((a, b) => a + b, 0);
+        const totalLost = Object.values(this.scene.unitStats.lost).reduce((a, b) => a + b, 0);
+
+
+        const stats = [
+            `${this.scene.translate('overlay_waves_survived') || '⏱️ Vagues tenues'} : ${this.scene.waveManager?.waveNumber || 0}`,
+            `${this.scene.translate('overlay_resources_collected') || '⚙️ Ressources collectées'} : ${totalCollected}`,
+            `${this.scene.translate('overlay_units_produced') || '🦾 Unités produites'} : ${totalProduced}`,
+            `${this.scene.translate('overlay_units_lost') || '⚰️ Unités perdues'} : ${totalLost}`
+        ];
+        stats.forEach((line, i) => {
+            const txt = this.scene.add.text(centerX, statY + i * lineSpacing,
+                line, {
+                    fontSize: '16px',
+                    fill: '#ffffff',
+                    fontFamily: 'monospace'
+                }).setOrigin(0.5).setDepth(901);
+            this.statsOverlayElements.push(txt);
+        });
+
+        // Bouton [ Reprendre ]
+        const resumeBtn = this.scene.add.text(centerX, height - 100, `[ ${this.scene.translate('resume_button') || 'Reprendre'} ]`, {
+            fontSize: '22px',
+            fill: '#00ff00',
+            fontFamily: 'monospace'
+        }).setOrigin(0.5).setInteractive().setDepth(902);
+        resumeBtn.on('pointerdown', () => this.closeStatsOverlay());
+        this.statsOverlayElements.push(resumeBtn);
+
+        // Bouton [ Abandonner ]
+        const quitBtn = this.scene.add.text(centerX, height - 60, `[ ${this.scene.translate('quit_button') || 'Abandonner'} ]`, {
+            fontSize: '22px',
+            fill: '#ff4444',
+            fontFamily: 'monospace'
+        }).setOrigin(0.5).setInteractive().setDepth(902);
+        quitBtn.on('pointerdown', () => {
+            this.scene.cameras.main.fadeOut(500, 0, 0, 0);
+            this.scene.time.delayedCall(500, () => {
+                this.scene.scene.start('MainMenuScene');
+            });
+        });
+        this.statsOverlayElements.push(quitBtn);
+
+        this.scene.setTimeScale(0); // pause le jeu
+    }
+
+
+    closeStatsOverlay() {
+        this.statsOverlayElements.forEach(e => e.destroy());
+        this.statsOverlayElements = [];
+        this.menuOpen = false;
+        this.scene.setTimeScale(1);
+    }
+
 
     createHUD() {
         const offsetX = 20;
@@ -366,6 +473,7 @@ class HUDManager {
                 if (type === 'building') {
                     btn.on('pointerover', () => {
                         const info = this.scene.getDescription(id);
+                        console.log("info", info);
                         this.showInfoPanel(info.name, info.desc, btn.x + 40, btn.y);
                     });
                     btn.on('pointerout', () => {

@@ -278,6 +278,14 @@
     }
   ],
   "ui": {
+    "overlay_stats_title": "Analyse stratégique",
+    "overlay_artifact_title": "🔮 Artefacts actifs",
+    "overlay_waves_survived": "⏱️ Vagues tenues",
+    "overlay_resources_collected": "⚙️ Ressources collectées",
+    "overlay_units_produced": "🦾 Unités produites",
+    "overlay_units_lost": "⚰️ Unités perdues",
+    "resume_button": "Reprendre",
+    "quit_button": "Abandonner",
     "wave_label": "Vague",
     "reward_choose_resources": "🔧 Choisissez vos ressources",
     "reward_choose_buildings": "🏗️ Choisissez vos bâtiments",

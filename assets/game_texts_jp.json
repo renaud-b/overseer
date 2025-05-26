@@ -277,6 +277,14 @@
     }
   ],
   "ui": {
+    "overlay_stats_title": "戦略解析",
+    "overlay_artifact_title": "🔮 アクティブなアーティファクト",
+    "overlay_waves_survived": "⏱️ 生き延びたウェーブ数",
+    "overlay_resources_collected": "⚙️ 収集したリソース",
+    "overlay_units_produced": "🦾 生産されたユニット数",
+    "overlay_units_lost": "⚰️ 失われたユニット数",
+    "resume_button": "再開",
+    "quit_button": "終了",
     "wave_label": "ウェーブ",
     "reward_choose_resources": "🔧 資源を選択",
     "reward_choose_buildings": "🏗️ 建物を選択",

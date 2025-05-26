@@ -8,6 +8,8 @@ class UnitManager {
         if (!(type in this.units)) this.units[type] = 0;
         this.units[type] += amount;
 
+        this.scene.unitStats.produced[type] += amount;
+
         // Crée les unités sur la carte
         for (let i = 0; i < amount; i++) {
             const { x, y } = this.scene.getRandomPointInCircle(
@@ -27,6 +29,8 @@ class UnitManager {
 
     removeUnit(unit) {
         const type = unit.unitType;
+        if (type) this.scene.unitStats.lost[type] += 1;
+
         if (type && this.units[type] > 0) {
             this.units[type]--;
         }

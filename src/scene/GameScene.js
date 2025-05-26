@@ -27,6 +27,7 @@ class GameScene extends Phaser.Scene {
     create() {
 
 
+
         const SmartContractID = "e975a90a-3116-468d-9f61-96ad4a1f363c"
         const functionName ="GetGameStats"
 
@@ -66,6 +67,22 @@ class GameScene extends Phaser.Scene {
         const texts = this.cache.json.get('gameTexts');
         this.gameData = this.mergeStatsAndTexts(stats, texts);
 
+        this.collectedResources = {}; // Init
+        this.gameData.resources.forEach(r => {
+            this.collectedResources[r.id] = 0;
+        });
+
+        this.unitStats = {
+            produced: {},
+            lost: {}
+        };
+        this.gameData.units.forEach(u => {
+            this.unitStats.produced[u.id] = 0;
+            this.unitStats.lost[u.id] = 0;
+        });
+
+
+
         this.resources = {};
         this.gameData.resources.forEach((r) => {
                 this.resources[r.id] = 0
@@ -102,6 +119,7 @@ class GameScene extends Phaser.Scene {
         this.zoneEffects = [];
 
         this.artifactManager = new ArtifactManager(this);
+
 
 
         this.createCardZone();
@@ -144,11 +162,16 @@ class GameScene extends Phaser.Scene {
             if (this.timeScale === 0) this.setTimeScale(this.lastTimeScale || 1);
             else { this.lastTimeScale = this.timeScale; this.setTimeScale(0); }
         });
+        this.unitManager.addUnit('unit_guard', 20)
 
         this.input.keyboard.on('keydown-ZERO', () => this.setTimeScale(0));
         this.input.keyboard.on('keydown-ONE', () => this.setTimeScale(1));
         this.input.keyboard.on('keydown-TWO', () => this.setTimeScale(3));
         this.input.keyboard.on('keydown-THREE', () => this.setTimeScale(5));
+        this.input.keyboard.on('keydown-ESC', () => {
+            if (!this.hud.menuOpen) this.hud.showStatsOverlay();
+            else this.hud.closeStatsOverlay();
+        });
 
         this.add.sprite(-10, 50, 'cityWall')
             .setDisplaySize(this.tileSize*this.gridWidth+85, this.tileSize*this.gridHeight+100)
@@ -288,25 +311,7 @@ class GameScene extends Phaser.Scene {
 
 
     getDescription(type) {
-        const building = this.buildingManager.buildingMap[type];
-        if (building) {
-            let desc = building.desc || 'Aucune description.';
-            if (building.cost) {
-                const costText = Object.entries(building.cost)
-                    .map(([k, v]) => {
-                        const res = this.gameData.resources.find(r => r.id === k);
-                        const name = res ? res.name : k;
-                        return `${name}: ${v}`;
-                    })
-                    .join(', ');
-                desc += this.translate("building_cost", {cost: costText});
-            }
-            return {
-                name: building.name || type,
-                desc: desc
-            };
-        }
-        return { name: type || '???', desc: 'Aucune description disponible.' };
+        return this.buildingManager.getBuildingRuntimeInfo({type: type}); // Assure que les infos sont à jour
     }
 
 
@@ -333,6 +338,7 @@ class GameScene extends Phaser.Scene {
 
     addResource(type, amount) {
         this.resources[type] += amount;
+        this.collectedResources[type] += amount;
         this.hud.updateHUD(this.resources, this.units, this.unitCapMap);
     }
 

@@ -277,6 +277,14 @@
     }
   ],
   "ui": {
+    "overlay_stats_title": "Strategic Analysis",
+    "overlay_artifact_title": "🔮 Active Artifacts",
+    "overlay_waves_survived": "⏱️ Waves Survived",
+    "overlay_resources_collected": "⚙️ Resources Collected",
+    "overlay_units_produced": "🦾 Units Produced",
+    "overlay_units_lost": "⚰️ Units Lost",
+    "resume_button": "Resume",
+    "quit_button": "Quit",
     "wave_label": "Wave",
     "reward_choose_resources": "🔧 Choose your resources",
     "reward_choose_buildings": "🏗️ Choose your buildings",
