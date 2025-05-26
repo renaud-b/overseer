@@ -600,13 +600,8 @@ class HUDManager {
                     const name = enemy?.name || this.scene.translate(`enemy_${id}`) || id;
                     return `${name} x${count}`;
                 }).join('\n');
-                return `🌊 ${this.scene.translate('wave_label')} ${idx + 1}\n${enemies}`;
-            }).join('\n\n');
 
-
-            // ✨ Aperçu des récompenses
-            const rewardText = choice.waves.map(w => {
-                const packs = w.rewards?.packs || [];
+                const packs = wave.rewards?.packs || [];
                 const lines = packs.map(p => {
                     if (p.type === 'resource') {
                         return `💠 ${p.options.length} res x${Math.floor(p.quantity)}`;
@@ -617,22 +612,19 @@ class HUDManager {
                     return '';
                 });
 
-                if (w.rewards?.artifactReward) {
+                if (wave.rewards?.artifactReward) {
                     lines.push(`🔮 1 artefact`);
                 }
-                return lines.join('\n');
-            }).join('\n\n');
+                const rewardText = lines.join('\n');
+                const rewardLabel = this.scene.translate('rewards_label') || 'Récompenses';
+                return `🌊 ${this.scene.translate('wave_label')} ${idx + 1}\n${enemies}\n\n🎁 ${rewardLabel} \n${rewardText}`;
+            }).join('\n\n\n');
 
-            const rewardLabel = this.scene.translate('rewards_label') || 'Récompenses';
-            const fullText = `${content}\n\n🎁 ${rewardLabel} \n${rewardText}`;
-
-
-
-            const detailText = this.scene.add.text(x, y - 20, fullText, {
+            const detailText = this.scene.add.text(x, y - 120, content, {
                 fontSize: '12px',
                 fill: '#ffffff',
                 fontFamily: 'monospace',
-                align: 'center',
+                align: 'left',
                 wordWrap: { width: 160 }
             }).setOrigin(0.5, 0).setDepth(404);
 
