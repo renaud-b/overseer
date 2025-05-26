@@ -474,7 +474,6 @@ class HUDManager {
                 if (type === 'building') {
                     btn.on('pointerover', () => {
                         const info = this.scene.getDescription(id);
-                        console.log("info", info);
                         this.showInfoPanel(info.name, info.desc, btn.x + 40, btn.y);
                     });
                     btn.on('pointerout', () => {

@@ -15,7 +15,11 @@ class Timeline {
         const startX = this.width + this.offsetX;
         const y = this.offsetY-5;
 
-        const flag = this.scene.add.rectangle(startX, y, 12, 20, 0xff0000)
+        let color = 0xff0000; // couleur par défaut
+        if(waveId %5 === 0 && waveId > 0) {
+            color = 0xffff00;
+        }
+        const flag = this.scene.add.rectangle(startX, y, 12, 20, color)
             .setOrigin(0);
         flag.spawnTime = this.scene.time.now + delayMs;
         flag.composition = composition;
