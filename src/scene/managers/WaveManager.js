@@ -64,7 +64,6 @@ class WaveManager {
 
         const chance = this.scene.isTalentUnlocked('artifact_scanner') ? 0.4 : 0.2; // +20% si débloqué
         const selected = Math.random()
-        console.log("chance d'artefact:", chance , "sélectionné:", selected);
         if (available.length > 0 && selected < chance) {
             const options = Phaser.Utils.Array.Shuffle(available).slice(0, 3);
             rewards.artifactReward = options;
@@ -119,7 +118,7 @@ class WaveManager {
         const rewards = this.waves[waveId]?.rewards || this.generateWaveRewards(this.waveNumber);
         this.scene.talentManager?.applyOnWaveVictory();
         this.scene.hud.showRewardPopupWithChoices(rewards, (restoreTimeScale) => {
-            if (this.waveNumber >= 0) {
+            if (this.waveNumber %5 === 0) {
                 this.proposeWaveDraft(restoreTimeScale);
             } else {
                 restoreTimeScale()
