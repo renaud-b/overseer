@@ -43,14 +43,16 @@ class WaveManager {
         const when = this.scene.globalGameTime + (forcedDelay !== undefined ? forcedDelay : delay);
 
         const waveId = this.currentWaveId++;
-        let composition = null
+        let composition, rewards;
         if(this.selectedWaves.length > 0){
-            composition = this.selectedWaves.shift();
+            const selectedWave = this.selectedWaves.shift();
+            composition = selectedWave.composition
+            rewards = selectedWave.rewards
         } else {
             composition = this.generateWaveComposition(this.waveNumber);
+            rewards = this.generateWaveRewards(this.waveNumber);
         }
 
-        const rewards = this.generateWaveRewards(this.waveNumber);
 
         // Préparer une entrée pour cette vague
         this.waves[waveId] = { alive: -1, composition, rewards };
@@ -117,7 +119,7 @@ class WaveManager {
         const rewards = this.waves[waveId]?.rewards || this.generateWaveRewards(this.waveNumber);
         this.scene.talentManager?.applyOnWaveVictory();
         this.scene.hud.showRewardPopupWithChoices(rewards, (restoreTimeScale) => {
-            if (this.waveNumber % 5 === 0) {
+            if (this.waveNumber >= 0) {
                 this.proposeWaveDraft(restoreTimeScale);
             } else {
                 restoreTimeScale()

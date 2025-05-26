@@ -48,6 +48,7 @@ class HUDManager {
         const lineSpacing = 24;
         const artifacts = this.scene.artifactManager?.artifacts || [];
 
+        console.log("Artefacts actifs:", artifacts);
         artifacts.forEach((a, i) => {
             const txt = this.scene.add.text(centerX, startY + i * lineSpacing,
                 `✅ ${a.name || a.id}  →  ${a.desc || a.effect}`, {
@@ -648,14 +649,16 @@ class HUDManager {
 
             const chosen = choices[selectedChoiceIndex];
 
-            chosen.waves.forEach(waveComp => {
+            console.log("chosen.waves: ", chosen.waves)
+            chosen.waves.forEach(w => {
+                const {composition, rewards} = w
                 const waveId = this.scene.waveManager.currentWaveId++;
                 this.scene.waveManager.waves[waveId] = {
                     alive: -1,
-                    composition: waveComp,
-                    rewards: wave.rewards,
+                    composition: composition,
+                    rewards: rewards,
                 };
-                this.scene.waveManager.selectedWaves.push(waveComp)
+                this.scene.waveManager.selectedWaves.push(w)
                 console.log(`Nouvelle vague planifiée (draft) id=${waveId}`);
                 then()
             });

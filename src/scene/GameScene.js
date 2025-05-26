@@ -162,7 +162,7 @@ class GameScene extends Phaser.Scene {
             if (this.timeScale === 0) this.setTimeScale(this.lastTimeScale || 1);
             else { this.lastTimeScale = this.timeScale; this.setTimeScale(0); }
         });
-        this.unitManager.addUnit('unit_guard', 20)
+        //this.unitManager.addUnit('unit_sniper', 100)
 
         this.input.keyboard.on('keydown-ZERO', () => this.setTimeScale(0));
         this.input.keyboard.on('keydown-ONE', () => this.setTimeScale(1));
