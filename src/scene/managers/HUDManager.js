@@ -423,7 +423,6 @@ class HUDManager {
             rewardLines.push(this.scene.translate('artifact_reward_label'));
         }
 
-        console.log("rewards: ", rewards)
         const fullText = [...enemyLines, '', ...rewardLines].join('\n');
 
         this.wavePreviewPanel = this.scene.add.rectangle(x + 20, y + 30, 300, fullText.split('\n').length * 20 + 20, 0x222222, 0.9)
@@ -487,18 +486,47 @@ class HUDManager {
                 fontFamily: 'monospace'
             }).setOrigin(0.5).setDepth(404);
 
-            let content = choice.waves.map((comp, idx) => {
-                const enemies = Object.entries(comp).map(([id, count]) => `${id} x${count}`).join('\n');
-                return `🌊 Vague ${idx + 1}\n${enemies}`;
+            let content = choice.waves.map((wave, idx) => {
+                const enemies = Object.entries(wave.composition || wave).map(([id, count]) => {
+                    const enemy = this.scene.gameData.enemies.find(e => e.id === id);
+                    const name = enemy?.name || this.scene.translate(`enemy_${id}`) || id;
+                    return `${name} x${count}`;
+                }).join('\n');
+                return `🌊 ${this.scene.translate('wave_label')} ${idx + 1}\n${enemies}`;
             }).join('\n\n');
 
-            const detailText = this.scene.add.text(x, y, content, {
+
+            // ✨ Aperçu des récompenses
+            const rewardText = choice.waves.map(w => {
+                const packs = w.rewards?.packs || [];
+                const lines = packs.map(p => {
+                    if (p.type === 'resource') {
+                        return `💠 ${p.options.length} res x${Math.floor(p.quantity)}`;
+                    }
+                    if (p.type === 'building') {
+                        return `🏗️ ${p.options.length} bâtiments`;
+                    }
+                    return '';
+                });
+
+                if (w.rewards?.artifactReward) {
+                    lines.push(`🔮 1 artefact`);
+                }
+                return lines.join('\n');
+            }).join('\n\n');
+
+
+            const fullText = `${content}\n\n🎁 Récompenses:\n${rewardText}`;
+
+
+
+            const detailText = this.scene.add.text(x, y - 20, fullText, {
                 fontSize: '12px',
                 fill: '#ffffff',
                 fontFamily: 'monospace',
                 align: 'center',
                 wordWrap: { width: 160 }
-            }).setOrigin(0.5).setDepth(404);
+            }).setOrigin(0.5, 0).setDepth(404);
 
             btn.on('pointerdown', () => {
                 selectedChoiceIndex = i;
@@ -519,9 +547,14 @@ class HUDManager {
             if (selectedChoiceIndex === null) return;
 
             const chosen = choices[selectedChoiceIndex];
+
             chosen.waves.forEach(waveComp => {
                 const waveId = this.scene.waveManager.currentWaveId++;
-                this.scene.waveManager.waves[waveId] = { alive: -1, composition: waveComp, rewards: this.scene.waveManager.generateWaveRewards(this.scene.waveManager.waveNumber) };
+                this.scene.waveManager.waves[waveId] = {
+                    alive: -1,
+                    composition: waveComp,
+                    rewards: wave.rewards,
+                };
                 this.scene.waveManager.selectedWaves.push(waveComp)
                 console.log(`Nouvelle vague planifiée (draft) id=${waveId}`);
                 then()

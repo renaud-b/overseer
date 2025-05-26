@@ -162,33 +162,33 @@
   "enemies": [
     {
       "id": "basic_monster",
-      "name": "Monstre basique",
-      "desc": "Un monstre basique, présent dans les premieres vagues"
+      "name": "Charnivore rampant",
+      "desc": "Créature vorace issue des nids organiques. Se déplace lentement mais attaque sans relâche."
     },
     {
       "id": "ranged_monster",
-      "name": "Monstre a distance basique",
-      "desc": "Un monstre basique, présent dans les premieres vagues"
+      "name": "Crache-spores",
+      "desc": "Projette des projectiles biologiques acides à distance. Fragile mais gênant."
     },
     {
       "id": "base_rusher",
       "name": "Carapace Percutante",
-      "desc": "Ignore les unités alliées et fonce vers la base pour l’écraser."
+      "desc": "Mutant cuirassé qui fonce droit vers le cœur de votre base, ignorant toute défense."
     },
     {
       "id": "stalker",
-      "name": "Stalker Organique",
-      "desc": "Invisible jusqu’à sa première attaque."
+      "name": "Ombre Nécroïde",
+      "desc": "Restée invisible jusqu'à l’impact. Débusque ses cibles dans l’ombre pour frapper violemment."
     },
     {
       "id": "mother_slime",
-      "name": "Slime-Mère",
-      "desc": "À sa mort, génère 2 petits slimes."
+      "name": "Poche Mycoïde",
+      "desc": "Organisme gonflé de matière visqueuse. Explose à sa mort, libérant des spores instables."
     },
     {
       "id": "baby_slime",
-      "name": "Slime-Enfant",
-      "desc": "Petit slime issu d’une fission."
+      "name": "Spore Enfant",
+      "desc": "Résidu fongique issu d’une fission. Individuellement faible, mais souvent nombreux."
     }
   ],
   "units": [
@@ -273,6 +273,7 @@
     }
   ],
   "ui": {
+    "wave_label": "Vague",
     "reward_choose_resources": "🔧 Choisissez vos ressources",
     "reward_choose_buildings": "🏗️ Choisissez vos bâtiments",
     "reward_choose_artifact": "🧬 Choisissez un artefact",

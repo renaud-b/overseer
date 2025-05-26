@@ -61,17 +61,15 @@ class WaveManager {
 
 
         const chance = this.scene.isTalentUnlocked('artifact_scanner') ? 0.4 : 0.2; // +20% si débloqué
-        if (available.length > 0 && Math.random() < chance) {
+        const selected = Math.random()
+        console.log("chance d'artefact:", chance , "sélectionné:", selected);
+        if (available.length > 0 && selected < chance) {
             const options = Phaser.Utils.Array.Shuffle(available).slice(0, 3);
             rewards.artifactReward = options;
         }
 
         this.scheduledWaves.push({ time: when, waveId });
-
-        // ➕ Flag avec waveId
         this.scene.timeline.addFlag(0, composition, rewards, waveId);
-
-        console.log(`⏳ Vague #${waveId} planifiée à ${Math.round(when / 1000)}s`);
     }
 
 
@@ -116,16 +114,10 @@ class WaveManager {
 
 
     handleWaveVictory(waveId) {
-        console.log(`✅ Vague #${waveId} vaincue !`);
-
         const rewards = this.waves[waveId]?.rewards || this.generateWaveRewards(this.waveNumber);
-
         this.scene.talentManager?.applyOnWaveVictory();
-
         this.scene.hud.showRewardPopupWithChoices(rewards, (restoreTimeScale) => {
-            // ➡️ Quand toutes les récompenses sont choisies et confirmées, et que la vague est un multiple de 5, on propose un choix de vague:
             if (this.waveNumber % 5 === 0) {
-
                 this.proposeWaveDraft(restoreTimeScale);
             } else {
                 restoreTimeScale()
@@ -161,50 +153,84 @@ class WaveManager {
             }
             return composition;
         };
+        const generateCompositionAndReward = (levelBias, difficultyFactor) => {
+            const composition = generateComposition(levelBias);
+            const rewards = this.generateWaveRewards(this.waveNumber, 2, difficultyFactor);
+            return { composition, rewards };
+        };
+
 
         const choices = [
             {
                 label: this.scene.translate('wave_choice_easy') || 'Facile',
-                waves: [generateComposition('easy'), generateComposition('easy')]
+                waves: [
+                    generateCompositionAndReward('easy', 0.8),
+                    generateCompositionAndReward('easy', 0.8)
+                ]
             },
             {
                 label: this.scene.translate('wave_choice_medium') || 'Moyen',
-                waves: [generateComposition('medium'), generateComposition('medium')]
+                waves: [
+                    generateCompositionAndReward('medium', 1.0),
+                    generateCompositionAndReward('medium', 1.0)
+                ]
             },
             {
                 label: this.scene.translate('wave_choice_hard') || 'Difficile',
-                waves: [generateComposition('hard'), generateComposition('hard')]
+                waves: [
+                    generateCompositionAndReward('hard', 1.3),
+                    generateCompositionAndReward('hard', 1.3)
+                ]
             }
         ];
-
         this.scene.hud.showWaveDraftPopup(choices, then);
     }
 
 
 
-    generateWaveRewards(waveNumber = 1, maxPacks = 2) {
+    generateWaveRewards(waveNumber = 1, maxPacks = 2, difficultyFactor = 1.0) {
         const packs = [];
 
         const resourceIds = this.scene.gameData.resources.map(r => r.id);
-        const buildingIds = this.scene.gameData.buildings
-            .filter(b => !b.unlimited && b.level <= waveNumber / 3 + 1) // +1 pour arrondir gentiment
-            .map(b => b.id);
+        const buildingData = this.scene.gameData.buildings.filter(b => !b.unlimited);
 
-        const numPacks = Phaser.Math.Between(1, maxPacks);
+        const getLevelWeights = (waveNumber) => {
+            if (waveNumber <= 3) return [[1, 100]];
+            if (waveNumber <= 6) return [[1, 80], [2, 20]];
+            if (waveNumber <= 10) return [[1, 60], [2, 30], [3, 10]];
+            if (waveNumber <= 14) return [[1, 30], [2, 50], [3, 20]];
+            return [[1, 10], [2, 40], [3, 50]];
+        };
+
+        const buildWeightedLevelPool = () => {
+            const weights = getLevelWeights(waveNumber);
+            const result = [];
+            weights.forEach(([lvl, count]) => {
+                for (let i = 0; i < count; i++) result.push(lvl);
+            });
+            return result;
+        };
+
+        const weightedLevels = buildWeightedLevelPool();
+
+        // Ajustement : bonus de talent
+        if (this.scene.isTalentUnlocked('wave_reward_boost')) {
+            maxPacks += 1;
+        }
+
+        const numPacks = Phaser.Math.Between(1, Math.ceil(maxPacks * difficultyFactor));
 
         for (let i = 0; i < numPacks; i++) {
             const type = Phaser.Math.Between(0, 1) === 0 ? 'resource' : 'building';
 
             if (type === 'resource') {
                 const options = Phaser.Utils.Array.Shuffle(resourceIds).slice(0, 3);
-
-                // Quantité minimale et maximale par vague : base x vague
                 const base = 4;
                 const scaling = 2;
                 const quantity = Phaser.Math.Between(
                     base + waveNumber * scaling,
                     base + waveNumber * scaling * 2
-                );
+                ) * difficultyFactor;
 
                 packs.push({
                     type: 'resource',
@@ -212,17 +238,37 @@ class WaveManager {
                     quantity
                 });
             } else {
-                const options = Phaser.Utils.Array.Shuffle(buildingIds).slice(0, 3);
+                const selectedLevel = Phaser.Utils.Array.GetRandom(weightedLevels);
+                const candidates = buildingData.filter(b => b.level === selectedLevel);
+                const options = Phaser.Utils.Array.Shuffle(candidates.map(b => b.id)).slice(0, 3);
 
-                packs.push({
-                    type: 'building',
-                    options
-                });
+                if (options.length > 0) {
+                    packs.push({
+                        type: 'building',
+                        options
+                    });
+                }
             }
         }
 
-        return { packs };
+        const rewards = { packs };
+
+        // 💠 Artefacts (avec filtre anti-doublon)
+        const owned = this.scene.artifactManager.artifacts.map(a => a.id);
+        const allArtifacts = this.scene.gameData.artifacts;
+        const available = allArtifacts.filter(a => !owned.includes(a.id));
+
+        const baseChance = this.scene.isTalentUnlocked('artifact_scanner') ? 0.4 : 0.2;
+        const chance = baseChance * difficultyFactor;
+
+        if (available.length > 0 && Math.random() < chance) {
+            rewards.artifactReward = Phaser.Utils.Array.Shuffle(available).slice(0, 3);
+        }
+
+        return rewards;
     }
+
+
     spawnWave(waveId) {
         const wave = this.waves[waveId];
         if (!wave) {

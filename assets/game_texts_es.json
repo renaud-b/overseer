@@ -161,33 +161,33 @@
   "enemies": [
     {
       "id": "basic_monster",
-      "name": "Monstruo Básico",
-      "desc": "Un monstruo básico que aparece en las primeras oleadas."
+      "name": "Carnívoro Reptante",
+      "desc": "Criatura voraz surgida de colmenas orgánicas. Lenta pero implacable."
     },
     {
       "id": "ranged_monster",
-      "name": "Monstruo a Distancia Básico",
-      "desc": "Un monstruo básico que aparece en las primeras oleadas."
+      "name": "Escupeesporas",
+      "desc": "Lanza proyectiles biológicos ácidos desde la distancia. Frágil pero molesto."
     },
     {
       "id": "base_rusher",
-      "name": "Caparazón de Embestida",
-      "desc": "Ignora unidades aliadas y embiste directamente hacia la base."
+      "name": "Caparazón Embestidor",
+      "desc": "Mutante blindado que se lanza directo a tu base, ignorando toda defensa."
     },
     {
       "id": "stalker",
-      "name": "Acechador Orgánico",
-      "desc": "Invisible hasta su primer ataque."
+      "name": "Acechador Necróide",
+      "desc": "Permanece invisible hasta su primer ataque. Caza desde las sombras."
     },
     {
       "id": "mother_slime",
-      "name": "Slime Madre",
-      "desc": "Al morir, genera 2 pequeños slimes."
+      "name": "Nido Micoide",
+      "desc": "Masa orgánica hinchada. Explota al morir, liberando esporas inestables."
     },
     {
       "id": "baby_slime",
-      "name": "Slime Bebé",
-      "desc": "Pequeño slime generado por fisión."
+      "name": "Esporín",
+      "desc": "Resto fúngico resultante de una fisión. Débil solo, pero rara vez está solo."
     }
   ],
   "units": [

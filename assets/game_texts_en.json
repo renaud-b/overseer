@@ -161,33 +161,33 @@
   "enemies": [
     {
       "id": "basic_monster",
-      "name": "Basic Monster",
-      "desc": "A basic monster, appearing in the early waves."
+      "name": "Crawling Charnivore",
+      "desc": "A ravenous creature spawned from organic hives. Slow-moving but relentless."
     },
     {
       "id": "ranged_monster",
-      "name": "Basic Ranged Monster",
-      "desc": "A basic monster, appearing in the early waves."
+      "name": "Spore Spitter",
+      "desc": "Launches acidic bio-projectiles from afar. Fragile but disruptive."
     },
     {
       "id": "base_rusher",
       "name": "Ramming Carapace",
-      "desc": "Ignores allied units and rushes toward the base to crush it."
+      "desc": "An armored mutant that rushes directly toward your base, ignoring all defenses."
     },
     {
       "id": "stalker",
-      "name": "Organic Stalker",
-      "desc": "Invisible until its first attack."
+      "name": "Necroid Stalker",
+      "desc": "Remains invisible until its first strike. Hunts from the shadows."
     },
     {
       "id": "mother_slime",
-      "name": "Mother Slime",
-      "desc": "Upon death, spawns 2 baby slimes."
+      "name": "Mycoid Brood",
+      "desc": "Swollen organic blob. Bursts on death, releasing unstable spores."
     },
     {
       "id": "baby_slime",
-      "name": "Baby Slime",
-      "desc": "Small slime spawned from a fission."
+      "name": "Sporeling",
+      "desc": "Fungal remnant from brood fission. Weak alone, but rarely alone."
     }
   ],
   "units": [

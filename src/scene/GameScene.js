@@ -40,7 +40,6 @@ class GameScene extends Phaser.Scene {
             [],
             "https://utopixia.com",
         ).then((stats) => {
-            console.log("Game stats loaded from Wormhole:", stats);
             this.cache.json.add('gameStats', stats);
             this.startGame(stats);
         }).catch((err) => {
