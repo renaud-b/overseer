@@ -101,14 +101,6 @@ class Vision {
                 const tile = this.tiles[ty * this.gridWidth + tx];
                 tile.isActive = true;
 
-                tile.debugRect = this.scene.add.rectangle(
-                    tile.rect.x + this.tileSizeX / 2,
-                    tile.rect.y + this.tileSizeY / 2,
-                    this.tileSizeX,
-                    this.tileSizeY,
-                    0xff0000,
-                    0.3
-                ).setDepth(200);
             }
         }
     }

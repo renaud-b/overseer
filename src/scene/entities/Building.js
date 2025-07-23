@@ -97,6 +97,45 @@ class Building {
         }
     }
 
+    createFloatingResourceIcon(resourceId, amount = 1) {
+        const iconKey = `icon_${resourceId}`;
+        const tileCenterX = this.container.x; // Centre de la tuile
+        const tileCenterY = this.container.y - (this.sprite.height / 2) + 10; // Légèrement au-dessus
+
+        // ✅ Icône de ressource
+        const icon = this.scene.add.image(tileCenterX, tileCenterY, iconKey)
+            .setDisplaySize(24, 24)
+            .setDepth(200)
+            .setAlpha(1)
+            .setOrigin(0.5);
+
+        // ✅ Texte "+N"
+        const text = this.scene.add.text(tileCenterX + 20, tileCenterY, `+${amount}`, {
+            fontSize: '18px',
+            fill: '#ffffff',
+            fontFamily: 'monospace',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5)
+            .setDepth(200)
+            .setAlpha(1);
+
+        // ✅ Animation groupée
+        this.scene.tweens.add({
+            targets: [icon, text],
+            y: tileCenterY - 40, // monte de 40px
+            alpha: 0,
+            duration: 1000, // 1s
+            ease: 'Cubic.easeOut',
+            onComplete: () => {
+                icon.destroy();
+                text.destroy();
+            }
+        });
+    }
+
+
+
     update(delta) {
         this.setActiveVisual(this.tile.isActive);
         if (!this.tile.isActive) return;
@@ -178,6 +217,7 @@ class Building {
         const bonusRate = this.computeBonusRate(data);
         this.currentRate = bonusRate;
         this.scene.addResource(data.produces, bonusRate);
+        this.createFloatingResourceIcon(data.produces, bonusRate);
 
         this.totalProduced += data.rate || 1;
 

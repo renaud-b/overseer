@@ -141,23 +141,6 @@ class GameScene extends Phaser.Scene {
         }
         this.spellManager = new SpellManager(this, this.gameData.spells)
         this.buildingManager = new BuildingManager(this);
-        this.gridManager.tiles.forEach(tile => {
-            if (!tile.building) {
-                const buildingData = this.buildingManager.buildingMap['condensor'];
-                if (buildingData) {
-                    const building = new Building(
-                        this,
-                        tile.rect.x + this.tileSizeX / 2,
-                        tile.rect.y + this.tileSizeY / 2,
-                        tile,
-                        'condensor',
-                        buildingData
-                    );
-                    tile.building = building;
-                    this.buildingManager.buildings.push(building);
-                }
-            }
-        });
 
         this.zoneEffects = [];
 
