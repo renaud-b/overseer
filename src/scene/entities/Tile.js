@@ -1,13 +1,14 @@
 class Tile {
-    constructor(scene, x, y, size, index) {
+    constructor(scene, x, y, sizeX, sizeY, index) {
         this.scene = scene;
         this.x = x;
         this.y = y;
+        this.sizeX = sizeX;
+        this.sizeY = sizeY;
         this.building = null;
         this.isActive = false;
 
-        this.rect = scene.add.rectangle(x, y, size - 2, size - 2, 0x333333)
-            .setStrokeStyle(1, 0x555555)
+        this.rect = scene.add.rectangle(x, y, sizeX, sizeY, 0x333333, 0.0)
             .setOrigin(0)
             .setInteractive();
 

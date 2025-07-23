@@ -2,10 +2,10 @@ class Timeline {
     constructor(scene) {
         this.scene = scene;
         this.flags = [];
-        this.width = 700;
-        this.offsetX = 500;
-        this.offsetY = 30
-        this.track = scene.add.rectangle(this.offsetX, this.offsetY, this.width, 10, 0x888888)
+        this.width = 900;
+        this.offsetX = 370;
+        this.offsetY = 20
+        this.track = scene.add.rectangle(this.offsetX, this.offsetY, this.width, 13, 0x143143)
             .setOrigin(0);
 
         this.waveSpeed = 10; // px/s
@@ -19,7 +19,7 @@ class Timeline {
         if(waveId %5 === 0 && waveId > 0) {
             color = 0xffff00;
         }
-        const flag = this.scene.add.rectangle(startX, y, 12, 20, color)
+        const flag = this.scene.add.image(startX, y, "incoming_wave")
             .setOrigin(0);
         flag.spawnTime = this.scene.time.now + delayMs;
         flag.composition = composition;

@@ -11,15 +11,41 @@ class GameScene extends Phaser.Scene {
 
 
         this.load.image('droneSprite', 'assets/sprites/drone_01.png');
-        this.load.image('cityWall', 'assets/city-wall.png');
-        this.load.image('ground', 'assets/ground_02.png');
+        this.load.image('ground', 'assets/sprites/ui/board.png');
+        this.load.image('city_board', 'assets/sprites/ui/CityBoard.png');
+        this.load.image('empty_spell_tile', 'assets/sprites/spells/empty_spell_tile.png');
+        this.load.image('etchings', 'assets/sprites/spells/etchings.png');
+        this.load.image('base_icon', 'assets/sprites/ui/base_icon.png');
+        this.load.image('empty_base_life', 'assets/sprites/ui/empty_base_life.png');
+        this.load.image('base_life', 'assets/sprites/ui/base_life.png');
+        this.load.image('incoming_wave', 'assets/sprites/ui/incoming_wave.png');
+        this.load.image('menu_btn', 'assets/sprites/ui/menu_btn.png');
+        this.load.image('time_speed_0', 'assets/sprites/ui/pause_btn.png');
+        this.load.image('time_speed_1', 'assets/sprites/ui/play_btn.png');
+        this.load.image('time_speed_5', 'assets/sprites/ui/fast_forward_btn.png');
+        this.load.image('wave_border', 'assets/sprites/ui/wave_border.png');
+        this.load.image('vision_0', 'assets/sprites/ui/vision_0.png');
+
+        // Buildings
+        this.load.image('building_card_background', 'assets/sprites/buildings/building-card-background.png');
+
+        this.load.image('condenser_on', 'assets/sprites/buildings/condenser_on.png');
+        this.load.image('condenser_off', 'assets/sprites/buildings/condenser_off.png');
+
+        this.load.image('refinery_on', 'assets/sprites/buildings/refinery_on.png');
+        this.load.image('refinery_off', 'assets/sprites/buildings/refinery_off.png');
+
+        this.load.image('scrap_mines_on', 'assets/sprites/buildings/scrap_mines_on.png');
+        this.load.image('scrap_mines_off', 'assets/sprites/buildings/scrap_mines_off.png');
 
         const resources = [
             'hydronium', 'scrap', 'alloy', 'flux_crystal',
             'ion_field', 'bio_gel', 'compute_units', 'xeno_sample'
         ];
+        this.load.image('resourceContainer', 'assets/sprites/resources/container.png');
         resources.forEach(id => {
-            this.load.image(`icon_${id}`, `assets/sprites/${id}.png`);
+            this.load.image(`icon_${id}`, `assets/sprites/resources/${id}.png`);
+
         });
     }
 
@@ -31,18 +57,15 @@ class GameScene extends Phaser.Scene {
         const SmartContractID = "e975a90a-3116-468d-9f61-96ad4a1f363c"
         const functionName ="GetGameStats"
 
-
-
-
-
         Wormhole.executeContract(
             SmartContractID,
             functionName,
             [],
             "https://utopixia.com",
         ).then((stats) => {
+            console.log("stats: ", stats)
             this.cache.json.add('gameStats', stats);
-            this.startGame(stats);
+            this.startGame( stats);
         }).catch((err) => {
             console.error(err);
             this.load.json('gameStats', 'assets/game_stats.json');
@@ -53,6 +76,8 @@ class GameScene extends Phaser.Scene {
     startGame (gameStats) {
 
 
+        this.tileSizeX = 110;
+        this.tileSizeY = 110;
         this.gameOverTriggered = false;
         this.cameras.main.fadeIn(500, 0, 0, 0);
         this.unlockedTalents = JSON.parse(localStorage.getItem('unlockedTalents') || '[]');
@@ -61,7 +86,6 @@ class GameScene extends Phaser.Scene {
 
         this.globalGameTime = 0;
         this.timeScale = 1;
-        this.tileSize = 100;
 
         const stats = gameStats//this.cache.json.get('gameStats');
         const texts = this.cache.json.get('gameTexts');
@@ -99,35 +123,52 @@ class GameScene extends Phaser.Scene {
         this.unitManager = new UnitManager(this, this.units)
 
         this.hud = new HUDManager(this, this.resources, this.units);
-        this.buildingManager = new BuildingManager(this);
-        this.spellManager = new SpellManager(this, this.gameData.spells)
 
 
         this.resourceBonusMultipliers = {}
 
+        const offsetX = 90
+        const offsetY = 95
+
         this.gridWidth = 5;
         this.gridHeight = 5;
-        this.tileSize = 100;
-        this.gridManager = new GridManager(this, this.gridWidth, this.gridHeight, this.tileSize);
+        this.gridManager = new GridManager(this, this.gridWidth, this.gridHeight, this.tileSizeX, this.tileSizeY, offsetX, offsetY);
         if (this.isTalentUnlocked('resource_node_scanner')) {
             const tile = Phaser.Utils.Array.GetRandom(this.gridManager.getAllTiles());
             tile.isResourceBoost = true;
             tile.resourceBoost = 1.5
             tile.rect.setFillStyle(0x00ff00, 1.0);
         }
+        this.spellManager = new SpellManager(this, this.gameData.spells)
+        this.buildingManager = new BuildingManager(this);
+        this.gridManager.tiles.forEach(tile => {
+            if (!tile.building) {
+                const buildingData = this.buildingManager.buildingMap['condensor'];
+                if (buildingData) {
+                    const building = new Building(
+                        this,
+                        tile.rect.x + this.tileSizeX / 2,
+                        tile.rect.y + this.tileSizeY / 2,
+                        tile,
+                        'condensor',
+                        buildingData
+                    );
+                    tile.building = building;
+                    this.buildingManager.buildings.push(building);
+                }
+            }
+        });
 
         this.zoneEffects = [];
 
         this.artifactManager = new ArtifactManager(this);
 
 
-
         this.createCardZone();
-        this.vision = new Vision(this, this.tileSize, this.gridWidth, this.gridHeight, this.gridManager.tiles);
+        this.vision = new Vision(this, this.tileSizeX, this.tileSizeY, this.gridWidth, this.gridHeight, this.gridManager.tiles, offsetX, offsetY);
 
 
         this.createSpawnZones();
-
 
         let baseHp = 100;
 
@@ -141,15 +182,14 @@ class GameScene extends Phaser.Scene {
 
 
         this.baseTarget.hpText = this.add.text(
-            this.baseTarget.x,
-            this.baseTarget.y - 45,
-            `PV: ${baseHp}`,
+            150, 18,
+            `${baseHp}`,
             {
-                fontSize: '16px',
-                fill: '#00ff00',
+                fontSize: '12px',
+                fill: '#ffffff',
                 fontFamily: 'monospace'
             }
-        ).setOrigin(0.5).setDepth(11);
+        ).setOrigin(0, 0).setDepth(101);
 
         this.baseTarget.hp = baseHp;
         this.baseTarget.maxHp = baseHp;
@@ -162,24 +202,24 @@ class GameScene extends Phaser.Scene {
             if (this.timeScale === 0) this.setTimeScale(this.lastTimeScale || 1);
             else { this.lastTimeScale = this.timeScale; this.setTimeScale(0); }
         });
-        //this.unitManager.addUnit('unit_sniper', 100)
 
         this.input.keyboard.on('keydown-ZERO', () => this.setTimeScale(0));
         this.input.keyboard.on('keydown-ONE', () => this.setTimeScale(1));
-        this.input.keyboard.on('keydown-TWO', () => this.setTimeScale(3));
-        this.input.keyboard.on('keydown-THREE', () => this.setTimeScale(5));
+        this.input.keyboard.on('keydown-TWO', () => this.setTimeScale(5));
+
         this.input.keyboard.on('keydown-ESC', () => {
             if (!this.hud.menuOpen) this.hud.showStatsOverlay();
             else this.hud.closeStatsOverlay();
         });
 
-        this.add.sprite(-10, 50, 'cityWall')
-            .setDisplaySize(this.tileSize*this.gridWidth+85, this.tileSize*this.gridHeight+100)
-            .setOrigin(0)
-            .setDepth(10);
         this.setupDragDrop();
 
         this.talentManager.applyAll(); // applique tous les effets globaux
+        this.cameras.main.setBackgroundColor('#141e28'); // ou une autre couleur hexadécimale
+
+
+
+        this.unitManager.addUnit('unit_sniper', 2)
     }
 
 
@@ -234,6 +274,8 @@ class GameScene extends Phaser.Scene {
             console.log("base destroyed", this.gameOverTriggered)
         }
 
+        this.hud.updateBaseLife(this.baseTarget.hp, this.baseTarget.maxHp);
+
         this.buildingManager.updateAll(scaledDelta);
         this.timeline.update(scaledDelta);
         this.projectiles.forEach(p => p.update(scaledDelta));
@@ -248,8 +290,7 @@ class GameScene extends Phaser.Scene {
         this.zoneEffects.forEach(z => z.update(scaledDelta));
 
         this.baseTarget.hp = Math.max(0, this.baseTarget.hp);
-        this.baseTarget.hpText.setText(this.translate("base_hp")+`: ${Math.max(0, Math.floor(this.baseTarget.hp))}`);
-        this.baseTarget.hpText.setFill(this.baseTarget.hp > 40 ? '#00ff00' : this.baseTarget.hp > 15 ? '#ffff00' : '#ff0000');
+        this.baseTarget.hpText.setText(`${Math.max(0, Math.floor(this.baseTarget.hp))}/${this.baseTarget.maxHp}`);
 
 
         this.artifactManager.update(scaledDelta)
@@ -320,12 +361,12 @@ class GameScene extends Phaser.Scene {
         const enemySpawnRadius = 60;
 
         this.playerSpawnCircle = this.add.circle(
-            600,
-            350,
+            800,
+            400,
             playerSpawnRadius,
             0x00ff00,
-            0.2
-        ).setDepth(1).setVisible(false);
+            0.1
+        ).setDepth(1).setVisible(true);
 
         this.enemySpawnCircle = this.add.circle(
             this.scale.width +enemySpawnRadius,
@@ -382,10 +423,11 @@ class GameScene extends Phaser.Scene {
 
                 const building = new Building(
                     this,
-                    tile.rect.x + this.tileSize / 2,
-                    tile.rect.y + this.tileSize / 2,
+                    tile.rect.x + this.tileSizeX / 2,
+                    tile.rect.y + this.tileSizeY / 2,
                     tile,
-                    gameObject.cardType
+                    gameObject.cardType,
+                    buildingData
                 );
                 tile.building = building;
                 this.buildingManager.buildings.push(building);
@@ -425,8 +467,8 @@ class GameScene extends Phaser.Scene {
 
                 if (!tile.building) {
                     gameObject.setPosition(
-                        tile.rect.x + this.tileSize / 2,
-                        tile.rect.y + this.tileSize / 2
+                        tile.rect.x + this.tileSizeX / 2,
+                        tile.rect.y + this.tileSizeY / 2
                     );
 
                     const building = oldTile.building;
@@ -441,8 +483,8 @@ class GameScene extends Phaser.Scene {
                 } else {
                     // retour à la position d’origine
                     gameObject.setPosition(
-                        oldTile.rect.x + this.tileSize / 2,
-                        oldTile.rect.y + this.tileSize / 2
+                        oldTile.rect.x + this.tileSizeX / 2,
+                        oldTile.rect.y + this.tileSizeY / 2
                     );
                 }
             }
@@ -465,7 +507,6 @@ class GameScene extends Phaser.Scene {
                     const index = this.spellManager.spellButtons.findIndex(s => s.btn === gameObject);
                     if (index !== -1) {
                         this.spellManager.spellButtons[index].btn.destroy();
-                        this.spellManager.spellButtons[index].txt.destroy();
                         this.spellManager.spellButtons.splice(index, 1);
                         this.spellManager.reorganizeSpellBar();
                     }
@@ -505,8 +546,8 @@ class GameScene extends Phaser.Scene {
             if (!dropped && gameObject.originTile) {
                 this.tweens.add({
                     targets: gameObject,
-                    x: gameObject.originTile.rect.x + this.tileSize / 2,
-                    y: gameObject.originTile.rect.y + this.tileSize / 2,
+                    x: gameObject.originTile.rect.x + this.tileSizeX / 2,
+                    y: gameObject.originTile.rect.y + this.tileSizeY / 2,
                     duration: 200,
                     ease: 'Back.easeOut'
                 });
@@ -569,8 +610,9 @@ class GameScene extends Phaser.Scene {
     setTimeScale(scale) {
         this.timeScale = scale;
 
-        const speedMap = { 0: 0, 1: 1, 3: 2, 5: 3 };
+        const speedMap = { 1: 0, 5: 1, 0: 2 };
         const index = speedMap[scale] ?? 1;
+        console.log("Time scale set to", scale, "index", index);
         this.hud.highlightSelectedSpeed(index);
     }
 

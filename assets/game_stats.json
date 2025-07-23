@@ -36,6 +36,7 @@
   "buildings": [
     {
       "id": "condensor",
+      "img": "condenser",
       "produces": "hydronium",
       "rate": 1,
       "producesType": "resource",
@@ -44,6 +45,7 @@
     },
     {
       "id": "scrap_mine",
+      "img": "scrap_mines",
       "produces": "scrap",
       "unlimited": true,
       "rate": 1,
@@ -54,7 +56,8 @@
     },
     {
       "id": "refinery",
-      "produces": "alloy",
+      "img": "scrap_mines",
+      "produces": "refinery",
       "rate": 1,
       "producesType": "resource",
       "color": "#aaaaaa",
@@ -240,7 +243,7 @@
       "rate": 1,
       "cooldown": 8000,
       "cost": { "scrap": 5, "hydronium": 5 },
-      "consumePerCycle": { "hydronium": 2, "hydronium_extra": 2 },
+      "consumePerCycle": { "hydronium": 2},
       "color": "#ffeedd",
       "level": 1
     },
@@ -251,7 +254,7 @@
       "rate": 1,
       "cooldown": 8000,
       "cost": { "scrap": 10 },
-      "consumePerCycle": { "scrap": 2, "scrap_extra": 2 },
+      "consumePerCycle": { "scrap": 2},
       "color": "#ccffaa",
       "level": 1
     },
@@ -295,7 +298,7 @@
       "rate": 1,
       "cooldown": 15000,
       "cost": { "bio_gel": 4, "compute_units": 3 },
-      "consumePerCycle": { "bio_gel": 2, "bio_gel_extra": 2 },
+      "consumePerCycle": { "bio_gel": 2 },
       "color": "#ff44cc",
       "level": 3
     },

@@ -1,142 +1,138 @@
 class Vision {
-    constructor(scene, tileSize, gridWidth, gridHeight, tiles) {
+    constructor(scene, tileSizeX, tileSizeY, gridWidth, gridHeight, tiles, offsetX, offsetY) {
         this.scene = scene;
-        this.tileSize = tileSize;
+        this.tileSizeX = tileSizeX;
+        this.tileSizeY = tileSizeY;
         this.gridWidth = gridWidth;
         this.gridHeight = gridHeight;
         this.tiles = tiles;
+        this.offsetX = offsetX || 0;
+        this.offsetY = offsetY || 0;
 
-        this.pos = { x: 0, y: 0 }; // coin supérieur gauche
-        this.patternIndex = 0; // index de la forme (rotation)
-
-        this.visionPatterns = [
-            [ { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 } ], // ┌
-            [ { x: 0, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 } ], // ┐
-            [ { x: 0, y: 0 }, { x: -1, y: 0 }, { x: 0, y: -1 } ], // ┘
-            [ { x: 0, y: 0 }, { x: 0, y: -1 }, { x: 1, y: 0 } ]  // └
-        ];
-
-
-        this.rects = this.visionPatterns[0].map(() => scene.add.rectangle(0, 0, tileSize, tileSize, 0xffff00, 0.15)
-            .setStrokeStyle(2, 0xffff00)
-            .setOrigin(0)
-            .setDepth(10));
-
+        // Position logique : CENTRE de la vision
+        this.pos = { x: 1, y: 1 };
+        this.patternIndex = 0;
         this.level = 0;
-        this.updatePatternForLevel()
+
+        this.createPatterns();
+
+        // Sprite visuel
+        this.sprite = scene.add.image(0, 0, 'vision_0')
+            .setDisplaySize(this.tileSizeX * 2, this.tileSizeY * 2)
+            .setOrigin(0.5, 0.5) // ✅ Pivot au centre
+            .setDepth(101);
 
         this.updatePosition();
         this.bindControls();
     }
 
-    getUpgradeCost(currentLevel) {
-        const costs = [20, 50, 70]; // niveau 0 → 1 coûte 10, etc.
-        return costs[currentLevel] || 9999;
-    }
-
-    tryUpgradeVision() {
-        const cost = this.getUpgradeCost(this.level);
-        if (this.scene.resources['compute_units'] >= cost && this.level < 4) {
-            this.scene.resources['compute_units'] -= cost;
-            this.level++;
-            this.scene.hud.updateHUD(this.scene.resources, this.scene.units, this.scene.unitCapMap);
-            this.patternIndex = 0
-            this.updatePatternForLevel();
-            this.updatePosition();
-        } else {
-            console.log("Pas assez de ressources ou niveau max atteint");
-        }
-    }
-
-    updatePatternForLevel() {
+    createPatterns() {
         const rotatePattern = (pattern, times = 1) => {
-            let rotated = pattern.map(p => {
-                return { ...p}
-            });
+            let rotated = pattern.map(p => ({ ...p }));
             for (let t = 0; t < times; t++) {
-                rotated = rotated.map(({ x, y }) => {
-                    return {x: -y, y: x}
-                });
+                rotated = rotated.map(({ x, y }) => ({ x: -y, y: x }));
             }
             return rotated;
         };
 
         const basePatterns = [
-            // Niveau 0 : en L (avec rotations)
-            [0, 1, 2, 3].map(r => rotatePattern([
-                { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }
-            ], r)),
-
-            // Niveau 1 : carré (rotation visuellement identique mais techniquement présente)
-            [0, 1, 2, 3].map(r => rotatePattern([
-                { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }
-            ], r)),
-
-            // Niveau 2 : carré + tuile, rotation utile
-            [0, 1, 2, 3].map(r => rotatePattern([
-                { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }
-            ], r)),
-
-            // Niveau 3 : rectangle 2x3 avec rotations
-            [0, 1, 2, 3].map(r => rotatePattern([
-                { x: 0, y: 0 }, { x: 1, y: 0 },
-                { x: 0, y: 1 }, { x: 1, y: 1 },
-                { x: 0, y: 2 }, { x: 1, y: 2 }
-            ], r))
+            // Niveau 0 : en L (centré)
+            [ { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 } ],
+            // Niveau 1 : carré 2x2
+            [ { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 } ],
+            // Niveau 2 : carré + 1 tuile
+            [ { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 } ],
+            // Niveau 3 : rectangle 2x3
+            [ { x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }, { x: 0, y: 2 }, { x: 1, y: 2 } ]
         ];
 
-        this.visionPatterns = basePatterns[this.level] || basePatterns[0];
-        this.patternIndex = 0;
+        // 🔍 Décalage pour centrer le pattern autour (0,0)
+        const centerPattern = (pattern) => {
+            const minX = Math.min(...pattern.map(p => p.x));
+            const maxX = Math.max(...pattern.map(p => p.x));
+            const minY = Math.min(...pattern.map(p => p.y));
+            const maxY = Math.max(...pattern.map(p => p.y));
+            const centerX = (minX + maxX) / 2;
+            const centerY = (minY + maxY) / 2;
+            return pattern.map(p => ({ x: p.x - centerX, y: p.y - centerY }));
+        };
 
-        // Nettoyage et recréation des rectangles visuels
-        this.rects.forEach(r => r.destroy());
-        const maxTiles = Math.max(...this.visionPatterns.map(p => p.length));
-        this.rects = Array.from({ length: maxTiles }, () =>
-            this.scene.add.rectangle(0, 0, this.tileSize, this.tileSize, 0xffff00, 0.15)
-                .setStrokeStyle(2, 0xffff00)
-                .setOrigin(0)
-                .setDepth(10)
+        this.levelPatterns = basePatterns.map(base =>
+            [0, 1, 2, 3].map(r => centerPattern(rotatePattern(base, r)))
         );
+
+        this.updatePatternForLevel();
     }
 
-
+    updatePatternForLevel() {
+        this.visionPatterns = this.levelPatterns[this.level] || this.levelPatterns[0];
+        this.patternIndex = 0;
+    }
 
     updatePosition() {
-        const pattern = this.visionPatterns[this.patternIndex];
+        const tile = this.tiles[this.pos.y * this.gridWidth + this.pos.x];
+        if (!tile) return;
 
-        // Reset all tiles
-        this.tiles.forEach(t => {
-            t.isActive = false;
-            if(t.isResourceBoost){
-                t.rect.setFillStyle(0x5d975d, 1.0);
-            } else {
-                t.rect.setFillStyle(t.building ? t.building.fillColor : 0x333333);
+        // Place la vision au centre de la tuile (pas besoin de patternWidth maintenant)
+        this.sprite.setPosition(
+            tile.rect.x + this.tileSizeX / 2 + (this.tileSizeX / 2),
+            tile.rect.y + this.tileSizeY / 2 + (this.tileSizeY / 2)
+        );
+        this.sprite.setAngle(this.patternIndex * 90);
+
+        this.setActiveTiles();
+    }
+
+    setActiveTiles() {
+        this.tiles.forEach(tile => {
+            tile.isActive = false;
+            if (tile.debugRect) {
+                tile.debugRect.destroy();
+                tile.debugRect = null;
             }
         });
 
-        pattern.forEach((offset, i) => {
-            const tx = this.pos.x + offset.x;
-            const ty = this.pos.y + offset.y;
+        const pattern = this.visionPatterns[this.patternIndex];
+        for (let offset of pattern) {
+            const tx = Math.round(this.pos.x + offset.x);
+            const ty = Math.round(this.pos.y + offset.y);
 
             if (tx >= 0 && ty >= 0 && tx < this.gridWidth && ty < this.gridHeight) {
-                const index = ty * this.gridWidth + tx;
-                const tile = this.tiles[index];
+                const tile = this.tiles[ty * this.gridWidth + tx];
                 tile.isActive = true;
-                if (!tile.building) {
 
-                    if(!tile.isResourceBoost){
-                        tile.rect.setFillStyle(0x666666);
-                    }
-                }
-                this.rects[i].setPosition(tile.rect.x, tile.rect.y).setVisible(true);
-            } else {
-                this.rects[i].setVisible(false);
+                tile.debugRect = this.scene.add.rectangle(
+                    tile.rect.x + this.tileSizeX / 2,
+                    tile.rect.y + this.tileSizeY / 2,
+                    this.tileSizeX,
+                    this.tileSizeY,
+                    0xff0000,
+                    0.3
+                ).setDepth(200);
             }
-        });
+        }
     }
+
+
+
+    getUpgradeCost(currentLevel) {
+        const costs = [20, 50, 70];
+        return costs[currentLevel] || 9999;
+    }
+
+    tryUpgradeVision() {
+        const cost = this.getUpgradeCost(this.level);
+        if (this.scene.resources['compute_units'] >= cost && this.level < 3) {
+            this.scene.resources['compute_units'] -= cost;
+            this.level++;
+            this.scene.hud.updateHUD(this.scene.resources, this.scene.units, this.scene.unitCapMap);
+            this.updatePatternForLevel();
+            this.updatePosition();
+        }
+    }
+
     bindControls() {
         const isAzerty = window.keyboardLayout === 'azerty';
-
         const keys = {
             up: isAzerty ? 'Z' : 'W',
             down: 'S',
@@ -152,17 +148,24 @@ class Vision {
             let newX = this.pos.x;
             let newY = this.pos.y;
 
-            if (key === keys.up.toLowerCase()) {
-                newY--;
-            } else if (key === keys.down.toLowerCase()) {
-                newY++;
-            } else if (key === keys.left.toLowerCase()) {
-                newX--;
-            } else if (key === keys.right.toLowerCase()) {
-                newX++;
-            } else if (key === keys.rotate.toLowerCase()) {
-                this.patternIndex = (this.patternIndex + 1) % this.visionPatterns.length;
-                this.updatePosition();
+            if (key === keys.up.toLowerCase()) newY--;
+            else if (key === keys.down.toLowerCase()) newY++;
+            else if (key === keys.left.toLowerCase()) newX--;
+            else if (key === keys.right.toLowerCase()) newX++;
+            else if (key === keys.rotate.toLowerCase()) {
+                const newIndex = (this.patternIndex + 1) % this.visionPatterns.length;
+                const newPattern = this.visionPatterns[newIndex];
+
+                const inBounds = newPattern.every(offset => {
+                    const tx = this.pos.x + offset.x;
+                    const ty = this.pos.y + offset.y;
+                    return tx >= 0 && ty >= 0 && tx < this.gridWidth && ty < this.gridHeight;
+                });
+
+                if (inBounds) {
+                    this.patternIndex = newIndex;
+                    this.updatePosition();
+                }
                 return;
             }
 
@@ -180,5 +183,4 @@ class Vision {
             }
         });
     }
-
 }

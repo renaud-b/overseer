@@ -1,38 +1,34 @@
-const config = {
-    type: Phaser.AUTO,
-    width: window.innerWidth,
-    height: window.innerHeight,
-    backgroundColor: '#1d1d1d',
-    scale: {
-        mode: Phaser.Scale.RESIZE,
-        autoCenter: Phaser.Scale.CENTER_BOTH
+    const config = {
+        type: Phaser.AUTO,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        backgroundColor: "#1d1d1d",
+        scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
+    };
+    const savedLang = localStorage.getItem("selectedLanguage");
+    if (savedLang) {
+        console.log("set saved lang: ", savedLang);
+        config.scene = [ GameScene, MainMenuScene, OptionsScene, TalentScene];
+    } else {
+        config.scene = [
+            HomeScene,
+            OptionsScene,
+            MainMenuScene,
+            GameScene,
+            TalentScene,
+        ];
     }
-};
-
-// Langue UI
-const savedLang = localStorage.getItem('selectedLanguage');
-if (savedLang) {
-    window.selectedLanguage = savedLang;
-    config.scene = [MainMenuScene, OptionsScene, GameScene, TalentScene];
-} else {
-    config.scene = [HomeScene, OptionsScene, MainMenuScene, GameScene, TalentScene];
-}
-
-// Clavier
-const savedLayout = localStorage.getItem('keyboardLayout');
-if (savedLayout) {
-    window.keyboardLayout = savedLayout;
-} else {
-    const userLang = navigator.language || navigator.userLanguage || '';
-    const isFrench = userLang.toLowerCase().startsWith('fr');
-    const defaultLayout = isFrench ? 'azerty' : 'qwerty';
-    window.keyboardLayout = defaultLayout;
-    localStorage.setItem('keyboardLayout', defaultLayout);
-}
-
-
-const game = new Phaser.Game(config);
-
-window.addEventListener('resize', () => {
-    game.scale.resize(window.innerWidth, window.innerHeight);
-});
+    const savedLayout = localStorage.getItem("keyboardLayout");
+    if (savedLayout) {
+        window.keyboardLayout = savedLayout;
+    } else {
+        const userLang = navigator.language || navigator.userLanguage || "";
+        const isFrench = userLang.toLowerCase().startsWith("fr");
+        const defaultLayout = isFrench ? "azerty" : "qwerty";
+        window.keyboardLayout = defaultLayout;
+        localStorage.setItem("keyboardLayout", defaultLayout);
+    }
+    const game = new Phaser.Game(config);
+    window.addEventListener("resize", () => {
+        game.scale.resize(window.innerWidth, window.innerHeight);
+    });

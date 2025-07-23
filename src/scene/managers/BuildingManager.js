@@ -6,7 +6,23 @@ class BuildingManager {
 
         this.buildingMap = {};
         scene.gameData.buildings.forEach(b => this.buildingMap[b.id] = b);
+        this.cardSlots = []; // <-- stockera les positions disponibles
 
+        // draw a map of 5x2 and render image building_card_background on each tiles
+        const tileHeight = 106;
+        const tileWidth = 116;
+        const offsetX = 200;
+        const offsetY = 110 + scene.gridManager.offsetY + (scene.gridManager.height * scene.gridManager.tileSizeY);
+        for (let j = 0; j < 3; j++) {
+            for (let i = 0; i < 5; i++) {
+                const x = offsetX + (i * tileWidth + 5 * i);
+                const y = offsetY + (j * tileHeight + 5 * j);
+                this.scene.add.image(x, y, 'building_card_background')
+                    .setDisplaySize(tileWidth, tileHeight)
+                    .setOrigin(0.5);
+                this.cardSlots.push({ x: x - (tileWidth/2-7), y: y - (tileHeight/2-7) });
+            }
+        }
     }
 
     updateAll(delta) {
@@ -41,12 +57,17 @@ class BuildingManager {
             return;
         }
 
-        const offsetX = 32 + this.cards.length * 120;
-        const offsetY = 150 + this.scene.gridHeight * this.scene.tileSize;
+        const slot = this.cardSlots[this.cards.length];
+        if (!slot) return; // plus de place
+
+        const offsetX = slot.x;
+
+        const offsetY = slot.y;
 
         const cardData = {
             type: buildingId,
-            color: parseInt(building.color.replace('#', '0x'))
+            color: parseInt(building.color.replace('#', '0x')),
+            img: building.img || undefined
         };
 
         const count = building.unlimited ? Infinity : 1;
@@ -56,24 +77,32 @@ class BuildingManager {
     }
 
     reorganizeCards() {
-        const offsetX = 32;
-        const offsetY = 150 + this.scene.gridHeight * this.scene.tileSize;
 
         this.cards.forEach((entry, index) => {
             const card = entry.cardObj.card;
             const label = entry.cardObj.label;
             const countText = entry.cardObj.countText;
 
-            const targetX = offsetX + index * 120;
-            const targetY = offsetY;
+            if (!this.cardSlots[index]) return; // sécurité
+
+            const slot = this.cardSlots[index];
+
+            const targetX = slot.x//offsetX + index * 120;
+            const targetY = slot.y
 
             const cardWidth = card.displayWidth || 100;
             const cardHeight = card.displayHeight || 100;
 
             // 1. Mettre tout à la même origine
             card.setOrigin(0); // coin haut gauche
-            label.setOrigin(0); // coin haut gauche
             countText.setOrigin(1, 1); // coin bas droit
+
+            let target = [card, countText]
+            if(label){
+                label.setOrigin(0); // coin haut gauche
+                target.push(label)
+                label.setPosition(targetX + 10, targetY + 10); // coin haut gauche
+            }
 
             // 2. Appliquer positions
             this.scene.tweens.add({
@@ -84,45 +113,12 @@ class BuildingManager {
                 ease: 'Power2'
             });
 
-            // 3. Replacer manuellement les éléments si besoin (hors tween)
-            label.setPosition(targetX + 10, targetY + 10); // coin haut gauche
             countText.setPosition(targetX + cardWidth - 8, targetY + cardHeight - 8); // coin bas droit
 
             // 4. Sauvegarde pour drag
             card.startX = targetX;
             card.startY = targetY;
         });
-    }
-
-    buildOnTile(tile, cardType) {
-        const buildingData = this.buildingMap[cardType];
-        if (!buildingData) return;
-
-        const building = new Building(
-            this.scene,
-            tile.rect.x + this.scene.tileSize / 2,
-            tile.rect.y + this.scene.tileSize / 2,
-            tile,
-            cardType
-        );
-        tile.building = building;
-        this.buildings.push(building);
-
-        // Gestion des cartes (stack/destroy/label)
-        if (!buildingData.unlimited) {
-            const cardStack = this.cards.find(c => c.id === cardType);
-            if (cardStack) {
-                cardStack.count--;
-                cardStack.cardObj.setCount(cardStack.count);
-                if (cardStack.count === 0) {
-                    cardStack.cardObj.destroy();
-                    this.cards = this.cards.filter(c => c !== cardStack);
-                } else {
-                    cardStack.cardObj.label.setText(`${cardStack.id} x${cardStack.count}`);
-                }
-                this.reorganizeCards();
-            }
-        }
     }
 
     getBuildingRuntimeInfo(building) {

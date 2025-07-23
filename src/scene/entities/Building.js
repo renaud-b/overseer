@@ -1,8 +1,9 @@
 class Building {
-    constructor(scene, x, y, tile, type) {
+    constructor(scene, x, y, tile, type, buildingData) {
         this.scene = scene;
         this.tile = tile;
         this.type = type;
+        this.buildingData = buildingData;
         this.productionTimer = 0;
         this.cooldown = scene.buildingManager.buildingMap[type]?.cooldown || 1000;
 
@@ -10,14 +11,37 @@ class Building {
 
         this.totalProduced = 0;
 
-        const size = scene.tileSize * 0.8;
+        const sizeX = scene.tileSizeX * 0.8;
+        const sizeY = scene.tileSizeY * 0.8;
 
-        // Rectangle visuel principal
-        const sprite = scene.add.rectangle(0, 0, size, size, 0xffffff)
-            .setStrokeStyle(2, 0xffffff)
-            .setOrigin(0.5);
+        if (this.buildingData.img) {
+            const buildingBackground = scene.add.image(0, 0, "building_card_background")
+                .setOrigin(0.5)
+                .setDisplaySize(scene.tileSizeX, scene.tileSizeY)
+                .setDepth(2);
+            this.buildingSprite = scene.add.image(0, 0, this.buildingData.img+"_on")
+                .setOrigin(0.5)
+                .setDisplaySize(sizeX, sizeY)
+                .setDepth(2);
+            this.buildingSpriteOff = scene.add.image(0, 0, this.buildingData.img+"_off")
+                .setOrigin(0.5)
+                .setDisplaySize(sizeX, sizeY)
+                .setDepth(2)
+                .setAlpha(0)
 
-        this.setColorByType(type, sprite);
+            this.sprite = scene.add.container(0, 0, [buildingBackground, this.buildingSprite, this.buildingSpriteOff])
+                .setSize(sizeX, sizeY)
+                .setDepth(2)
+
+        } else {
+            this.sprite = scene.add.rectangle(0, 0, sizeX, sizeY, 0xffffff)
+                .setStrokeStyle(2, 0xffffff)
+                .setDepth(10)
+                .setOrigin(0.5);
+            this.setColorByType(type, this.sprite, buildingData);
+        }
+
+
 
         // Cercle de cooldown (graphics)
         const progressCircle = scene.add.graphics().setDepth(1);
@@ -25,13 +49,12 @@ class Building {
 
 
         // Conteneur du bâtiment
-        this.container = scene.add.container(x, y, [sprite, progressCircle])
-            .setSize(size, size)
-            .setDepth(1)
-            .setInteractive(new Phaser.Geom.Rectangle(0, 0, size, size), Phaser.Geom.Rectangle.Contains);
+        this.container = scene.add.container(x, y, [this.sprite, progressCircle])
+            .setSize(sizeX, sizeY)
+            .setDepth(10)
+            .setInteractive(new Phaser.Geom.Rectangle(0, 0, sizeX, sizeY), Phaser.Geom.Rectangle.Contains);
 
 
-        this.sprite = sprite;
         this.progressCircle = progressCircle;
         this.progressRadius = 10;
 
@@ -48,8 +71,7 @@ class Building {
         });
     }
 
-    setColorByType(type, spriteRef = this.sprite) {
-        const building = this.scene.buildingManager.buildingMap[type];
+    setColorByType(type, spriteRef = this.sprite, building) {
         if (building?.color) {
             spriteRef.fillColor = Phaser.Display.Color.HexStringToColor(building.color).color;
         } else {
@@ -57,10 +79,28 @@ class Building {
         }
     }
 
-
+    setActiveVisual(isActive) {
+        if (this.sprite) {
+            if(isActive){
+                if(!this.buildingSprite || !this.buildingSpriteOff  ){
+                    return
+                }
+                this.buildingSprite.setAlpha(1.0)
+                this.buildingSpriteOff.setAlpha(0.0)
+            } else {
+                if(!this.buildingSprite || !this.buildingSpriteOff){
+                    return
+                }
+                this.buildingSprite.setAlpha(0.0)
+                this.buildingSpriteOff.setAlpha(1.0)
+            }
+        }
+    }
 
     update(delta) {
+        this.setActiveVisual(this.tile.isActive);
         if (!this.tile.isActive) return;
+
         this.updateCooldownVisual();
 
         this.productionTimer += delta;
@@ -197,7 +237,7 @@ class Building {
                     fontStyle: 'bold'
                 }
             );
-            this.talentBadge.setOrigin(0.5).setDepth(2);
+            this.talentBadge.setOrigin(0.5).setDepth(21);
             this.container.add(this.talentBadge);
         }
     }

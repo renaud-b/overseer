@@ -8,12 +8,44 @@ class SpellManager {
         this.spellButtons = [];
         this.globalCooldownMultiplier = 1;
         this.createSpellDropZone();
+        const offsetX = 820;
+        const offsetY = 110 + scene.gridManager.offsetY + (scene.gridManager.height * scene.gridManager.tileSizeY);
+
+        const tileWidth = 104;
+        const tileHeight = 104;
+
+        this.spellSlots = [];
+
+
+        const etchings1 = this.scene.add.image(offsetX + 30, offsetY +tileHeight-15, "etchings")
+        const etchings2 = this.scene.add.image(offsetX + 30, offsetY +(tileHeight*2)-5, "etchings")
+
+        const tile1 = this.scene.add.image(offsetX, offsetY, "empty_spell_tile")
+            .setDisplaySize(tileWidth, tileHeight);
+        this.spellSlots.push({ x: tile1.x, y: tile1.y });
+
+        const tile2 = this.scene.add.image(offsetX + tileWidth / 2 + 5, offsetY + tileHeight / 2 + 5, "empty_spell_tile")
+            .setDisplaySize(tileWidth, tileHeight);
+        this.spellSlots.push({ x: tile2.x, y: tile2.y });
+
+        const tile3 = this.scene.add.image(offsetX, offsetY + tileHeight + 10, "empty_spell_tile")
+            .setDisplaySize(tileWidth, tileHeight);
+        this.spellSlots.push({ x: tile3.x, y: tile3.y });
+
+        const tile4 = this.scene.add.image(offsetX + tileWidth / 2 + 5, offsetY + tileHeight / 2 + tileHeight + 15, "empty_spell_tile")
+            .setDisplaySize(tileWidth, tileHeight);
+        this.spellSlots.push({ x: tile4.x, y: tile4.y });
+
+        const tile5 = this.scene.add.image(offsetX, offsetY + tileHeight * 2 + 20, "empty_spell_tile")
+            .setDisplaySize(tileWidth, tileHeight);
+        this.spellSlots.push({ x: tile5.x, y: tile5.y });
+
     }
 
 
     createSpellDropZone(){
 
-        const dropZoneOffsetX = 540;
+        const dropZoneOffsetX = 700;
         const dropZoneOffsetY = 100;
         const dropZoneWidth = this.scene.scale.width - dropZoneOffsetX;
         const dropZoneHeight = this.scene.scale.height - dropZoneOffsetY - 450;
@@ -25,13 +57,14 @@ class SpellManager {
             .setRectangleDropZone(dropZoneWidth, dropZoneHeight)
             .setDepth(0);
 
-/*
+
         this.scene.add.sprite(dropZoneOffsetX, dropZoneOffsetY-50, 'ground')
             .setDisplaySize(dropZoneWidth, dropZoneHeight+100)
             .setOrigin(0)
-            .setDepth(0);*/
+            .setDepth(-1);
 
-// 2. Rectangle visuel de debug aligné
+        // 2. Rectangle visuel de debug aligné
+        /*
         this.spellDropZoneOutline = this.scene.add.rectangle(
             dropZoneOffsetX + dropZoneWidth / 2,
             dropZoneOffsetY + dropZoneHeight / 2,
@@ -42,25 +75,27 @@ class SpellManager {
             .setFillStyle(0x000000, 0.05)
             .setDepth(1)
             .setAlpha(0.2);
+
+         */
     }
 
 
     reorganizeSpellBar() {
-        const spacing = 120;
-        const offsetX = this.scene.scale.width / 2 - (spacing * this.spellButtons.length) / 2;
-        const offsetY = this.scene.scale.height - 100;
-
-        this.spellButtons.forEach(({ btn, txt }, i) => {
-            const x = offsetX + i * spacing;
-            const y = offsetY;
+        this.spellButtons.forEach((data, i) => {
+            const slot = this.spellSlots[i];
+            if (!slot) return;
 
             this.scene.tweens.add({
-                targets: [btn, txt],
-                x,
-                y,
+                targets: [data.btn],
+                x: slot.x,
+                y: slot.y,
                 duration: 200,
                 ease: 'Power2'
             });
+
+            // Optionnel : pour le hover info
+            data.btn.startX = slot.x;
+            data.btn.startY = slot.y;
         });
     }
 
@@ -136,17 +171,16 @@ class SpellManager {
 
     updateSpellCooldowns() {
         const now = this.scene.time.now;
-        this.spellButtons.forEach(({ btn, txt, spell }) => {
+        this.spellButtons.forEach((entry) => {
+            const btn = entry.btn
+                const  spell =entry.spell
             const cd = this.spellCooldowns[spell.id] || 0;
             const remaining = cd - now;
 
             if (remaining > 0) {
-                const ratio = Phaser.Math.Clamp(remaining / (spell.cooldown * this.globalCooldownMultiplier), 0, 1);
                 btn.setAlpha(0.3);
-                txt.setText(`${spell.name} (${Math.ceil(remaining / 1000)}s)`);
             } else {
                 btn.setAlpha(1);
-                txt.setText(spell.name);
             }
         });
     }
@@ -161,6 +195,11 @@ class SpellManager {
     }
 
     addSpellToBar(spell) {
+        if (this.spellButtons.length >= this.spellSlots.length) {
+            console.warn("Plus de slots disponibles pour les sorts.");
+            return;
+        }
+
         const spacing = 120;
         const index = this.spellButtons.length;
         const x = this.scene.scale.width / 2 - (spacing * 2) + index * spacing;
@@ -168,18 +207,15 @@ class SpellManager {
 
         const color = parseInt(spell.color.replace('#', '0x'));
 
-        const btn = this.scene.add.rectangle(x, y, 100, 40, color)
+        const btnSize = 60; // même taille que tes tiles de fond
+
+        const btn = this.scene.add.rectangle(x, y, btnSize, btnSize, color)
             .setStrokeStyle(2, 0xffffff)
-            .setOrigin(0)
+            .setOrigin(0.5)
             .setInteractive({ draggable: true })
+            .setRotation(90) // rotation de 90 degrés en radians
             .setDepth(30);
 
-
-        const description = this.scene.add.text(x + 50, y + 20, spell.name, {
-            fontSize: '14px',
-            fill: '#000',
-            fontFamily: 'monospace'
-        }).setOrigin(0.5).setDepth(31);
 
         // 🧠 ➕ Ajout du hover
         btn.on('pointerover', () => {
@@ -190,18 +226,12 @@ class SpellManager {
             this.scene.hud.hideInfoPanel();
         });
 
-        const txt = this.scene.add.text(x + 50, y + 20, spell.name, {
-            fontSize: '14px',
-            fill: '#000',
-            fontFamily: 'monospace'
-        }).setOrigin(0.5).setDepth(31);
-
         btn.spellId = spell.id;
         btn.cooldownEnd = 0;
         btn.oneTime = true; // 👈 important
 
         this.scene.input.setDraggable(btn);
-        this.spellButtons.push({ btn, description, txt, spell });
+        this.spellButtons.push({ btn, spell });
 
         this.reorganizeSpellBar();
     }

@@ -5,6 +5,7 @@ class WaveManager {
         this.currentWaveId = 0;
         this.waves = {};
         this.waveNumber = 0;
+        this.waveCount = 0;
         this.scheduledWaves = [];
         this.selectedWaves  = [];
     }
@@ -25,7 +26,8 @@ class WaveManager {
         for (let unit of enemyUnits) {
             if (unit.waveId !== undefined) waveAlive[unit.waveId] = (waveAlive[unit.waveId] || 0) + 1;
         }
-        for (let [waveIdStr, wave] of Object.entries(this.waves)) {
+        for (let entry of Object.entries(this.waves)) {
+            const [waveIdStr, wave] = entry
             if(!waveIdStr || !wave){
                 continue
             }
@@ -117,6 +119,8 @@ class WaveManager {
     handleWaveVictory(waveId) {
         const rewards = this.waves[waveId]?.rewards || this.generateWaveRewards(this.waveNumber);
         this.scene.talentManager?.applyOnWaveVictory();
+        this.waveCount++;
+        this.scene.hud.updateWaveCounter(this.waveCount);
         this.scene.hud.showRewardPopupWithChoices(rewards, (restoreTimeScale) => {
             if (this.waveNumber %5 === 0) {
                 this.proposeWaveDraft(restoreTimeScale);
@@ -280,7 +284,8 @@ class WaveManager {
         this.waveNumber++; // 👈 important, incrémente le compteur
         this.waves[waveId].alive = Object.values(composition).reduce((a, b) => a + b, 0);
 
-        for (let [enemyId, count] of Object.entries(composition)) {
+        for (let entry of Object.entries(composition)) {
+            const [enemyId, count] = entry
             const enemyData = this.scene.gameData.enemies.find(e => e.id === enemyId);
             if (!enemyData) continue;
 
