@@ -45,6 +45,27 @@ class BuildingManager {
         this.scene.updateHUD();
     }
 
+    updateCardStates() {
+        this.cards.forEach(cardEntry => {
+            const buildingData = this.buildingMap[cardEntry.id];
+            const canAfford = this.scene.checkCost(buildingData.cost || {});
+            const card = cardEntry.cardObj.card;
+
+            if (!canAfford) {
+                card.setAlpha(0.4); // Grisé
+                card.disableDrag = true; // Flag custom pour bloquer le drag
+            } else {
+                card.setAlpha(1);
+                card.disableDrag = false;
+            }
+        });
+    }
+
+    updateAllUnitCounters() {
+        this.buildings.forEach(b => b.updateUnitCountText());
+    }
+
+
     addCardById(buildingId) {
         const building = this.buildingMap[buildingId];
         if (!building) return;

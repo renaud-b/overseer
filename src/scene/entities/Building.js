@@ -55,6 +55,22 @@ class Building {
             .setInteractive(new Phaser.Geom.Rectangle(0, 0, sizeX, sizeY), Phaser.Geom.Rectangle.Contains);
 
 
+        if (this.buildingData.producesType === 'unit') {
+            this.unitCountText = this.scene.add.text(0, 0, '0/0', {
+                fontSize: '14px',
+                fill: '#ffffff',
+                fontFamily: 'monospace',
+                stroke: '#000000',
+                strokeThickness: 3
+            })
+                .setOrigin(1, 1)
+                .setDepth(30);
+
+            this.container.add(this.unitCountText);
+            this.updateUnitCountText(); // Init affichage
+        }
+
+
         this.progressCircle = progressCircle;
         this.progressRadius = 10;
 
@@ -70,6 +86,25 @@ class Building {
             this.scene.hud.hideInfoPanel();
         });
     }
+
+    updateUnitCountText() {
+        if (!this.unitCountText) return;
+
+        const data = this.buildingData;
+        if (!data || data.producesType !== 'unit') return;
+
+        const totalBuildings = this.scene.buildingManager.buildings.filter(b => b.type === this.type).length;
+        const maxUnits = data.unitCap * totalBuildings;
+        const currentUnits = this.scene.units[data.produces] || 0;
+
+        this.unitCountText.setText(`${currentUnits}/${maxUnits}`);
+
+        // Position bas droite (relative au container)
+        const offsetX = this.sprite.width / 2 - 5;
+        const offsetY = this.sprite.height / 2 - 5;
+        this.unitCountText.setPosition(offsetX, offsetY);
+    }
+
 
     setColorByType(type, spriteRef = this.sprite, building) {
         if (building?.color) {
@@ -177,6 +212,7 @@ class Building {
 
         this.scene.payCost(cycleCost);
         this.scene.unitManager.addUnit(data.produces, data.rate || 1);
+        this.scene.buildingManager.updateAllUnitCounters();
     }
 
     computeBonusRate() {

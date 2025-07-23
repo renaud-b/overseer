@@ -25,6 +25,7 @@ class GameScene extends Phaser.Scene {
         this.load.image('time_speed_5', 'assets/sprites/ui/fast_forward_btn.png');
         this.load.image('wave_border', 'assets/sprites/ui/wave_border.png');
         this.load.image('vision_0', 'assets/sprites/ui/vision_0.png');
+        this.load.image('unit_frame', 'assets/ui/unit_frame.png');
 
         // Buildings
         this.load.image('building_card_background', 'assets/sprites/buildings/building-card-background.png');
@@ -69,7 +70,6 @@ class GameScene extends Phaser.Scene {
         }).catch((err) => {
             console.error(err);
             this.load.json('gameStats', 'assets/game_stats.json');
-            //this.initAfterStatsLoaded();
         })
 
     }
@@ -109,7 +109,7 @@ class GameScene extends Phaser.Scene {
 
         this.resources = {};
         this.gameData.resources.forEach((r) => {
-                this.resources[r.id] = 0
+                this.resources[r.id] = 100
         });
 
         this.unitCapMap = {};
@@ -202,7 +202,7 @@ class GameScene extends Phaser.Scene {
 
 
 
-        this.unitManager.addUnit('unit_sniper', 2)
+        this.unitManager.addUnit('unit_sniper', 20)
     }
 
 
@@ -364,6 +364,8 @@ class GameScene extends Phaser.Scene {
         this.resources[type] += amount;
         this.collectedResources[type] += amount;
         this.hud.updateHUD(this.resources, this.units, this.unitCapMap);
+        this.buildingManager.updateCardStates();
+
     }
 
 
@@ -372,7 +374,9 @@ class GameScene extends Phaser.Scene {
         this.buildingManager.addCardById("scrap_mine");
         this.buildingManager.addCardById("refinery");
         this.buildingManager.addCardById("drone_bay");
-        //this.buildingManager.addCardById("god_sanctuary");
+        this.buildingManager.addCardById("flux_catalyst");
+
+        this.buildingManager.updateCardStates();
     }
 
 
@@ -414,6 +418,7 @@ class GameScene extends Phaser.Scene {
                 );
                 tile.building = building;
                 this.buildingManager.buildings.push(building);
+                this.buildingManager.updateCardStates();
 
                 this.refreshAllTalentEffects()
 
@@ -426,7 +431,7 @@ class GameScene extends Phaser.Scene {
                         if (cardStack.count === 0) {
                             cardStack.cardObj.destroy();
                             this.buildingManager.cards = this.buildingManager.cards.filter(c => c !== cardStack);
-                        } else {
+                        } else if(cardStack.cardObj.label) {
                             cardStack.cardObj.label.setText(`${cardStack.id} x${cardStack.count}`);
                         }
                         this.buildingManager.reorganizeCards();
@@ -486,21 +491,25 @@ class GameScene extends Phaser.Scene {
                 const y = pointer.worldY;
                 this.spellManager.castSpellAt(spell, x, y);
 
-                if (gameObject.oneTime) {
-                    const index = this.spellManager.spellButtons.findIndex(s => s.btn === gameObject);
-                    if (index !== -1) {
-                        this.spellManager.spellButtons[index].btn.destroy();
-                        this.spellManager.spellButtons.splice(index, 1);
-                        this.spellManager.reorganizeSpellBar();
-                    }
+                const spellEntry = this.spellManager.spellButtons.find(s => s.container === gameObject);
+                if (!spellEntry) return;
+
+                if (spellEntry.count > 1) {
+                    spellEntry.count--;
+                    spellEntry.countText.setText(`x${spellEntry.count}`);
                 } else {
-                    this.spellManager.spellCooldowns[spell.id] = now + spell.cooldown;
+                    spellEntry.container.destroy(); // ✅ détruit tout (icône + compteur)
+                    this.spellManager.spellButtons = this.spellManager.spellButtons.filter(s => s !== spellEntry);
+                    this.spellManager.reorganizeSpellBar();
                 }
             }
         });
 
 
-        this.input.on('dragstart', (_, g) => g.setAlpha(0.5));
+        this.input.on('dragstart', (_, g) => {
+            if (g.disableDrag) return; // Empêche le drag si flag actif
+            g.setAlpha(0.5);
+        });
         this.input.on('drag', (_, g, x, y) => { g.setPosition(x, y) });
         this.input.on('drag', (pointer, gameObject, x, y) => {
             gameObject.setPosition(x, y)
@@ -580,6 +589,8 @@ class GameScene extends Phaser.Scene {
             this.resources[res] -= costObj[res];
         }
         this.hud.updateHUD(this.resources, this.units, this.unitCapMap);
+        this.buildingManager.updateCardStates();
+
     }
 
     getRandomPointInCircle(cx, cy, radius) {

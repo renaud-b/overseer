@@ -35,6 +35,7 @@ class UnitManager {
             this.units[type]--;
         }
         this.scene.hud.updateHUD(this.scene.resources, this.units, this.scene.unitCapMap);
+        this.scene.buildingManager.updateAllUnitCounters();
     }
 
     update(){
