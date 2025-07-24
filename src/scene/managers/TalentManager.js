@@ -117,6 +117,7 @@ class TalentManager {
         return multiplier;
     }
 
+
     getNeighborTypes(tile, returnTiles = false) {
         const types = [];
         const tiles = [];

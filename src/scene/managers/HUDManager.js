@@ -18,7 +18,6 @@ class HUDManager {
         this.menuOpen = true;
         const { width, height } = this.scene.scale;
         const centerX = width / 2;
-        const centerY = height / 2;
         const bg = this.scene.add
             .rectangle(0, 0, width, height, 0, 0.85)
             .setOrigin(0)
@@ -283,6 +282,8 @@ class HUDManager {
         this.unitText.setText(
             this.scene.translate("units_label") + `:\n  ${unitLines}`
         );
+
+        this.scene.add.image('unit_frame', 200, 200).setOrigin(0, 0).setDepth(999).setDisplaySize(300, 400);
     }
     createInfoPanel() {
         this.infoPanel = this.scene.add

@@ -55,11 +55,27 @@ class Building {
             .setInteractive(new Phaser.Geom.Rectangle(0, 0, sizeX, sizeY), Phaser.Geom.Rectangle.Contains);
 
 
+        if (this.buildingData.max_produced) {
+            this.usageText = this.scene.add.text(0, 0, '', {
+                fontSize: '10px',
+                fill: '#fbfbfb',
+                fontFamily: 'inter',
+                stroke: '#000000',
+                strokeThickness: 2
+            })
+                .setOrigin(0.5)
+                .setDepth(30);
+
+            this.container.add(this.usageText);
+            this.updateUsageText();
+        }
+
+
         if (this.buildingData.producesType === 'unit') {
             this.unitCountText = this.scene.add.text(0, 0, '0/0', {
                 fontSize: '14px',
                 fill: '#ffffff',
-                fontFamily: 'monospace',
+                fontFamily: 'inter',
                 stroke: '#000000',
                 strokeThickness: 3
             })
@@ -85,6 +101,18 @@ class Building {
         this.container.on('pointerout', () => {
             this.scene.hud.hideInfoPanel();
         });
+    }
+
+    updateUsageText() {
+        if (!this.usageText || !this.buildingData.max_produced) return;
+
+        const remaining = Math.max(0, this.buildingData.max_produced - this.totalProduced);
+        this.usageText.setText(`${remaining}`);
+
+        // Position en bas à droite du bâtiment
+        const offsetX = this.sprite.width / 2 - 10;
+        const offsetY = this.sprite.height / 2 - 10;
+        this.usageText.setPosition(offsetX, offsetY);
     }
 
     updateUnitCountText() {
@@ -256,6 +284,7 @@ class Building {
         this.createFloatingResourceIcon(data.produces, bonusRate);
 
         this.totalProduced += data.rate || 1;
+        this.updateUsageText();
 
         const max = data.max_produced;
         if (max && this.totalProduced >= max) {

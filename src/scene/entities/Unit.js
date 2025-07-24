@@ -35,18 +35,6 @@ class Unit {
         }
 
         this.waveId = waveId; // dans le constructeur
-        if(side === 'enemy'){
-            console.log("this.waveID", this.waveId);
-        }
-
-        // Pour debug visuel :
-        if(this.waveId !== null){
-            this.label = scene.add.text(this.sprite.x + 8, this.sprite.y - 8, `W${this.waveId}`, {
-                fontSize: '10px',
-                fill: '#fff',
-                fontFamily: 'monospace'
-            }).setDepth(11);
-        }
 
         this.maxHp = this.hp; // stock la vie max pour le ratio
 
@@ -130,9 +118,6 @@ class Unit {
         }
 
         this.updateHealthBar();
-        if (this.label) {
-            this.label.setPosition(this.sprite.x + 8, this.sprite.y - 8);
-        }
 
         if (this.hp <= 0 && this.sprite.active) this.destroy();
     }
@@ -306,9 +291,6 @@ class Unit {
         this.sprite.destroy();
         if (this.hpBar) this.hpBar.destroy();
         if (this.hpBarBg) this.hpBarBg.destroy();
-        if (this.label) this.label.destroy();
-
-        this.label = null;
 
 
     }

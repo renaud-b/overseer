@@ -202,7 +202,29 @@ class GameScene extends Phaser.Scene {
 
 
 
+        /*
         this.unitManager.addUnit('unit_sniper', 20)
+
+        // Fill all available tiles with hydronium building
+        const hydroniumBuilding = this.gameData.buildings.find(b => b.id === 'condensor');
+        if (hydroniumBuilding) {
+            const allTiles = this.gridManager.getAllTiles();
+            allTiles.forEach(tile => {
+                const building = new Building(
+                    this,
+                    tile.rect.x + this.tileSizeX / 2,
+                    tile.rect.y + this.tileSizeY / 2,
+                    tile,
+                    hydroniumBuilding.id,
+                    hydroniumBuilding
+                );
+                tile.building = building;
+                this.buildingManager.buildings.push(building);
+
+            });
+        }
+
+         */
     }
 
 
