@@ -329,7 +329,7 @@ test('wave timer spawns enemies at simulation interval and pauses', () => {
  scene.selectSpeed(0);
  scene.update(0, 60);
  assert.equal(scene.waveClock.number, 1);
- assert.ok(scene.waveCountdownLabel.value.includes('Vague 2'));
+ assert.ok(/^\d+$/.test(scene.waveCountdownLabel.value));
 });
 test('wave markers scroll, pause and accelerate with simulation speed',()=>{
  const scene=new VNextScene();scene.create();
@@ -341,4 +341,16 @@ test('wave markers scroll, pause and accelerate with simulation speed',()=>{
  scene.selectSpeed(5);
  const before=scene.waveMarkers[0].zone.x;
  scene.update(0,60);assert.ok(scene.waveMarkers[0].zone.x<before);
+});
+
+test('timeline is compact and countdown stays numeric', () => {
+ const scene = new VNextScene();
+ scene.create();
+ assert.equal(scene.layout.mainBottom, scene.scale.height - 86);
+ assert.equal(scene.waveTimelineBounds.x1, scene.layout.m + 70);
+ assert.ok(/^\d+$/.test(scene.waveCountdownLabel.value));
+ const labels = scene.ui.filter(o => typeof o.value === 'string').map(o => o.value);
+ assert.equal(labels.includes('VAGUES / TIMELINE'), false);
+ assert.equal(labels.includes('↻ REJOUER LE COMBAT'), false);
+ assert.equal(scene.waveMarkers.length, 8);
 });

@@ -74,7 +74,7 @@ class VNextScene extends Phaser.Scene {
         this.ui.forEach(object => object.destroy());
         this.ui = [];
         const w = this.scale.width, h = this.scale.height;
-        const m = 16, gap = 12, mainTop = 82, mainBottom = h - 126;
+        const m = 16, gap = 12, mainTop = 82, mainBottom = h - 86;
         const leftW = Math.min(244, Math.max(178, w * 0.18));
         const rightW = w >= 1160 ? 112 : 0;
         const centerX = m + leftW + gap;
@@ -98,7 +98,7 @@ class VNextScene extends Phaser.Scene {
         this.panel(g, centerX, mainTop, boardW, mainBottom - mainTop);
         this.panel(g, this.layout.battleX, mainTop, this.layout.battleW, mainBottom - mainTop);
         if (rightW) this.panel(g, this.layout.rightX, mainTop, rightW, mainBottom - mainTop);
-        this.panel(g, m, h - 112, w - m * 2, 96);
+        this.panel(g, m, h - 74, w - m * 2, 58);
         this.drawPalette();
         this.drawBoard();
         this.drawBattlePanel();
@@ -601,7 +601,7 @@ class VNextScene extends Phaser.Scene {
     updateWaveTimeline() {
         if (!this.waveCountdownLabel) return;
         const seconds = Math.ceil((this.previewWaves[0].dueAtMs - this.waveClock.elapsedMs) / 1000);
-        this.waveCountdownLabel.setText(`Vague ${this.waveClock.number + 1} dans ${seconds}s (temps de jeu)`);
+        this.waveCountdownLabel.setText(String(seconds));
         this.paintWaveTimeline();
     }
 
@@ -643,7 +643,7 @@ class VNextScene extends Phaser.Scene {
             const x=x1+(wave.dueAtMs-this.waveClock.elapsedMs)/horizonMs*(x2-x1);
             const visible=x>=x1&&x<=x2, marker=this.waveMarkers[i];
             marker.zone.setPosition(visible?x:-100,visible?y:-100);
-            marker.label.setPosition(visible?x-4:-100,visible?y-23:-100);
+            marker.label.setPosition(visible?x-4:-100,visible?y-16:-100);
             if(visible){
                 g.fillStyle(0xff6674,0.94).fillCircle(x,y,5);
                 g.lineStyle(1,0xff6674,0.55).strokeCircle(x,y,9);
@@ -652,24 +652,22 @@ class VNextScene extends Phaser.Scene {
     }
 
     drawFooter() {
-        const l=this.layout,y=l.h-102;
-        this.text(l.m+15,y,'VAGUES / TIMELINE',14);
-        const x1=l.m+230,x2=l.w-290;
-        this.waveTimelineBounds={x1,x2,y:y+18};
-        this.waveGraphics=this.keep(this.add.graphics());
-        this.waveMarkers=this.previewWaves.map((wave,i)=>{
-            const label=this.text(-100,-100,String(wave.number),10,'#e9b6bf');
-            const zone=this.keep(this.add.zone(-100,-100,25,35).setInteractive({useHandCursor:true}));
-            zone.setData('wave',i);
-            zone.on('pointerover',()=>this.showWaveTooltip(i,zone.x,this.waveTimelineBounds.y));
-            zone.on('pointerout',()=>this.hideWaveTooltip());
-            return {zone,label};
+        const l = this.layout, y = l.h - 44;
+        const x1 = l.m + 70, x2 = l.w - l.m - 18;
+        this.waveTimelineBounds = { x1, x2, y };
+        const clock = this.keep(this.add.graphics());
+        clock.lineStyle(2, 0x62e7e1, 0.85).strokeCircle(l.m + 30, y, 21);
+        this.waveCountdownLabel = this.text(l.m + 30, y, '', 15, '#e2eef3').setOrigin(0.5, 0.5);
+        this.waveGraphics = this.keep(this.add.graphics());
+        this.waveMarkers = this.previewWaves.map((wave, i) => {
+            const label = this.text(-100, -100, String(wave.number), 10, '#e9b6bf');
+            const zone = this.keep(this.add.zone(-100, -100, 25, 35).setInteractive({ useHandCursor: true }));
+            zone.setData('wave', i);
+            zone.on('pointerover', () => this.showWaveTooltip(i, zone.x, y));
+            zone.on('pointerout', () => this.hideWaveTooltip());
+            return { zone, label };
         });
-        this.waveCountdownLabel=this.text(l.m+15,y+36,'',11,'#829fb1');
         this.updateWaveTimeline();
-        const replay=this.text(l.w-203,y+36,'↻ REJOUER LE COMBAT',12,'#6de8e8');
-        replay.setPadding(5).setInteractive({useHandCursor:true});
-        replay.on('pointerdown',()=>this.resetBattle());
     }
 
     resetBattle() {
