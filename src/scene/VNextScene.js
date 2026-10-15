@@ -22,6 +22,17 @@ class VNextScene extends Phaser.Scene {
             { id: 'factory', label: 'Fabrique', color: 0xf4ba58 },
             { id: 'laboratory', label: 'Laboratoire', color: 0xb58aff }
         ];
+        // The resource HUD borrows glyphs and colors from the corresponding buildings.
+        // Cooling and data are placeholders: they have no ECS balances or simulation yet.
+        this.resourceStyles = [
+            { id: 'energy', label: 'Énergie', glyph: 'reactor', source: 'reactor', color: 0x35d8ef },
+            { id: 'matter', label: 'Matière', glyph: 'extractor', source: 'extractor', color: 0x39dd92 },
+            { id: 'cooling', label: 'Refroidissement', glyph: 'cooling', pending: true, color: 0x87b9e8 },
+            { id: 'components', label: 'Composants', glyph: 'factory', source: 'factory', color: 0xf4ba58 },
+            { id: 'data', label: 'Données', glyph: 'laboratory', pending: true, color: 0xb58aff }
+        ];
+        this.lastResourceChanges = {}; // Transient HUD feedback, not economy state.
+
         [['reactor', 6], ['extractor', 7], ['factory', 11], ['laboratory', 18]]
             .forEach(([type, index]) => OverseerVNextPreview.placeBuilding(this.model, type, index));
         OverseerVNextEconomy.initialize(this.model);
@@ -90,9 +101,10 @@ class VNextScene extends Phaser.Scene {
         this.drawBoard();
         this.drawBattlePanel();
         this.resourceLabels = {};
+        this.resourceStatusLabels = {};
         this.compactResources = null;
         if (rightW) this.drawRightPanel();
-        else this.compactResources = this.text(m + 13, mainBottom - 95, '', 11, '#62e7e1');
+        else this.drawCompactResources();
         this.drawFooter();
         this.updateResourceHud();
         this.paintBoard();
@@ -214,6 +226,7 @@ class VNextScene extends Phaser.Scene {
         this.paintBoard();
         this.refreshPaletteSelection();
         this.updateBoardHint();
+        this.updateResourceHud();
     }
 
     updateBoardHint() {
@@ -309,6 +322,7 @@ class VNextScene extends Phaser.Scene {
         this.visionRules.patternIndex = nextRotation;
         this.applyAttention();
         this.paintBoard();
+        this.updateResourceHud();
         return true;
     }
 
@@ -354,6 +368,33 @@ class VNextScene extends Phaser.Scene {
         this.buildUi();
     }
 
+    drawResourceIcon(g, style, x, y, radius = 10) {
+        if (style.glyph !== 'cooling') {
+            this.drawGlyph(g, style.glyph, x, y, style.color, radius);
+            return;
+        }
+        // Three crossing axes make a compact, recognizable cold/snow symbol.
+        g.lineStyle(1.8, style.color, 0.9);
+        for (const angle of [0, Math.PI / 3, 2 * Math.PI / 3]) {
+            const dx = Math.cos(angle) * radius, dy = Math.sin(angle) * radius;
+            g.lineBetween(x - dx, y - dy, x + dx, y + dy);
+        }
+    }
+
+    drawCompactResources() {
+        const l = this.layout, x = l.m + 17, startY = l.mainBottom - 156;
+        const g = this.keep(this.add.graphics());
+        this.compactResources = {};
+        this.resourceStyles.filter(style => !style.pending).forEach((style, i) => {
+            const y = startY + i * 21;
+            this.drawResourceIcon(g, style, x + 8, y + 7, 8);
+            const color = `#${style.color.toString(16).padStart(6, '0')}`;
+            this.text(x + 26, y, style.label, 10, '#aec6d2');
+            this.compactResources[style.id] = this.text(l.m + l.leftW - 18, y - 2, '0', 13, color)
+                .setOrigin(1, 0);
+        });
+    }
+
     drawBattlePanel() {
         const l = this.layout;
         this.text(l.battleX + 15, l.mainTop + 17, 'CHAMP DE BATAILLE', 15);
@@ -369,32 +410,70 @@ class VNextScene extends Phaser.Scene {
     drawRightPanel() {
         const l = this.layout, x = l.rightX + 15;
         this.text(x, l.mainTop + 18, 'RESSOURCES', 15);
-        this.resourceLabels = {};
-        const resourceRows = [
-            ['energy', 'Énergie'], ['matter', 'Matière'],
-            [null, 'Refroidissement'], ['components', 'Composants'], [null, 'Données']
-        ];
-        resourceRows.forEach(([id, name], i) => {
-            this.text(x, l.mainTop + 63 + i * 39, name, 12, '#a8c2d1');
-            const value = this.text(x + l.rightW - 55, l.mainTop + 63 + i * 39,
-                id ? '0' : '—', 12, id ? '#62e7e1' : '#58798e');
-            if (id) this.resourceLabels[id] = value;
+        const g = this.resourceGraphics = this.keep(this.add.graphics());
+        this.resourceStyles.forEach((style, i) => {
+            const y = l.mainTop + 64 + i * 44;
+            this.drawResourceIcon(g, style, x + 11, y + 12);
+            this.text(x + 30, y, style.label, 12, style.pending ? '#849eaf' : '#c6d9e2');
+            const color = style.pending ? '#67869b' : `#${style.color.toString(16).padStart(6, '0')}`;
+            const value = this.text(l.rightX + l.rightW - 17, y - 3,
+                style.pending ? '—' : '0', 17, color).setOrigin(1, 0);
+            if (!style.pending) {
+                this.resourceLabels[style.id] = value;
+                this.resourceStatusLabels[style.id] = this.text(x + 30, y + 19, '', 10, '#7898aa');
+            } else {
+                this.text(x + 30, y + 19, 'NON SIMULÉ', 10, '#617f91');
+            }
         });
-        this.updateResourceHud();
-        const y = l.mainTop + 292;
+        const y = l.mainTop + 304;
         this.text(x, y, 'PROTOCOLES', 15);
         this.text(x, y + 37, 'À définir avec l’économie', 11, '#7d9bb1');
         this.text(x, y + 59, 'Aucun sort simulé ici', 11, '#7d9bb1');
     }
 
+    // Statuses report real ECS activation/blockage. A recent delta reports only
+    // the last actual balance change, never a fabricated continuous rate.
+    resourceActivity(source) {
+        const buildings = this.world.query('Building', 'GridSlot')
+            .filter(id => this.world.get(id, 'Building').type === source);
+        if (!buildings.length) return 'AUCUN BÂTIMENT';
+        const active = buildings.filter(id => {
+            const slot = this.world.get(id, 'GridSlot').index;
+            return this.world.get(this.model.tiles[slot], 'Watched').active;
+        });
+        if (!active.length) return 'HORS VISION';
+        if (active.every(id => this.world.get(id, 'Production')?.blocked)) return 'EN ATTENTE';
+        return 'PRODUCTION ACTIVE';
+    }
+
+    noteResourceChanges(previous, dt) {
+        const balance = this.world.get(this.model.game, 'Resources');
+        for (const id of ['energy', 'matter', 'components']) {
+            const old = this.lastResourceChanges[id];
+            if (old) old.remainingMs -= dt;
+            const change = balance[id] - previous[id];
+            if (change) this.lastResourceChanges[id] = { change, remainingMs: 2300 };
+        }
+    }
+
     updateResourceHud() {
         if (!this.model || !this.world.hasComponent(this.model.game, 'Resources')) return;
         const balance = this.world.get(this.model.game, 'Resources');
-        for (const [id, label] of Object.entries(this.resourceLabels || {})) {
-            label.setText(String(balance[id]));
-        }
-        if (this.compactResources) {
-            this.compactResources.setText(`E ${balance.energy}   M ${balance.matter}   C ${balance.components}`);
+        for (const style of this.resourceStyles) {
+            if (style.pending) continue;
+            this.resourceLabels[style.id]?.setText(String(balance[style.id]));
+            this.compactResources?.[style.id]?.setText(String(balance[style.id]));
+            const status = this.resourceStatusLabels[style.id];
+            if (!status) continue;
+            const recent = this.lastResourceChanges[style.id];
+            if (recent?.remainingMs > 0) {
+                status.setText(`${recent.change > 0 ? '+' : ''}${recent.change} · VARIATION RÉCENTE`);
+                status.setColor(recent.change > 0 ? '#69e5ac' : '#ff9e8c');
+            } else {
+                const activity = this.resourceActivity(style.source);
+                status.setText(activity);
+                status.setColor(activity === 'EN ATTENTE' ? '#ff9e8c' : '#7898aa');
+            }
         }
     }
 
@@ -484,7 +563,9 @@ class VNextScene extends Phaser.Scene {
     update(time, delta) {
         if (!this.model || this.speed === 0 || !this.battleUnits) return;
         const dt = Math.min(delta, 60) * this.speed;
+        const previousResources = { ...this.world.get(this.model.game, 'Resources') };
         OverseerVNextEconomy.step(this.model, dt);
+        this.noteResourceChanges(previousResources, dt);
         this.updateResourceHud();
         this.paintBoard();
         const players = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'player' && this.world.get(id, 'Health').hp > 0);

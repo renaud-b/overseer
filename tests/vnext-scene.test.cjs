@@ -22,15 +22,17 @@ class Display {
     setData(name, value) { this.data[name] = value; return this; }
     getData(name) { return this.data[name]; }
     setText(value) { this.value = value; return this; }
+    setOrigin(x, y) { this.originX = x; this.originY = y; return this; }
+    setColor(color) { this.color = color; return this; }
     fillStyle() { return this; }
     fillRoundedRect() { return this; }
     strokeRoundedRect() { return this; }
-    lineStyle() { return this; }
-    lineBetween() { return this; }
+    lineStyle(width, color) { this.lineColor = color; return this; }
+    lineBetween(x1, y1, x2, y2) { this.drawCalls.push({ type: 'lineBetween', x1, y1, x2, y2, color: this.lineColor }); return this; }
     fillCircle(x, y, r) { this.drawCalls.push({ type: 'fillCircle', x, y, r }); return this; }
-    strokeCircle(x, y, r) { this.drawCalls.push({ type: 'strokeCircle', x, y, r }); return this; }
+    strokeCircle(x, y, r) { this.drawCalls.push({ type: 'strokeCircle', x, y, r, color: this.lineColor }); return this; }
     strokeEllipse() { return this; }
-    strokePoints() { return this; }
+    strokePoints(points) { this.drawCalls.push({ type: 'strokePoints', points, color: this.lineColor }); return this; }
     fillRect() { return this; }
     strokeTriangle() { return this; }
     fillTriangle() { return this; }
@@ -45,7 +47,7 @@ class FakeScene {
         this.events = { once() {} };
         this.add = {
             graphics: () => new Display(),
-            text: (x, y, value) => { const d = new Display(x, y); d.setText(value); return d; },
+            text: (x, y, value, style) => { const d = new Display(x, y); d.setText(value); d.color = style?.color; return d; },
             zone: (x, y) => new Display(x, y)
         };
         this.scene = { start() {} };
@@ -127,4 +129,74 @@ test('VNext economy runs with scaled ECS ticks, pauses, and updates resource HUD
     for (let i = 0; i < 20; i++) scene.update(0, 60);
     assert.ok(balance.energy + balance.matter + balance.components >= 0);
     assert.equal(scene.resourceLabels.energy.value, String(balance.energy));
+});
+
+
+test('resource HUD uses distinct building glyphs and colors, with right aligned values', () => {
+    const scene = new VNextScene();
+    scene.create();
+    assert.deepEqual(Array.from(scene.resourceStyles, r => r.label),
+        ['Énergie', 'Matière', 'Refroidissement', 'Composants', 'Données']);
+    assert.equal(scene.resourceLabels.energy.color, '#35d8ef');
+    assert.equal(scene.resourceLabels.matter.color, '#39dd92');
+    assert.equal(scene.resourceLabels.components.color, '#f4ba58');
+    assert.equal(scene.resourceLabels.energy.originX, 1);
+    assert.equal(scene.resourceLabels.components.originX, 1);
+    const calls = scene.resourceGraphics.drawCalls;
+    assert.ok(calls.some(c => c.type === 'strokeCircle' && c.color === 0x35d8ef), 'reactor glyph');
+    assert.ok(calls.some(c => c.type === 'strokePoints' && c.color === 0xf4ba58), 'factory hexagon');
+    assert.ok(calls.some(c => c.type === 'strokePoints' && c.color === 0xb58aff), 'data diamond');
+    assert.ok(calls.some(c => c.type === 'lineBetween' && c.color === 0x87b9e8), 'cooling snowflake');
+    assert.equal(scene.world.get(scene.model.game, 'Resources').cooling, undefined);
+    assert.equal(Object.hasOwn(scene.resourceLabels, 'cooling'), false);
+    assert.equal(Object.hasOwn(scene.resourceLabels, 'data'), false);
+    assert.equal(scene.resourceStatusLabels.energy.value, 'PRODUCTION ACTIVE');
+});
+
+test('resource HUD displays actual transient balance changes, pauses and reports visibility', () => {
+    const scene = new VNextScene();
+    scene.create();
+    // The watched reactor and extractor complete a first 2-second cycle.
+    for (let i = 0; i < 34; i++) scene.update(0, 60);
+    assert.equal(scene.resourceLabels.energy.value, '2');
+    assert.equal(scene.resourceLabels.matter.value, '2');
+    assert.equal(scene.resourceStatusLabels.energy.value, '+2 · VARIATION RÉCENTE');
+    assert.equal(scene.resourceStatusLabels.energy.color, '#69e5ac');
+    const feedback = scene.lastResourceChanges.energy.remainingMs;
+    scene.selectSpeed(0);
+    for (let i = 0; i < 10; i++) scene.update(0, 60);
+    assert.equal(scene.lastResourceChanges.energy.remainingMs, feedback);
+    scene.changeAttention(1, 0); // Reactor out of vision, extractor still in vision.
+    scene.lastResourceChanges.energy.remainingMs = 0;
+    scene.updateResourceHud();
+    assert.equal(scene.resourceStatusLabels.energy.value, 'HORS VISION');
+    assert.equal(scene.resourceStatusLabels.matter.value, '+2 · VARIATION RÉCENTE');
+    scene.scale.width = 800;
+    scene.buildUi();
+    assert.equal(scene.resourceLabels.energy, undefined);
+    assert.equal(scene.compactResources.energy.value, '2');
+    assert.equal(scene.compactResources.energy.color, '#35d8ef');
+    assert.equal(scene.compactResources.components.originX, 1);
+    scene.scale.width = 1600;
+    scene.buildUi();
+    assert.equal(scene.compactResources, null);
+    assert.equal(scene.resourceLabels.energy.value, '2');
+    assert.equal(scene.resourceStatusLabels.energy.value, 'HORS VISION');
+});
+
+test('factory displays negative input deltas and waiting status without inventing rates', () => {
+    const scene = new VNextScene();
+    scene.create();
+    // All three machines are watched at startup. The factory first cycles after 3s.
+    for (let i = 0; i < 50; i++) scene.update(0, 60);
+    assert.equal(scene.resourceLabels.components.value, '1');
+    assert.equal(scene.resourceStatusLabels.components.value, '+1 · VARIATION RÉCENTE');
+    assert.equal(scene.resourceStatusLabels.energy.value, '-2 · VARIATION RÉCENTE');
+    assert.equal(scene.resourceStatusLabels.energy.color, '#ff9e8c');
+    const factory = preview.buildingAt(scene.model, 11);
+    scene.world.get(factory, 'Production').blocked = true;
+    scene.lastResourceChanges.components.remainingMs = 0;
+    scene.updateResourceHud();
+    assert.equal(scene.resourceStatusLabels.components.value, 'EN ATTENTE');
+    assert.equal(scene.resourceStatusLabels.components.color, '#ff9e8c');
 });
