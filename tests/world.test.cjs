@@ -53,3 +53,39 @@ test('systems can be written without importing Phaser', () => {
     movement(world, 2);
     assert.deepEqual(world.get(unit, 'Position'), { x: 5, y: 7 });
 });
+
+
+test('ECS serialization retains entity ids, ownership, data and nextId', () => {
+    const world = new World();
+    const root = world.create();
+    const child = world.create(root);
+    const leaf = world.create(child);
+    world.set(root, 'Resources', { energy: 3, matter: 2 });
+    world.set(child, 'BuildingHand', { cards: ['reactor', 'reactor'] });
+    world.set(leaf, 'Health', { hp: 7, maxHp: 10 });
+    world.destroy(child);
+    const later = world.create(root);
+    world.set(later, 'Position', { x: 9, y: 8 });
+    const json = JSON.parse(JSON.stringify(world.serialize()));
+    const restored = World.restore(json);
+    assert.deepEqual(restored.serialize(), json);
+    assert.equal(restored.get(root, 'Resources').energy, 3);
+    assert.deepEqual(restored.children(root), [later]);
+    assert.equal(restored.create(root), world.nextId);
+    restored.get(root, 'Resources').energy = 100;
+    assert.equal(world.get(root, 'Resources').energy, 3);
+});
+
+test('invalid ownership and entity counters are rejected on restore', () => {
+    const world = new World();
+    const game = world.create();
+    const child = world.create(game);
+    const snapshot = world.serialize();
+    assert.throws(() => World.restore({ ...snapshot, nextId: child }));
+    assert.throws(() => World.restore({
+        ...snapshot, entities: snapshot.entities.map(e => ({ ...e, parent: 1234 }))
+    }));
+    assert.throws(() => World.restore({
+        ...snapshot, entities: [{ id: game, parent: child, components: [] }, { id: child, parent: game, components: [] }]
+    }));
+});

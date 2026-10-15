@@ -26,6 +26,16 @@ docker compose up --build
 
 Pour tester une PR empilée, se placer sur **sa branche**, qui comprend les changements des PR précédentes. Vérifier l'état réel des PR avant de modifier ou merger.
 
+## Sauvegarde locale VNext
+
+Le menu propose **Continuer** lorsqu'une sauvegarde VNext valide existe. **Nouvelle partie** demande confirmation avant de remplacer cette sauvegarde unique.
+
+- La partie (ECS, bâtiments, ressources, cartes, unités, vague, attention et récompenses) est stockée dans le `localStorage` du navigateur, sous la clé `overseer.vnext.save`, avec une version de format.
+- Une sauvegarde est réalisée toutes les 20 secondes en temps réel, après les actions importantes, au retour au menu et lors de l'événement `pagehide` (fermeture / navigation).
+- La destruction de la base termine la partie et efface uniquement sa sauvegarde, **pas** les talents ou les éclats de mémoire persistants.
+- En cas de stockage désactivé / saturé, le retour au menu est retenu si la sauvegarde échoue. Une sauvegarde incompatible ou illisible ne propose pas Continuer.
+- Le système est local à ce navigateur et cette origine : pas de compte, synchronisation, migrations automatiques ni garantie de conservation en mode privé.
+
 ## Boucle de jeu actuelle
 
 1. Construire sur une **grille logique 5 × 5**.

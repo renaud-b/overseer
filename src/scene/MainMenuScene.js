@@ -31,6 +31,7 @@ class MainMenuScene extends Phaser.Scene {
     create() {
         this.objects = [];
         this.transitioning = false;
+        this.confirmingNewGame = false;
         this.reducedMotion = typeof window !== 'undefined' &&
             !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
         this.cameras.main.fadeIn(280, 8, 18, 28);
@@ -43,6 +44,8 @@ class MainMenuScene extends Phaser.Scene {
 
     drawMenu() {
         if (this.transitioning) return;
+        const wasConfirming = this.confirmingNewGame;
+        this.confirmingNewGame = false;
         this.objects.forEach(object => object.destroy());
         this.objects = [];
         const keep = object => { this.objects.push(object); return object; };
@@ -80,11 +83,15 @@ class MainMenuScene extends Phaser.Scene {
         const top = Math.max(subtitleY + 100, h * 0.49);
         const spacing = Math.min(78, Math.max(57, (h - top - 65) / 3));
         const buttonWidth = Math.min(388, Math.max(248, w * 0.48));
-        [
-            { label: 'START A GAME', target: 'VNextScene' },
+        const save = OverseerVNextSave.read(this.saveStorage());
+        this.savedRun = save;
+        const entries = [
+            ...(save ? [{ label: 'CONTINUER', target: 'VNextScene', data: { resume: true } }] : []),
+            { label: save ? 'NOUVELLE PARTIE' : 'START A GAME', target: 'VNextScene', fresh: true },
             { label: 'TALENTS', target: 'TalentScene', data: { fromMenu: true } },
             { label: 'OPTIONS', target: 'OptionsScene' }
-        ].forEach((entry, i) => {
+        ];
+        entries.forEach((entry, i) => {
             const y = top + i * spacing;
             const surface = keep(this.add.rectangle(cx, y, buttonWidth, 54, 0x0a1a26, 0.87)
                 .setStrokeStyle(1, 0x274457)
@@ -106,7 +113,75 @@ class MainMenuScene extends Phaser.Scene {
                 label.setColor('#c7dce6');
                 chevron.setColor('#668fa4');
             });
-            surface.on('pointerdown', () => this.navigateTo(entry.target, entry.data));
+            if (save && entry.label === 'CONTINUER') {
+                const minutes = Math.max(0, Math.floor((Date.now() - save.savedAt) / 60000));
+                const ago = minutes < 1 ? 'À L’INSTANT' :
+                    minutes < 60 ? `${minutes} MIN` : `${Math.floor(minutes / 60)} H`;
+                keep(this.add.text(cx + buttonWidth / 2 - 47, y, `VAGUE ${save.waveClock.number} · ${ago}`, {
+                    fontFamily: brand.fontFamily, fontSize: '10px', color: '#789fae'
+                }).setOrigin(1, 0.5));
+            }
+            surface.on('pointerdown', () => {
+                if (entry.fresh) this.startNewGame();
+                else this.navigateTo(entry.target, entry.data);
+            });
+        });
+        if (wasConfirming) this.confirmNewGame();
+    }
+
+    saveStorage() {
+        try { return typeof localStorage === 'undefined' ? null : localStorage; }
+        catch (_) { return null; }
+    }
+
+    startNewGame() {
+        if (this.transitioning || this.confirmingNewGame) return;
+        if (this.savedRun) { this.confirmNewGame(); return; }
+        // Also discard unreadable/old save data before starting fresh.
+        OverseerVNextSave.clear(this.saveStorage());
+        this.navigateTo('VNextScene');
+    }
+
+    confirmNewGame() {
+        if (this.transitioning || this.confirmingNewGame) return;
+        this.confirmingNewGame = true;
+        const keep = object => { this.objects.push(object); return object; };
+        const w = this.scale.width, h = this.scale.height;
+        const width = Math.min(450, w - 30), x = (w - width) / 2, y = h / 2 - 110;
+        const backdrop = keep(this.add.graphics().setDepth(300));
+        backdrop.fillStyle(0x08121c, 0.90).fillRect(0, 0, w, h);
+        keep(this.add.zone(w / 2, h / 2, w, h).setInteractive().setDepth(301));
+        const g = keep(this.add.graphics().setDepth(302));
+        g.fillStyle(0x0b1d2b, 1).fillRoundedRect(x, y, width, 220, 8);
+        g.lineStyle(1, 0x62e7e1, 0.5).strokeRoundedRect(x, y, width, 220, 8);
+        keep(this.add.text(w / 2, y + 42, 'NOUVELLE PARTIE ?', {
+            fontFamily: 'monospace', fontSize: '20px', color: '#e2eef3'
+        }).setOrigin(0.5).setDepth(303));
+        keep(this.add.text(w / 2, y + 90, 'La sauvegarde actuelle sera remplacée.', {
+            fontFamily: 'monospace', fontSize: '12px', color: '#9db6c4'
+        }).setOrigin(0.5).setDepth(303));
+        const actions = [
+            { label: 'ANNULER', x: x + width * 0.27, color: 0x274457,
+                action: () => { this.confirmingNewGame = false; this.drawMenu(); } },
+            { label: 'RECOMMENCER', x: x + width * 0.74, color: 0x3b8191, action: () => {
+                if (!OverseerVNextSave.clear(this.saveStorage())) {
+                    keep(this.add.text(w / 2, y + 126, 'Impossible d’effacer la sauvegarde.', {
+                        fontFamily: 'monospace', fontSize: '11px', color: '#ff6674'
+                    }).setOrigin(0.5).setDepth(304));
+                    return;
+                }
+                this.navigateTo('VNextScene');
+            } }
+        ];
+        actions.forEach(({ label, x: center, color, action }) => {
+            g.fillStyle(0x123448).fillRoundedRect(center - 91, y + 147, 182, 42, 5);
+            g.lineStyle(1, color, 0.85).strokeRoundedRect(center - 91, y + 147, 182, 42, 5);
+            keep(this.add.text(center, y + 168, label, {
+                fontFamily: 'monospace', fontSize: '12px', color: '#dbeaf0'
+            }).setOrigin(0.5).setDepth(303));
+            keep(this.add.zone(center, y + 168, 182, 42)
+                .setInteractive({ useHandCursor: true }).setDepth(304))
+                .on('pointerdown', action);
         });
     }
 
