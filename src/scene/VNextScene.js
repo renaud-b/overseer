@@ -32,6 +32,10 @@ class VNextScene extends Phaser.Scene {
         this.waveTooltipObjects = [];
         this.waveClock = { number: 0, elapsedMs: 0, seed: Math.floor(Math.random() * 0x100000000) };
         this.previewWaves = OverseerVNextWaves.preview(8, this.waveClock.seed);
+        this.waveMembers = new Map();
+        this.rewardQueue = [];
+        this.activeReward = null;
+        this.rewardSerial = 0;
 
         OverseerVNextCards.initialize(this.model);
         OverseerVNextEconomy.initialize(this.model);
@@ -112,6 +116,7 @@ class VNextScene extends Phaser.Scene {
         this.updateResourceHud();
         this.paintBoard();
         this.paintBattle();
+        if (this.activeReward) this.drawRewardOverlay();
         if (this.hoveredTile !== null) this.showBuildingTooltip(this.hoveredTile);
     }
 
@@ -134,6 +139,7 @@ class VNextScene extends Phaser.Scene {
     }
 
     selectSpeed(speed) {
+        if (this.activeReward) return; // A choice cannot unpause the simulation.
         if (speed === 0 && this.speed > 0) this.lastSpeed = this.speed;
         this.speed = speed;
         this.buildUi();
@@ -605,7 +611,7 @@ class VNextScene extends Phaser.Scene {
         this.paintWaveTimeline();
     }
 
-    spawnEnemyUnit(type, index, count) {
+    spawnEnemyUnit(type, index, count, waveNumber = null) {
         const config = this.cache.json.get('vnextLegacyStats').enemies.find(unit => unit.id === type);
         if (!config) return;
         const id = this.world.create(this.model.game);
@@ -622,15 +628,86 @@ class VNextScene extends Phaser.Scene {
         });
         this.world.set(id, 'PreviewUnit', { type });
         this.battleUnits.push(id);
+        if (waveNumber !== null) {
+            this.world.set(id, 'WaveMember', { number: waveNumber });
+            this.waveMembers.get(waveNumber).push(id);
+        }
     }
 
     triggerWave(wave) {
+        this.waveMembers.set(wave.number, []);
         for (const group of wave.enemies) {
-            for (let i = 0; i < group.count; i++) this.spawnEnemyUnit(group.type, i, group.count);
+            for (let i = 0; i < group.count; i++) this.spawnEnemyUnit(group.type, i, group.count, wave.number);
         }
         // Preview markers slide forward; the wave plan itself remains deterministic.
         this.previewWaves = OverseerVNextWaves.preview(8, this.waveClock.seed, this.waveClock.number);
         this.buildUi();
+    }
+
+    // Reward choices stay in the small, already-playable building catalog.
+    // Generate once per cleared wave, never on each render.
+    rewardOptions(number) {
+        const pool = OverseerVNextCards.STARTER_CARDS.slice();
+        let state = (this.waveClock.seed ^ Math.imul(number, 0x9e3779b1)) >>> 0;
+        for (let i = pool.length - 1; i > 0; i--) {
+            state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+            const j = state % (i + 1);
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        return pool.slice(0, 3);
+    }
+
+    checkWaveClears() {
+        for (const [number, members] of this.waveMembers) {
+            if (!members.length) continue;
+            if (!members.every(id => !this.world.has(id) || this.world.get(id, 'Health').hp <= 0)) continue;
+            this.waveMembers.delete(number);
+            this.rewardQueue.push({ number, options: this.rewardOptions(number) });
+        }
+        if (!this.activeReward && this.rewardQueue.length) {
+            this.activeReward = this.rewardQueue.shift();
+            this.buildUi();
+        }
+    }
+
+    chooseReward(type) {
+        if (!this.activeReward || !this.activeReward.options.includes(type)) return false;
+        if (!OverseerVNextCards.grant(this.model, type)) return false;
+        this.activeReward = this.rewardQueue.shift() || null;
+        this.buildUi();
+        return true;
+    }
+
+    drawRewardOverlay() {
+        const reward = this.activeReward;
+        if (!reward) return;
+        const w = this.scale.width, h = this.scale.height;
+        const width = Math.min(590, w - 32), x = (w - width) / 2, y = Math.max(95, h / 2 - 115);
+        const g = this.keep(this.add.graphics().setDepth(300));
+        g.fillStyle(0x08121c, 0.88).fillRect(0, 0, w, h);
+        g.fillStyle(0x0b1d2b, 1).fillRoundedRect(x, y, width, 225, 8);
+        g.lineStyle(1, 0x62e7e1, 0.7).strokeRoundedRect(x, y, width, 225, 8);
+        this.keep(this.add.text(x + 20, y + 19, `VAGUE ${reward.number} TERMINÉE`, {
+            fontFamily:'monospace',fontSize:'17px',color:'#dfeaf0'
+        }).setDepth(301));
+        this.keep(this.add.text(x + 20, y + 48, 'Choisissez une carte · simulation en pause', {
+            fontFamily:'monospace',fontSize:'11px',color:'#8daabb'
+        }).setDepth(301));
+        reward.options.forEach((type, i) => {
+            const building = OverseerVNextBuildings.getBuilding(type);
+            const cardW = (width - 56) / 3, cx = x + 14 + i * (cardW + 14), cy = y + 94;
+            g.fillStyle(0x123047).fillRoundedRect(cx, cy, cardW, 108, 5);
+            g.lineStyle(1, building.color, 0.7).strokeRoundedRect(cx, cy, cardW, 108, 5);
+            const iconG = this.keep(this.add.graphics().setDepth(301));
+            this.drawGlyph(iconG, type, cx + cardW / 2, cy + 27, building.color, 13);
+            this.keep(this.add.text(cx + cardW / 2, cy + 53, building.label, {
+                fontFamily:'monospace',fontSize:'12px',color:'#dfeaf0'
+            }).setOrigin(0.5, 0).setDepth(301));
+            const zone = this.keep(this.add.zone(cx + cardW / 2, cy + 54, cardW, 108)
+                .setInteractive({useHandCursor:true}).setDepth(302));
+            zone.setData('reward', type);
+            zone.on('pointerdown', () => this.chooseReward(type));
+        });
     }
 
     paintWaveTimeline() {
@@ -753,7 +830,7 @@ class VNextScene extends Phaser.Scene {
     }
 
     update(time, delta) {
-        if (!this.model || this.speed === 0 || !this.battleUnits) return;
+        if (!this.model || this.speed === 0 || this.activeReward || !this.battleUnits) return;
         const dt = Math.min(delta, 60) * this.speed;
         for (const wave of OverseerVNextWaves.advance(this.waveClock, dt)) this.triggerWave(wave);
         this.updateWaveTimeline();
@@ -779,5 +856,6 @@ class VNextScene extends Phaser.Scene {
         }
         OverseerCombat.separateUnits(this.world, this.battleUnits);
         this.paintBattle();
+        this.checkWaveClears();
     }
 }

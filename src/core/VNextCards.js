@@ -18,7 +18,13 @@
         hand.cards.splice(at, 1);
         return id;
     }
-    const api = { STARTER_CARDS, initialize, cards, play };
+    // Rewards grant one new one-shot card, even if the hand has another of that type.
+    function grant(model, type) {
+        if (!STARTER_CARDS.includes(type)) return false;
+        initialize(model).cards.push(type);
+        return true;
+    }
+    const api = { STARTER_CARDS, initialize, cards, play, grant };
     root.OverseerVNextCards = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

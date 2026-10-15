@@ -367,3 +367,45 @@ test('battle starts without enemies and first timeline wave adds them', () => {
  scene.update(0, 60);
  assert.equal(enemies().length, waves.wave(1, scene.waveClock.seed).enemies[0].count);
 });
+
+test('a defeated wave offers three unique cards and pauses until one is selected', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const wave = waves.wave(1, scene.waveClock.seed);
+    scene.triggerWave(wave);
+    assert.equal(scene.activeReward, null);
+    const members = scene.waveMembers.get(1);
+    assert.equal(members.length, wave.enemies[0].count);
+    members.forEach(id => { scene.world.get(id, 'Health').hp = 0; });
+    scene.checkWaveClears();
+    assert.equal(scene.activeReward.number, 1);
+    assert.equal(new Set(scene.activeReward.options).size, 3);
+    const options = [...scene.activeReward.options];
+    const elapsed = scene.waveClock.elapsedMs;
+    scene.selectSpeed(5);
+    scene.update(0, 60);
+    assert.equal(scene.waveClock.elapsedMs, elapsed);
+    const before = cards.cards(scene.model).length;
+    assert.equal(scene.chooseReward('not-a-card'), false);
+    assert.equal(scene.chooseReward(options[0]), true);
+    assert.equal(cards.cards(scene.model).length, before + 1);
+    assert.equal(scene.activeReward, null);
+    assert.equal(scene.chooseReward(options[1]), false);
+});
+test('two cleared overlapping waves queue rewards without duplication', () => {
+    const scene = new VNextScene();
+    scene.create();
+    for (let n = 1; n <= 2; n++) {
+        scene.triggerWave(waves.wave(n, scene.waveClock.seed));
+        scene.waveMembers.get(n).forEach(id => { scene.world.get(id, 'Health').hp = 0; });
+    }
+    scene.checkWaveClears();
+    assert.equal(scene.activeReward.number, 1);
+    assert.equal(scene.rewardQueue.length, 1);
+    scene.checkWaveClears();
+    assert.equal(scene.rewardQueue.length, 1);
+    scene.chooseReward(scene.activeReward.options[0]);
+    assert.equal(scene.activeReward.number, 2);
+    scene.chooseReward(scene.activeReward.options[0]);
+    assert.equal(scene.activeReward, null);
+});
