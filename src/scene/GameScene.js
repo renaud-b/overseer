@@ -5,6 +5,7 @@ class GameScene extends Phaser.Scene {
     }
 
     preload() {
+        this.load.json('gameStats', 'assets/game_stats.json');
         const lang = window.selectedLanguage || 'en';
         this.load.json('gameTexts', `assets/game_texts_${lang}.json`);
 
@@ -51,38 +52,22 @@ class GameScene extends Phaser.Scene {
 
 
     create() {
-
-
-
-        const SmartContractID = "e975a90a-3116-468d-9f61-96ad4a1f363c"
-        const functionName ="GetGameStats"
-
-        Promise.resolve()
-            .then(() => {
-                if (typeof Wormhole === 'undefined' || typeof Wormhole.executeContract !== 'function') {
-                    throw new Error('Utopixia contract client unavailable');
-                }
-                return Wormhole.executeContract(SmartContractID, functionName, [], "https://utopixia.com");
-            })
-            .then((stats) => {
-                const result = OverseerGameData.validate(stats);
-                if (!result.ok) {
-                    throw new Error('Invalid GameStats: ' + result.errors.join('; '));
-                }
-                this.cache.json.add('gameStats', stats);
-                this.startGame(stats);
-            })
-            .catch((err) => {
-                console.error('Overseer failed to load game configuration:', err);
-                this.add.text(
-                    this.scale.width / 2,
-                    this.scale.height / 2,
-                    'Unable to load game data from Utopixia.\nPlease reload to retry.',
-                    { fontFamily: 'monospace', fontSize: '20px', color: '#ff7777', align: 'center' }
-                ).setOrigin(0.5);
-            });
-
+        // Phaser's preload() guarantees the local JSON load has completed.
+        const stats = this.cache.json.get('gameStats');
+        const validation = OverseerGameData.validate(stats);
+        if (!validation.ok) {
+            console.error('Cannot start Overseer with invalid local GameStats:', validation.errors);
+            this.add.text(
+                this.scale.width / 2,
+                this.scale.height / 2,
+                'Unable to load local game data.\nCheck assets/game_stats.json and reload.',
+                { fontFamily: 'monospace', fontSize: '20px', color: '#ff7777', align: 'center' }
+            ).setOrigin(0.5);
+            return;
+        }
+        this.startGame(stats);
     }
+
     startGame (gameStats) {
 
 
