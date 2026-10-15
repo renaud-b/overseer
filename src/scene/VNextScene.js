@@ -2,19 +2,81 @@
 class VNextScene extends Phaser.Scene {
     constructor() { super({ key: 'VNextScene' }); }
 
+    init(data = {}) {
+        this.resumeRequested = data.resume === true;
+    }
+
+    saveStorage() {
+        try { return typeof localStorage === 'undefined' ? null : localStorage; }
+        catch (_) { return null; }
+    }
+
+    saveCurrentGame() {
+        if (this.runFinished || !this.model) return false;
+        const saved = OverseerVNextSave.write(this, this.saveStorage());
+        if (!saved) this.note?.setText('Sauvegarde locale indisponible');
+        return saved;
+    }
+
+    returnToMenu() {
+        if (this.runFinished || this.saveCurrentGame()) this.scene.start('MainMenuScene');
+    }
+
+    finishRun() {
+        if (this.runFinished) return;
+        this.runFinished = true;
+        OverseerVNextSave.clear(this.saveStorage()); // Never touch persistent talents.
+        this.buildUi();
+    }
+
+    drawDefeatOverlay() {
+        const w = this.scale.width, h = this.scale.height;
+        const g = this.keep(this.add.graphics().setDepth(300));
+        g.fillStyle(0x08121c, 0.92).fillRect(0, 0, w, h);
+        g.fillStyle(0x0b1d2b, 1).fillRoundedRect(w / 2 - 220, h / 2 - 96, 440, 190, 8);
+        g.lineStyle(1, 0xff6674, 0.7)
+            .strokeRoundedRect(w / 2 - 220, h / 2 - 96, 440, 190, 8);
+        this.keep(this.add.zone(w / 2, h / 2, w, h).setInteractive().setDepth(301));
+        this.keep(this.add.text(w / 2, h / 2 - 53, 'BASE DÉTRUITE', {
+            fontFamily: 'monospace', fontSize: '23px', color: '#ff6674'
+        }).setOrigin(0.5).setDepth(302));
+        this.keep(this.add.text(w / 2, h / 2 - 9, 'Fin de partie · sauvegarde effacée', {
+            fontFamily: 'monospace', fontSize: '12px', color: '#9cb9c9'
+        }).setOrigin(0.5).setDepth(302));
+        g.fillStyle(0x143649).fillRoundedRect(w / 2 - 92, h / 2 + 31, 184, 39, 5);
+        g.lineStyle(1, 0x62e7e1, 0.7).strokeRoundedRect(w / 2 - 92, h / 2 + 31, 184, 39, 5);
+        this.keep(this.add.text(w / 2, h / 2 + 50, 'RETOUR AU MENU', {
+            fontFamily: 'monospace', fontSize: '12px', color: '#e2eef3'
+        }).setOrigin(0.5).setDepth(302));
+        this.keep(this.add.zone(w / 2, h / 2 + 50, 184, 39)
+            .setInteractive({ useHandCursor: true }).setDepth(303))
+            .on('pointerdown', () => this.scene.start('MainMenuScene'));
+    }
+
     preload() { this.load.json('vnextLegacyStats', 'assets/game_stats.json'); }
 
     create() {
-        this.model = OverseerVNextPreview.createModel(OverseerECS.World);
+        let restored = null;
+        if (this.resumeRequested) {
+            const saved = OverseerVNextSave.read(this.saveStorage());
+            if (!saved) { this.scene.start('MainMenuScene'); return; }
+            try { restored = OverseerVNextSave.restore(saved, OverseerECS.World); }
+            catch (_) { this.scene.start('MainMenuScene'); return; }
+        }
+        this.model = restored ? restored.model : OverseerVNextPreview.createModel(OverseerECS.World);
         this.world = this.model.world;
         this.visionRules = Object.create(Vision.prototype);
         this.visionRules.level = 0;
         this.visionRules.createPatterns(); // Same L shape and rotations as the playable prototype.
-        this.attention = { x: 1, y: 1 };
+        this.visionRules.patternIndex = restored?.patternIndex ?? this.visionRules.patternIndex;
+        this.attention = restored?.attention ?? { x: 1, y: 1 };
         this.selectedType = null;
         this.movingId = null;
-        this.speed = 1;
-        this.baseHp = 100;
+        this.speed = restored?.speed ?? 1;
+        this.lastSpeed = restored?.lastSpeed ?? 1;
+        this.baseHp = restored?.baseHp ?? 100;
+        this.runFinished = false;
+        this.autosaveElapsed = 0;
         this.ui = [];
         this.types = OverseerVNextBuildings.BUILDINGS;
         // The resource HUD borrows glyphs and colors from the corresponding buildings.
@@ -30,30 +92,40 @@ class VNextScene extends Phaser.Scene {
         this.hoveredTile = null;
         this.tooltipObjects = [];
         this.waveTooltipObjects = [];
-        this.waveClock = { number: 0, elapsedMs: 0, seed: Math.floor(Math.random() * 0x100000000) };
-        this.previewWaves = OverseerVNextWaves.preview(8, this.waveClock.seed);
-        this.waveMembers = new Map();
-        this.rewardQueue = [];
-        this.activeReward = null;
+        this.waveClock = restored?.waveClock ??
+            { number: 0, elapsedMs: 0, seed: Math.floor(Math.random() * 0x100000000) };
+        this.previewWaves = OverseerVNextWaves.preview(8, this.waveClock.seed, this.waveClock.number);
+        this.waveMembers = restored?.waveMembers ?? new Map();
+        this.rewardQueue = restored?.rewardQueue ?? [];
+        this.activeReward = restored?.activeReward ?? null;
         this.rewardSerial = 0;
 
-        OverseerVNextCards.initialize(this.model);
-        OverseerVNextEconomy.initialize(this.model);
-        this.applyAttention();
-        this.resetBattle();
+        if (restored) {
+            // No resetBattle(), production reset or re-grant: ECS is the restored truth.
+            this.battleUnits = restored.battleUnits;
+        } else {
+            OverseerVNextCards.initialize(this.model);
+            OverseerVNextEconomy.initialize(this.model);
+            this.applyAttention();
+            this.resetBattle();
+        }
         this.buildUi();
         this.input.keyboard.on('keydown', this.onKey, this);
         this.input.on('dragstart', this.onDragStart, this);
         this.input.on('drag', this.onDrag, this);
         this.input.on('dragend', this.onDragEnd, this);
         this.scale.on('resize', this.buildUi, this);
+        this.onPageHide = () => this.saveCurrentGame();
+        if (typeof window !== 'undefined') window.addEventListener?.('pagehide', this.onPageHide);
         this.events.once('shutdown', () => {
             this.scale.off('resize', this.buildUi, this);
+            if (typeof window !== 'undefined') window.removeEventListener?.('pagehide', this.onPageHide);
             this.input.keyboard.off('keydown', this.onKey, this);
             this.input.off('dragstart', this.onDragStart, this);
             this.input.off('drag', this.onDrag, this);
             this.input.off('dragend', this.onDragEnd, this);
         });
+        if (!restored) this.saveCurrentGame();
     }
 
     keep(object) { this.ui.push(object); return object; }
@@ -116,7 +188,8 @@ class VNextScene extends Phaser.Scene {
         this.updateResourceHud();
         this.paintBoard();
         this.paintBattle();
-        if (this.activeReward) this.drawRewardOverlay();
+        if (this.runFinished) this.drawDefeatOverlay();
+        else if (this.activeReward) this.drawRewardOverlay();
         if (this.hoveredTile !== null) this.showBuildingTooltip(this.hoveredTile);
     }
 
@@ -132,10 +205,12 @@ class VNextScene extends Phaser.Scene {
         });
         const legacy = this.text(w - 183, 24, 'JEU ACTUEL ↗', 12, '#d4e4ee');
         legacy.setPadding(5).setInteractive({ useHandCursor: true });
-        legacy.on('pointerdown', () => this.scene.start('GameScene'));
+        legacy.on('pointerdown', () => {
+            if (this.saveCurrentGame()) this.scene.start('GameScene');
+        });
         const menu = this.text(w - 59, 24, 'MENU', 12, '#7b9aad');
         menu.setPadding(5).setInteractive({ useHandCursor: true });
-        menu.on('pointerdown', () => this.scene.start('MainMenuScene'));
+        menu.on('pointerdown', () => this.returnToMenu());
     }
 
     selectSpeed(speed) {
@@ -231,13 +306,18 @@ class VNextScene extends Phaser.Scene {
     }
 
     clickTile(index) {
+        let changed = false;
         const existing = OverseerVNextPreview.buildingAt(this.model, index);
         if (this.movingId !== null) {
-            if (OverseerVNextPreview.moveBuilding(this.model, this.movingId, index)) this.movingId = null;
+            if (OverseerVNextPreview.moveBuilding(this.model, this.movingId, index)) {
+                this.movingId = null;
+                changed = true;
+            }
         } else if (this.selectedType && !existing) {
             const placed = OverseerVNextCards.play(this.model, this.selectedType, index);
             if (placed !== null) {
                 this.selectedType = null;
+                changed = true;
                 this.buildUi();
             }
         } else if (existing && !this.selectedType) {
@@ -248,6 +328,7 @@ class VNextScene extends Phaser.Scene {
         this.updateBoardHint();
         if (this.hoveredTile !== null) this.showBuildingTooltip(this.hoveredTile);
         this.updateResourceHud();
+        if (changed) this.saveCurrentGame();
     }
 
     updateBoardHint() {
@@ -450,6 +531,7 @@ class VNextScene extends Phaser.Scene {
         this.paintBoard();
         this.updateBoardHint();
         this.buildUi();
+        if (placed !== null) this.saveCurrentGame();
     }
 
     drawResourceIcon(g, style, x, y, radius = 10) {
@@ -642,6 +724,7 @@ class VNextScene extends Phaser.Scene {
         // Preview markers slide forward; the wave plan itself remains deterministic.
         this.previewWaves = OverseerVNextWaves.preview(8, this.waveClock.seed, this.waveClock.number);
         this.buildUi();
+        this.saveCurrentGame();
     }
 
     // Reward choices stay in the small, already-playable building catalog.
@@ -658,16 +741,20 @@ class VNextScene extends Phaser.Scene {
     }
 
     checkWaveClears() {
+        let changed = false;
         for (const [number, members] of this.waveMembers) {
             if (!members.length) continue;
             if (!members.every(id => !this.world.has(id) || this.world.get(id, 'Health').hp <= 0)) continue;
             this.waveMembers.delete(number);
             this.rewardQueue.push({ number, options: this.rewardOptions(number) });
+            changed = true;
         }
         if (!this.activeReward && this.rewardQueue.length) {
             this.activeReward = this.rewardQueue.shift();
             this.buildUi();
+            changed = true;
         }
+        if (changed) this.saveCurrentGame();
     }
 
     chooseReward(type) {
@@ -675,6 +762,7 @@ class VNextScene extends Phaser.Scene {
         if (!OverseerVNextCards.grant(this.model, type)) return false;
         this.activeReward = this.rewardQueue.shift() || null;
         this.buildUi();
+        this.saveCurrentGame();
         return true;
     }
 
@@ -837,7 +925,15 @@ class VNextScene extends Phaser.Scene {
     }
 
     update(time, delta) {
-        if (!this.model || this.speed === 0 || this.activeReward || !this.battleUnits) return;
+        if (!this.model || this.runFinished) return;
+        if (this.baseHp <= 0) { this.finishRun(); return; }
+        // Wall-clock autosave continues when gameplay pauses for a reward.
+        this.autosaveElapsed += Math.max(0, delta);
+        if (this.autosaveElapsed >= OverseerVNextSave.AUTOSAVE_MS) {
+            this.autosaveElapsed %= OverseerVNextSave.AUTOSAVE_MS;
+            this.saveCurrentGame();
+        }
+        if (this.speed === 0 || this.activeReward || !this.battleUnits) return;
         const dt = Math.min(delta, 60) * this.speed;
         for (const wave of OverseerVNextWaves.advance(this.waveClock, dt)) this.triggerWave(wave);
         this.updateWaveTimeline();
@@ -862,6 +958,7 @@ class VNextScene extends Phaser.Scene {
             });
             events.forEach(e => { if (e.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - e.damage); });
         }
+        if (this.baseHp <= 0) { this.finishRun(); return; }
         OverseerCombat.separateUnits(this.world, this.battleUnits);
         this.paintBattle();
         this.checkWaveClears();

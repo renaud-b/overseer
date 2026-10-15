@@ -11,6 +11,13 @@ const cards = require('../src/core/VNextCards.js');
 const combat = require('../src/core/CombatSystem.js');
 const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
+const saves = require('../src/core/VNextSave.js');
+const savedEntries = new Map();
+const saveStorage = {
+    getItem: key => savedEntries.get(key) ?? null,
+    setItem: (key, value) => savedEntries.set(key, value),
+    removeItem: key => savedEntries.delete(key)
+};
 const ROOT = path.resolve(__dirname, '..');
 const brandSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBrand.js'), 'utf8');
 const visionSource = fs.readFileSync(path.join(ROOT, 'src/scene/entities/Vision.js'), 'utf8');
@@ -69,7 +76,9 @@ const OverseerVNextBrand = vm.runInNewContext(brandSource + '\nOverseerVNextBran
 const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
 const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
-    OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview, OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards, OverseerVNextWaves: waves, Vision, OverseerVNextBrand
+    OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview,
+    OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
+    OverseerVNextWaves: waves, OverseerVNextSave: saves, localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
 test('scene begins with exactly four unspent cards and empty base', () => {
@@ -464,4 +473,133 @@ test('VNext shares its title with the menu and MENU returns there', () => {
     assert.ok(menu);
     menu.handlers.pointerdown();
     assert.equal(destination, 'MainMenuScene');
+});
+
+
+test('Continue restores exact ECS identities, battle entities and waves in progress', () => {
+    savedEntries.clear();
+    const running = new VNextScene();
+    running.create();
+    running.selectedType = 'reactor';
+    running.clickTile(6);
+    economy.initialize(running.model); // Production is normally attached on the next economy step.
+    running.world.get(preview.buildingAt(running.model, 6), 'Production').elapsedMs = 851;
+    const wave = waves.wave(1, running.waveClock.seed);
+    running.waveClock.number = 1;
+    running.waveClock.elapsedMs = wave.dueAtMs + 900;
+    running.triggerWave(wave);
+    const enemy = running.waveMembers.get(1)[0];
+    running.world.get(enemy, 'Health').hp = 3;
+    running.world.get(running.model.game, 'Resources').energy = 27;
+    running.changeAttention(1, 0);
+    running.selectSpeed(0);
+    running.lastSpeed = 3;
+    running.baseHp = 82;
+    assert.equal(running.saveCurrentGame(), true);
+    const worldBefore = running.world.serialize();
+    const unitsBefore = [...running.battleUnits];
+    const waveBefore = JSON.stringify(running.waveClock);
+
+    const resumed = new VNextScene();
+    resumed.init({ resume: true });
+    resumed.create();
+    assert.deepEqual(resumed.world.serialize(), worldBefore);
+    assert.deepEqual(resumed.battleUnits, unitsBefore);
+    assert.equal(JSON.stringify(resumed.waveClock), waveBefore);
+    assert.equal(resumed.world.get(enemy, 'Health').hp, 3);
+    assert.equal(resumed.world.get(resumed.model.game, 'Resources').energy, 27);
+    assert.equal(resumed.baseHp, 82);
+    assert.equal(resumed.speed, 0);
+    assert.equal(resumed.lastSpeed, 3);
+    assert.equal(resumed.visionRules.patternIndex, running.visionRules.patternIndex);
+    assert.equal(resumed.attention.x, running.attention.x);
+    assert.equal(JSON.stringify([...resumed.waveMembers]), JSON.stringify([...running.waveMembers]));
+    assert.equal(resumed.previewWaves[0].number, 2);
+    assert.equal(resumed.world.nextId, running.world.nextId);
+    savedEntries.clear();
+});
+
+test('pending reward is resumed without replaying the cleared wave', () => {
+    savedEntries.clear();
+    const running = new VNextScene();
+    running.create();
+    const wave = waves.wave(1, running.waveClock.seed);
+    running.waveClock.number = 1;
+    running.waveClock.elapsedMs = wave.dueAtMs;
+    running.triggerWave(wave);
+    running.waveMembers.get(1).forEach(id => { running.world.get(id, 'Health').hp = 0; });
+    running.checkWaveClears();
+    assert.equal(running.activeReward.number, 1);
+    const options = [...running.activeReward.options];
+
+    const resumed = new VNextScene();
+    resumed.init({ resume: true });
+    resumed.create();
+    assert.equal(resumed.activeReward.number, 1);
+    assert.deepEqual([...resumed.activeReward.options], options);
+    assert.equal(resumed.waveMembers.size, 0);
+    const before = cards.cards(resumed.model).length;
+    assert.equal(resumed.chooseReward(options[0]), true);
+    assert.equal(cards.cards(resumed.model).length, before + 1);
+    assert.equal(resumed.chooseReward(options[0]), false);
+    const after = new VNextScene();
+    after.init({ resume: true });
+    after.create();
+    assert.equal(after.activeReward, null);
+    assert.equal(cards.cards(after.model).length, before + 1);
+    savedEntries.clear();
+});
+
+test('autosave uses real time even while paused; menu return immediately saves', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    scene.create();
+    scene.selectSpeed(0);
+    const timeBefore = scene.waveClock.elapsedMs;
+    scene.world.get(scene.model.game, 'Resources').energy = 17;
+    scene.update(0, saves.AUTOSAVE_MS);
+    assert.equal(saves.read(saveStorage).world.entities
+        .find(entity => entity.id === scene.model.game).components
+        .find(([kind]) => kind === 'Resources')[1].energy, 17);
+    assert.equal(scene.waveClock.elapsedMs, timeBefore);
+    let next = null;
+    scene.scene.start = key => { next = key; };
+    scene.world.get(scene.model.game, 'Resources').energy = 39;
+    scene.returnToMenu();
+    assert.equal(next, 'MainMenuScene');
+    assert.equal(saves.restore(saves.read(saveStorage), World)
+        .model.world.get(scene.model.game, 'Resources').energy, 39);
+    savedEntries.clear();
+});
+
+test('invalid Continue returns to menu instead of silently starting a fresh game', () => {
+    savedEntries.clear();
+    saveStorage.setItem(saves.KEY, '{"version":999}');
+    const scene = new VNextScene();
+    let destination = null;
+    scene.scene.start = key => { destination = key; };
+    scene.init({ resume: true });
+    scene.create();
+    assert.equal(destination, 'MainMenuScene');
+    assert.equal(scene.model, undefined);
+    savedEntries.clear();
+});
+
+test('base destruction clears only the run and prevents another autosave', () => {
+    savedEntries.clear();
+    saveStorage.setItem('unlockedTalents', '["root"]');
+    saveStorage.setItem('memoryShards', '8');
+    const scene = new VNextScene();
+    scene.create();
+    assert.ok(saves.read(saveStorage));
+    scene.baseHp = 0;
+    scene.update(0, 16);
+    assert.equal(scene.runFinished, true);
+    assert.equal(saves.read(saveStorage), null);
+    assert.equal(saveStorage.getItem('unlockedTalents'), '["root"]');
+    assert.equal(saveStorage.getItem('memoryShards'), '8');
+    assert.ok(scene.ui.some(object => object.value === 'BASE DÉTRUITE'));
+    scene.update(16, saves.AUTOSAVE_MS);
+    assert.equal(saves.read(saveStorage), null);
+    savedEntries.clear();
 });

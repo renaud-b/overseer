@@ -9,6 +9,29 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const brand = vm.runInNewContext(read('src/scene/VNextBrand.js') + '\nOverseerVNextBrand;', {});
+const save = require('../src/core/VNextSave.js');
+const { World } = require('../src/core/World.js');
+const preview = require('../src/core/VNextPreview.js');
+const cards = require('../src/core/VNextCards.js');
+const economy = require('../src/core/VNextEconomy.js');
+const items = new Map();
+const localStorage = {
+    getItem: key => items.get(key) ?? null,
+    setItem: (key, value) => items.set(key, value),
+    removeItem: key => items.delete(key)
+};
+
+function installValidSave() {
+    const model = preview.createModel(World), world = model.world;
+    cards.initialize(model);
+    economy.initialize(model);
+    return save.write({
+        model, world, battleUnits: [], waveMembers: new Map(),
+        waveClock: { number: 2, elapsedMs: 120000, seed: 12 },
+        visionRules: { patternIndex: 0 }, attention: { x: 1, y: 1 },
+        activeReward: null, rewardQueue: [], baseHp: 100, speed: 1, lastSpeed: 1
+    }, localStorage, Date.now() - 12 * 60000);
+}
 
 class Display {
     constructor(x, y, value, style) {
@@ -20,6 +43,9 @@ class Display {
     setStrokeStyle(_width, color) { this.stroke = color; return this; }
     setFillStyle(color) { this.fill = color; return this; }
     setColor(color) { this.color = color; return this; }
+    setDepth() { return this; }
+    fillRoundedRect() { return this; }
+    strokeRoundedRect() { return this; }
     on(event, callback) { this.handlers[event] = callback; return this; }
     fillStyle() { return this; }
     fillRect() { return this; }
@@ -54,19 +80,24 @@ class FakeScene {
         this.add = {
             graphics: () => new Display(),
             text: (x, y, value, style) => new Display(x, y, value, style),
-            rectangle: (x, y) => new Display(x, y)
+            rectangle: (x, y) => new Display(x, y),
+            zone: (x, y) => new Display(x, y)
         };
     }
 }
 const MainMenuScene = vm.runInNewContext(
     read('src/scene/MainMenuScene.js') + '\nMainMenuScene;',
-    { Phaser: { Scene: FakeScene }, OverseerVNextBrand: brand }
+    { Phaser: { Scene: FakeScene }, OverseerVNextBrand: brand,
+        OverseerVNextSave: save, localStorage }
 );
 
 function buttonFor(scene, label) {
     const text = scene.objects.find(o => o.value === label);
     assert.ok(text, 'Missing button: ' + label);
-    const button = scene.objects.find(o => o.y === text.y && o.handlers.pointerdown);
+    const candidates = scene.objects.filter(o => o.y === text.y && o.handlers.pointerdown);
+    // Modal actions share a row: select the hit zone nearest its label.
+    const button = candidates.sort((a, b) =>
+        Math.abs(a.x - text.x) - Math.abs(b.x - text.x))[0];
     assert.ok(button);
     return { button, text };
 }
@@ -251,4 +282,72 @@ test('between three and five impulses remain visible, each with its own speed', 
         observed.add(visible);
     }
     assert.deepEqual([...observed].sort(), [3, 4, 5]);
+});
+
+
+test('Continue is offered only for a valid local save, with the current wave', () => {
+    items.clear();
+    assert.equal(new MainMenuScene().create(), undefined);
+    assert.ok(installValidSave());
+    const menu = new MainMenuScene();
+    menu.create();
+    const displayed = menu.objects.filter(o => typeof o.value === 'string').map(o => o.value);
+    assert.ok(displayed.includes('CONTINUER'));
+    assert.ok(displayed.includes('NOUVELLE PARTIE'));
+    assert.ok(displayed.some(text => text.includes('VAGUE 2')));
+    assert.ok(!displayed.includes('START A GAME'));
+    buttonFor(menu, 'CONTINUER').button.handlers.pointerdown();
+    assert.equal(menu.started.key, 'VNextScene');
+    assert.equal(menu.started.data.resume, true);
+    items.clear();
+});
+
+test('New game asks for confirmation and cancellation keeps the save', () => {
+    items.clear();
+    installValidSave();
+    const before = localStorage.getItem(save.KEY);
+    const menu = new MainMenuScene();
+    menu.create();
+    buttonFor(menu, 'NOUVELLE PARTIE').button.handlers.pointerdown();
+    assert.equal(menu.confirmingNewGame, true);
+    assert.equal(menu.started, undefined);
+    assert.ok(menu.objects.some(o => o.value === 'La sauvegarde actuelle sera remplacée.'));
+    buttonFor(menu, 'ANNULER').button.handlers.pointerdown();
+    assert.equal(menu.confirmingNewGame, false);
+    assert.equal(localStorage.getItem(save.KEY), before);
+    buttonFor(menu, 'NOUVELLE PARTIE').button.handlers.pointerdown();
+    buttonFor(menu, 'RECOMMENCER').button.handlers.pointerdown();
+    assert.equal(menu.started.key, 'VNextScene');
+    assert.equal(localStorage.getItem(save.KEY), null);
+    items.clear();
+});
+
+test('fresh game works without a save; invalid save hides Continue', () => {
+    items.clear();
+    localStorage.setItem(save.KEY, 'not json');
+    const menu = new MainMenuScene();
+    menu.create();
+    assert.ok(!menu.objects.some(o => o.value === 'CONTINUER'));
+    buttonFor(menu, 'START A GAME').button.handlers.pointerdown();
+    assert.equal(menu.started.key, 'VNextScene');
+    assert.equal(localStorage.getItem(save.KEY), null);
+    items.clear();
+});
+
+test('modal survives resize; New game never deletes persistent talents', () => {
+    items.clear();
+    installValidSave();
+    localStorage.setItem('unlockedTalents', '["root"]');
+    localStorage.setItem('memoryShards', '12');
+    const menu = new MainMenuScene();
+    menu.create();
+    buttonFor(menu, 'NOUVELLE PARTIE').button.handlers.pointerdown();
+    menu.scale.width = 800;
+    menu.scale.height = 600;
+    menu.drawMenu();
+    assert.ok(menu.objects.some(o => o.value === 'RECOMMENCER'));
+    buttonFor(menu, 'RECOMMENCER').button.handlers.pointerdown();
+    assert.equal(localStorage.getItem('unlockedTalents'), '["root"]');
+    assert.equal(localStorage.getItem('memoryShards'), '12');
+    items.clear();
 });
