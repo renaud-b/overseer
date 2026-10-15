@@ -187,7 +187,9 @@ class GameScene extends Phaser.Scene {
 
         this.input.keyboard.on('keydown-ZERO', () => this.setTimeScale(0));
         this.input.keyboard.on('keydown-ONE', () => this.setTimeScale(1));
-        this.input.keyboard.on('keydown-TWO', () => this.setTimeScale(5));
+        this.input.keyboard.on('keydown-TWO', () => this.setTimeScale(2));
+        this.input.keyboard.on('keydown-THREE', () => this.setTimeScale(3));
+        this.input.keyboard.on('keydown-FIVE', () => this.setTimeScale(5));
 
         this.input.keyboard.on('keydown-ESC', () => {
             if (!this.hud.menuOpen) this.hud.showStatsOverlay();
@@ -624,11 +626,9 @@ class GameScene extends Phaser.Scene {
 
     setTimeScale(scale) {
         this.timeScale = scale;
-
-        const speedMap = { 1: 0, 5: 1, 0: 2 };
-        const index = speedMap[scale] ?? 1;
-        console.log("Time scale set to", scale, "index", index);
-        this.hud.highlightSelectedSpeed(index);
+        // Clicking pause must not forget the speed to resume with Space.
+        if (scale > 0) this.lastTimeScale = scale;
+        this.hud?.highlightSelectedSpeed(scale);
     }
 
     refreshAllTalentEffects() {

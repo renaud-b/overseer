@@ -284,15 +284,17 @@ class HUDManager {
         this.wavePreviewPanel = null;
         this.wavePreviewText = null;
     }
-    createWaveCounter(offsetX) {
-        const img = this.scene.add
-            .image(offsetX+10, 15, "wave_border")
+    createWaveCounter(position) {
+        const { x, y } = position;
+        this.scene.add
+            .image(x + 10, y, "wave_border")
             .setOrigin(0, 0)
             .setDisplaySize(100, 25)
             .setDepth(50);
 
+        this.waveCounterY = y + 13;
         this.waveText = this.scene.add
-            .text(offsetX + 60, 28, this.scene.translate("wave_counter", { wave: 0 }), {
+            .text(x + 60, this.waveCounterY, this.scene.translate("wave_counter", { wave: 0 }), {
                 fontSize: "14px",
                 fill: "#84F7FF",
                 fontFamily: "inter",
@@ -300,98 +302,64 @@ class HUDManager {
             .setOrigin(0.5)
             .setDepth(51);
     }
+
     updateWaveCounter(waveNumber) {
         if (!this.waveText) return;
         this.waveText.setText(this.scene.translate("wave_counter", { wave: waveNumber }));
-        this.waveText.setPosition(this.waveText.x, 28);
         this.scene.children.bringToTop(this.waveText);
     }
+
     createTimeControlButtons() {
-        const speeds = [1, 5, 0];
+        const speeds = [
+            { speed: 1, label: "×1" },
+            { speed: 2, label: "×2" },
+            { speed: 3, label: "×3" },
+            { speed: 5, label: "×5" },
+            { speed: 0, label: "Ⅱ" },
+        ];
+        const width = 42;
+        const gap = 6;
+        const totalWidth = width * speeds.length + gap * (speeds.length - 1);
+        // Keep the speed controls on screen, away from the top-right menu.
+        // Placing them below the timeline avoids hiding flags on narrow desktops.
+        const startX = Math.max(12, this.scene.scale.width - 60 - totalWidth);
+        const centerY = 69;
         this.timeButtons = [];
 
-        const offsetX = 1290
-        let lastPosition = 0
-        speeds.forEach((speed, index) => {
-            const x = offsetX + (index * 29)
-            const y = 12;
-
-            console.log("loading image: ", `time_speed_${speed}`)
-            const img = this.scene.add
-                .image(x + 15, y + 15, `time_speed_${speed}`)
-                .setOrigin(0.5)
+        speeds.forEach(({ speed, label }, index) => {
+            const x = startX + index * (width + gap) + width / 2;
+            const background = this.scene.add
+                .rectangle(x, centerY, width, 28, 0x263b48)
+                .setStrokeStyle(1, 0x577c91)
                 .setInteractive()
-                .setDisplaySize(25, 25)
                 .setDepth(51);
+            const text = this.scene.add
+                .text(x, centerY, label, {
+                    fontSize: "16px",
+                    fill: "#c8d9e2",
+                    fontFamily: "monospace",
+                })
+                .setOrigin(0.5)
+                .setDepth(52);
 
-            img.on("pointerdown", () => {
-                console.log("Setting time scale to: ", speed);
-                this.scene.setTimeScale(speed);
-            });
-            this.timeButtons.push({ img });
-            lastPosition = x + 30;
-        });
-        this.highlightSelectedSpeed(0);
-        return lastPosition
-
-        /*
-        const upgradeBtnX = offsetX + labels.length * 70 + 20;
-        const upgradeBtnY = 20;
-        this.upgradeVisionBtn = this.scene.add
-            .rectangle(upgradeBtnX, upgradeBtnY, 120, 30, 4473924)
-            .setStrokeStyle(2, 16777215)
-            .setOrigin(0, 0)
-            .setInteractive()
-            .setDepth(50);
-        this.upgradeVisionText = this.scene.add
-            .text(
-                upgradeBtnX + 60,
-                upgradeBtnY + 15,
-                this.scene.translate("upgrade_vision"),
-                { fontSize: "14px", fill: "#ffffff", fontFamily: "monospace" }
-            )
-            .setOrigin(0.5)
-            .setDepth(51);
-        this.upgradeVisionBtn.on("pointerover", () => {
-            const level = this.scene.vision.level || 0;
-            const title = this.scene.translate("upgrade_vision_title");
-            const description =
-                this.scene.translate("current_level_text", { level: level }) +
-                "\n" +
-                this.scene.translate("upgrade_cost_text", {
-                    cost: this.scene.vision.getUpgradeCost(level),
-                });
-            this.showInfoPanel(
-                title,
-                description,
-                upgradeBtnX + 140,
-                upgradeBtnY + 100
-            );
-        });
-        this.upgradeVisionBtn.on("pointerout", () => this.hideInfoPanel());
-        this.upgradeVisionBtn.on("pointerdown", () => {
-            this.scene.vision.tryUpgradeVision();
-            if (this.scene.vision.level >= 3) {
-                this.upgradeVisionBtn.setVisible(false);
-                this.upgradeVisionText.setVisible(false);
-            }
+            background.on("pointerdown", () => this.scene.setTimeScale(speed));
+            this.timeButtons.push({ speed, background, text });
         });
 
-         */
+        this.highlightSelectedSpeed(this.scene.timeScale ?? 1);
+        return { x: Math.max(12, startX - 120), y: 56 };
     }
-    highlightSelectedSpeed(index) {
-        this.timeButtons.forEach((b, i) => {
-            if (i === index) {
-                // Color l'image selectionnée en bleu
 
-                b.img.clearTint();
-            } else {
-                // Retire la couleur de l'image non selectionnée
-                b.img.setTint(0x5a5c5b);
-
-            }
+    highlightSelectedSpeed(speed) {
+        this.timeButtons.forEach((button) => {
+            const selected = button.speed === speed;
+            button.background
+                .setFillStyle(selected ? 0x166f88 : 0x263b48)
+                .setStrokeStyle(1, selected ? 0x84f7ff : 0x577c91);
+            button.text.setColor(selected ? "#ffffff" : "#c8d9e2");
         });
     }
+
     showRewardPopupWithChoices(rewards, onAllRewardsChosen = () => {}) {
         this.lastTimeScale = this.scene.timeScale;
         const resourcePacks = rewards.packs.filter((p) => p.type === "resource");
