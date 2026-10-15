@@ -12,6 +12,7 @@ const combat = require('../src/core/CombatSystem.js');
 const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
 const ROOT = path.resolve(__dirname, '..');
+const brandSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBrand.js'), 'utf8');
 const visionSource = fs.readFileSync(path.join(ROOT, 'src/scene/entities/Vision.js'), 'utf8');
 const sceneSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextScene.js'), 'utf8');
 
@@ -64,10 +65,11 @@ class FakeScene {
         this.cache = { json: { get: () => ({ units, enemies }) } };
     }
 }
+const OverseerVNextBrand = vm.runInNewContext(brandSource + '\nOverseerVNextBrand;', {});
 const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
 const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
-    OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview, OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards, OverseerVNextWaves: waves, Vision
+    OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview, OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards, OverseerVNextWaves: waves, Vision, OverseerVNextBrand
 });
 
 test('scene begins with exactly four unspent cards and empty base', () => {
@@ -448,4 +450,18 @@ test('military specialty rewards include all three new production cards', () => 
         scene.clickTile(slot);
         assert.equal(scene.world.get(preview.buildingAt(scene.model,slot),'Building').type,type);
     }
+});
+
+test('VNext shares its title with the menu and MENU returns there', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const labels = scene.ui.filter(o => typeof o.value === 'string').map(o => o.value);
+    assert.ok(labels.includes(OverseerVNextBrand.title));
+    assert.ok(labels.includes(OverseerVNextBrand.subtitle));
+    let destination = null;
+    scene.scene.start = key => { destination = key; };
+    const menu = scene.ui.find(o => o.value === 'MENU');
+    assert.ok(menu);
+    menu.handlers.pointerdown();
+    assert.equal(destination, 'MainMenuScene');
 });

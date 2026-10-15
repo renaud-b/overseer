@@ -44,12 +44,12 @@ test('observed buildings and links follow tile attention without implying depend
     assert.deepEqual(preview.attentionLinks(model), []);
 });
 
-test('new preview is first scene, while legacy GameScene remains reachable', () => {
+test('main menu starts first, while VNext and legacy GameScene remain reachable', () => {
     const root = path.resolve(__dirname, '..');
     const bootstrap = fs.readFileSync(path.join(root, 'src/main.js'), 'utf8');
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const scene = fs.readFileSync(path.join(root, 'src/scene/VNextScene.js'), 'utf8');
-    assert.match(bootstrap, /config\.scene\s*=\s*\[\s*VNextScene/);
+    assert.match(bootstrap, /config\.scene\s*=\s*\[\s*MainMenuScene,\s*VNextScene/);
     assert.match(html, /src\/core\/VNextPreview\.js/);
     assert.match(html, /src\/scene\/VNextScene\.js/);
     assert.match(scene, /this\.scene\.start\('GameScene'\)/);
