@@ -2,13 +2,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const waves = require('../src/core/VNextWaves.js');
-test('wave plan always uses one enemy type with increasing randomized counts', () => {
+test('wave plan starts at four enemies and gains two every three waves', () => {
     const a = waves.preview(30, 981);
     assert.equal(a.length, 30);
     assert.deepEqual(a, waves.preview(30, 981));
     assert.ok(a.every(w => w.enemies.length === 1 && w.enemies[0].type === 'basic_monster'));
-    assert.ok(a.every((w, i) => i === 0 || w.enemies[0].count > a[i - 1].enemies[0].count));
-    assert.ok(a.some((w, i) => w.enemies[0].count !== waves.preview(30, 13)[i].enemies[0].count));
+    assert.deepEqual(a.slice(0,10).map(w => w.enemies[0].count), [4,4,4,6,6,6,8,8,8,10]);
+    assert.ok(a.every((w, i) => w.enemies[0].count === 4 + 2 * Math.floor(i / 3)));
+    assert.deepEqual(a.map(w => w.enemies[0].count), waves.preview(30, 13).map(w => w.enemies[0].count));
     assert.ok(a.every(w => !('rewards' in w)));
 });
 
@@ -28,4 +29,15 @@ test('crossing each deadline triggers once; paused clock does not progress',()=>
  for(let i=0;i<Math.ceil(first/300);i++)waves.advance(fast,300);
  assert.equal(fast.number,1);
  assert.equal(waves.advance(state,waves.wave(3).dueAtMs-state.elapsedMs).length,2);
+});
+
+test('timeline previews and triggered waves use identical counts after each tier boundary', () => {
+ const state={number:0,elapsedMs:0,seed:19};
+ for(let n=1;n<=10;n++){
+  const expected=waves.preview(1,19,state.number)[0];
+  assert.equal(expected.number,n);
+  const triggered=waves.advance(state,expected.dueAtMs-state.elapsedMs);
+  assert.deepEqual(triggered,[expected]);
+  assert.equal(triggered[0].enemies[0].count,4+2*Math.floor((n-1)/3));
+ }
 });
