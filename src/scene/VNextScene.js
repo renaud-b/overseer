@@ -299,7 +299,7 @@ class VNextScene extends Phaser.Scene {
             }
         };
         const inputs = Object.entries(recipe.consumes);
-        drawItems('CONSOMME / CYCLE', inputs, y + 99);
+        drawItems(type === 'barracks' ? 'COÛT PAR UNITÉ' : 'CONSOMME / CYCLE', inputs, y + 99);
         drawItems(type === 'barracks' ? 'FABRIQUE / UNITÉ' : 'PRODUIT / CYCLE', Object.entries(recipe.produces).filter(([key]) => key !== 'unit_guard'), y + 138);
         if (type === 'barracks') label(x + 18, y + 162, '1 UNITÉ DE BASE', 11, '#62e7e1');
         else label(x + width - 78, y + 168, `${recipe.cycleMs / 1000}s/cycle`, 9, '#819eaf');
@@ -367,7 +367,7 @@ class VNextScene extends Phaser.Scene {
             }
             this.drawGlyph(g, type, p.x, p.y, active ? style.color : 0x5b7687, cell * 0.18);
             const progress = this.world.get(id, 'Production');
-            if (active && progress) {
+            if (active && progress && progress.cooldownMs > 0) {
                 // Small progress indicator, driven by ECS state, not a Phaser timer.
                 const px = p.x - cell * 0.25, py = p.y + cell * 0.36, pw = cell * 0.5;
                 g.fillStyle(0x294354, 0.8).fillRect(px, py, pw, 3);
