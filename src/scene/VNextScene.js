@@ -95,8 +95,8 @@ class VNextScene extends Phaser.Scene {
         const g = this.keep(this.add.graphics());
         g.fillStyle(0x08121c).fillRect(0, 0, w, h);
         g.lineStyle(1, 0x1d3644, 0.9).lineBetween(m, 65, w - m, 65);
-        this.text(m + 6, 19, 'O V E R S E E R', 23, '#e2eef3');
-        this.text(m + 7, 49, 'VNEXT  /  LABORATOIRE VISUEL', 10, '#86a6ba');
+        this.text(m + 6, 19, OverseerVNextBrand.title, 23, OverseerVNextBrand.titleColor);
+        this.text(m + 7, 49, OverseerVNextBrand.subtitle, 10, OverseerVNextBrand.subtitleColor);
         this.drawSpeedControls(w);
         this.panel(g, m, mainTop, leftW, mainBottom - mainTop);
         this.panel(g, centerX, mainTop, boardW, mainBottom - mainTop);
@@ -135,7 +135,7 @@ class VNextScene extends Phaser.Scene {
         legacy.on('pointerdown', () => this.scene.start('GameScene'));
         const menu = this.text(w - 59, 24, 'MENU', 12, '#7b9aad');
         menu.setPadding(5).setInteractive({ useHandCursor: true });
-        menu.on('pointerdown', () => this.scene.start(window.selectedLanguage ? 'MainMenuScene' : 'HomeScene'));
+        menu.on('pointerdown', () => this.scene.start('MainMenuScene'));
     }
 
     selectSpeed(speed) {
