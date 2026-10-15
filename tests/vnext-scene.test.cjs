@@ -354,3 +354,16 @@ test('timeline is compact and countdown stays numeric', () => {
  assert.equal(labels.includes('↻ REJOUER LE COMBAT'), false);
  assert.equal(scene.waveMarkers.length, 8);
 });
+
+test('battle starts without enemies and first timeline wave adds them', () => {
+ const scene = new VNextScene();
+ scene.create();
+ const enemies = () => scene.world.query('Faction').filter(id =>
+   scene.world.get(id, 'Faction').side === 'enemy' && scene.world.get(id, 'Health').hp > 0);
+ const allies = scene.world.query('Faction').filter(id => scene.world.get(id, 'Faction').side === 'player');
+ assert.equal(enemies().length, 0);
+ assert.equal(allies.length, 3);
+ scene.waveClock.elapsedMs = waves.wave(1, scene.waveClock.seed).dueAtMs - 60;
+ scene.update(0, 60);
+ assert.equal(enemies().length, waves.wave(1, scene.waveClock.seed).enemies[0].count);
+});

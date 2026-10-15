@@ -677,9 +677,7 @@ class VNextScene extends Phaser.Scene {
         const stats = this.cache.json.get('vnextLegacyStats');
         const lineup = [
             ['player', 'unit_guard', 200, 185], ['player', 'unit_sniper', 260, 305],
-            ['player', 'unit_dronoid', 230, 425], ['enemy', 'basic_monster', 650, 180],
-            ['enemy', 'basic_monster', 720, 390], ['enemy', 'ranged_monster', 790, 275],
-            ['enemy', 'base_rusher', 870, 460]
+            ['player', 'unit_dronoid', 230, 425]
         ];
         lineup.forEach(([side, type, x, y]) => {
             const config = (side === 'player' ? stats.units : stats.enemies).find(d => d.id === type);
