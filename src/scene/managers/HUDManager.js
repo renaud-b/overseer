@@ -9,10 +9,6 @@ class HUDManager {
         this.createWaveCounter(lastPosition);
         this.updateHUD(resources, units, {});
     }
-    init(eventManager, userAddress) {
-        this.eventManager = eventManager;
-        this.userAddress = userAddress;
-    }
     showStatsOverlay() {
         if (this.menuOpen) return;
         this.menuOpen = true;
@@ -120,73 +116,13 @@ class HUDManager {
             .setInteractive()
             .setDepth(902);
         quitBtn.on("pointerdown", () => {
-            // TODO skip the report generation in dev mode
             this.scene.cameras.main.fadeOut(500, 0, 0, 0);
             this.scene.time.delayedCall(500, () => {
                 this.scene.scene.start("MainMenuScene");
             });
-            return
-
-            const reportData = this.generateReport();
-            const htmlReportData = {};
-            Object.keys(reportData).forEach((reportKey) => {
-                htmlReportData["report-" + reportKey.toLocaleLowerCase()] =
-                    convertAccentsToHtmlCodes(reportData[reportKey]);
-            });
-            const encodedReport = btoa(
-                JSON.stringify({
-                    requestType: "submit-report",
-                    report: btoa(JSON.stringify(htmlReportData)),
-                })
-            );
-            const contractID = "dbcefa4c-54f4-45b5-8e4c-03ca73123beb";
-            if(!ContextManager.eventManager || !ContextManager.userAddress) {
-                console.warn("❌ EventManager ou userAddress non initialisés");
-                this.closeStatsOverlay();
-                return;
-            }
-            ContextManager.eventManager
-                .sign(ContextManager.userAddress, encodedReport, 0)
-                .then((signedTx) => {
-                    const encodedUserTx = btoa(JSON.stringify(signedTx));
-                    return Wormhole.executeContract(
-                        contractID,
-                        "SubmitReport",
-                        { encodedUserTx: encodedUserTx },
-                        "https://utopixia.com"
-                    );
-                })
-                .then((response) => {
-                    console.log("✅ Rapport soumis :", response);
-                })
-                .catch((err) => {
-                    console.warn("❌ Erreur soumission rapport :", err);
-                })
-                .finally(() => {
-                    this.scene.cameras.main.fadeOut(500, 0, 0, 0);
-                    this.scene.time.delayedCall(500, () => {
-                        this.scene.scene.start("MainMenuScene");
-                    });
-                });
         });
         this.statsOverlayElements.push(quitBtn);
         this.scene.setTimeScale(0);
-    }
-    generateReport() {
-        return {
-            waves: this.scene.waveManager.maxWave,
-            artifacts: this.scene.artifactManager.artifacts.join(", "),
-            resoures: Object.keys(this.scene.collectedResources)
-                .map((key) => {
-                    return key + ": " + this.scene.collectedResources[key];
-                })
-                .join(", "),
-            units: Object.keys(this.scene.unitManager.units)
-                .map((key) => {
-                    return key + ": " + this.scene.unitManager.units[key];
-                })
-                .join(", "),
-        };
     }
     closeStatsOverlay() {
         this.statsOverlayElements.forEach((e) => e.destroy());

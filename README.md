@@ -1,45 +1,37 @@
 # Overseer
 
-**Overseer** est un prototype de jeu de stratégie en temps réel (**RTS**) tactique, développé avec **Phaser.js**.  
-Vous incarnez une IA tacticienne chargée de construire une base robotique et de survivre face à des vagues d'ennemis organiques.
+RTS / roguelite tactique avec Phaser : placez vos bâtiments sur une grille 5×5, activez-les grâce au champ de vision et défendez votre base contre les vagues ennemies.
 
-🧠 **Principes du gameplay** :
-- **Construisez** des bâtiments sur une grille dynamique en utilisant des cartes.
-- **Automatisez** la production de ressources, d'unités et de sorts.
-- **Défendez** votre base grâce à vos unités autonomes.
-- **Anticipez** les vagues ennemies via une timeline d'attaque.
-- **Évoluez** en choisissant des artefacts stratégiques après chaque victoire.
+## Mode local (sans Utopixia)
 
----
+Toutes les données de jeu sont fournies par `assets/game_stats.json`. Le navigateur charge Phaser et les scripts du jeu depuis le serveur local. Aucun service Utopixia ni CDN n'est nécessaire au lancement.
 
-## 🚀 Lancer le projet avec Docker
+Prérequis : Node.js 22+ et npm.
 
-**Prérequis** :
-- Docker
-- Docker Compose
-
-**Étapes** :
-
-1. Clonez ce dépôt :
-   ```bash
-   git clone git@github.com:renaud-b/overseer.git && \
-   cd overseer
-   ```
-2. Construisez l'image Docker :
-   ```bash
-   docker-compose up
-   ```
-3. Le jeu sera accessible à l’adresse :
-```
-http://localhost:8097
+```bash
+npm install
+npm test
+npm start
 ```
 
-## 📋 TODOs
+Ouvrez ensuite http://localhost:8097.
 
-- Ajouter plus d'artefacts pour enrichir la stratégie.
+## Docker
 
-- Travailler l’équilibrage dynamique des vagues.
+```bash
+docker compose up --build
+```
 
-- Enrichir les sprites et les effets visuels.
+Le jeu est servi sur http://localhost:8097.
 
-- Optimiser les performances mobiles.
+## Données et tests
+
+- `assets/game_stats.json` : configuration de référence (copie exacte des valeurs de l'ancien `GetGameStats`).
+- `assets/game_texts_*.json` : textes localisés.
+- `npm test` : tests du bootstrap et, sur les branches empilées, des systèmes ECS.
+
+Les configurations `assets/game_data.json` et `assets/spells.json` sont historiques et ne sont pas chargées par la scène principale. Utilisez `assets/game_stats.json` pour modifier les statistiques du jeu.
+
+## Prochaines étapes
+
+Équilibrage des vagues, nouveaux artefacts, effets visuels et optimisation de l'interface.
