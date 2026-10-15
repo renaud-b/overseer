@@ -44,7 +44,11 @@ function harness(balance = 0) {
         unitCapMap: {},
         add: {
             rectangle: (x, y) => displayObject(x, y),
-            text: (x, y) => displayObject(x, y)
+            text: (x, y, value) => {
+                const label = displayObject(x, y);
+                label.text = value;
+                return label;
+            }
         },
         translate(key, vars = {}) {
             return (texts[key] || key).replace(/\{([^}]+)\}/g, (_, k) => vars[k] ?? '');
