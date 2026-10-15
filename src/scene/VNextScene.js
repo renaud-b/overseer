@@ -313,7 +313,7 @@ class VNextScene extends Phaser.Scene {
         const inputs = Object.entries(recipe.consumes);
         drawItems(type === 'barracks' ? 'COÛT PAR UNITÉ' : 'CONSOMME / CYCLE', inputs, y + 99);
         drawItems(type === 'barracks' ? 'FABRIQUE / UNITÉ' : 'PRODUIT / CYCLE', Object.entries(recipe.produces).filter(([key]) => key !== 'unit_guard'), y + 138);
-        if (type === 'barracks') label(x + 18, y + 162, '1 UNITÉ DE BASE', 11, '#62e7e1');
+        if (type === 'barracks') label(x + 18, y + 162, `SOLDATS ${OverseerVNextEconomy.aliveUnits(this.model, type)}/${OverseerVNextEconomy.unitCapacity(this.model, type)}`, 11, '#62e7e1');
         else label(x + width - 78, y + 168, `${recipe.cycleMs / 1000}s/cycle`, 9, '#819eaf');
     }
 
