@@ -32,6 +32,8 @@ class VNextScene extends Phaser.Scene {
             { id: 'data', label: 'Données', glyph: 'laboratory', pending: true, color: 0xb58aff }
         ];
         this.lastResourceChanges = {}; // Transient HUD feedback, not economy state.
+        this.hoveredTile = null;
+        this.tooltipObjects = [];
 
         [['reactor', 6], ['extractor', 7], ['factory', 11], ['laboratory', 18]]
             .forEach(([type, index]) => OverseerVNextPreview.placeBuilding(this.model, type, index));
@@ -69,6 +71,7 @@ class VNextScene extends Phaser.Scene {
     buildUi() {
         if (!this.model) return;
         if (this.dragGhost) { this.dragGhost.destroy(); this.dragGhost = null; }
+        this.tooltipObjects = [];
         this.ui.forEach(object => object.destroy());
         this.ui = [];
         const w = this.scale.width, h = this.scale.height;
@@ -109,6 +112,7 @@ class VNextScene extends Phaser.Scene {
         this.updateResourceHud();
         this.paintBoard();
         this.paintBattle();
+        if (this.hoveredTile !== null) this.showBuildingTooltip(this.hoveredTile);
     }
 
     drawSpeedControls(w) {
@@ -200,8 +204,12 @@ class VNextScene extends Phaser.Scene {
                 const active = this.world.get(this.model.tiles[index], 'Watched').active;
                 const production = building ? this.world.get(building, 'Production') : null;
                 this.boardHint.setText(name ? `${name} · ${active ? (production?.blocked ? 'EN ATTENTE DE RESSOURCES' : 'ACTIF') : 'INACTIF'}` : 'Emplacement libre');
+                this.showBuildingTooltip(index);
             });
-            hit.on('pointerout', () => this.updateBoardHint());
+            hit.on('pointerout', () => {
+                this.hideBuildingTooltip();
+                this.updateBoardHint();
+            });
         }
         this.boardHint = this.text(l.boardX + 15, l.mainBottom - 42, '', 11, '#98b5c7');
         this.updateBoardHint();
@@ -226,6 +234,7 @@ class VNextScene extends Phaser.Scene {
         this.paintBoard();
         this.refreshPaletteSelection();
         this.updateBoardHint();
+        if (this.hoveredTile !== null) this.showBuildingTooltip(this.hoveredTile);
         this.updateResourceHud();
     }
 
@@ -233,6 +242,64 @@ class VNextScene extends Phaser.Scene {
         if (!this.boardHint) return;
         this.boardHint.setText(this.movingId !== null ? 'Déplacer : choisir une case libre' :
             this.selectedType ? 'Choisir une case libre' : 'ZQSD / WASD : vision   E : tourner');
+    }
+
+    hideBuildingTooltip() {
+        for (const object of this.tooltipObjects || []) object.destroy();
+        this.tooltipObjects = [];
+        this.hoveredTile = null;
+    }
+
+    showBuildingTooltip(index) {
+        this.hideBuildingTooltip();
+        const id = OverseerVNextPreview.buildingAt(this.model, index);
+        if (id === null) return;
+        const type = this.world.get(id, 'Building').type;
+        const info = this.types.find(entry => entry.id === type);
+        if (!info) return;
+        this.hoveredTile = index;
+        const recipe = OverseerVNextEconomy.PROTOTYPE_RECIPES[type];
+        const { x: gx, y: gy, cell } = this.gridLayout;
+        const cx = gx + (index % 5 + 0.5) * cell;
+        const cy = gy + (Math.floor(index / 5 + 0.5)) * cell;
+        const width = 266, height = 172, pad = 13;
+        const x = Math.max(8, Math.min(this.scale.width - width - 8, cx + cell * 0.48));
+        const y = Math.max(72, Math.min(this.scale.height - height - 8, cy - height / 2));
+        const keepTip = object => { this.tooltipObjects.push(object); this.keep(object); return object; };
+        const g = keepTip(this.add.graphics().setDepth(210));
+        g.fillStyle(0x0b1d2b, 0.98).fillRoundedRect(x, y, width, height, 6);
+        g.lineStyle(1, info.color, 0.7).strokeRoundedRect(x, y, width, height, 6);
+        this.drawGlyph(g, type, x + 22, y + 23, info.color, 11);
+        const label = (tx, ty, content, size = 11, color = '#c7dce6') =>
+            keepTip(this.text(tx, ty, content, size, color).setDepth(211));
+        label(x + 41, y + 14, info.label, 15, '#e3f0f5');
+        const descriptions = {
+            reactor: 'Génère l’énergie des machines.',
+            extractor: 'Extrait la matière première.',
+            factory: 'Transforme les intrants en composants.',
+            laboratory: 'Prépare des protocoles (à définir).'
+        };
+        label(x + pad, y + 48, descriptions[type], 11, '#a6bfce');
+        label(x + pad, y + 77, 'CONSTRUCTION : COÛT À DÉFINIR', 10, '#819eaf');
+        if (!recipe) {
+            label(x + pad, y + 105, 'PRODUCTION NON SIMULÉE', 11, '#819eaf');
+            return;
+        }
+        const drawItems = (title, entries, rowY) => {
+            label(x + pad, rowY, title, 10, '#819eaf');
+            let ix = x + 18;
+            for (const [resource, quantity] of entries) {
+                const style = this.resourceStyles.find(item => item.id === resource);
+                if (!style) continue;
+                this.drawResourceIcon(g, style, ix + 7, rowY + 27, 8);
+                label(ix + 22, rowY + 19, String(quantity), 13, '#e3f0f5');
+                ix += 76;
+            }
+        };
+        const inputs = Object.entries(recipe.consumes);
+        drawItems('CONSOMME / CYCLE', inputs.length ? inputs : [], y + 99);
+        drawItems('PRODUIT / CYCLE', Object.entries(recipe.produces), y + 133);
+        label(x + width - 69, y + 151, `${recipe.cycleMs / 1000}s/cycle`, 9, '#819eaf');
     }
 
     drawGlyph(g, type, x, y, color, r) {
