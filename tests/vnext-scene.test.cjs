@@ -321,11 +321,11 @@ test('wave timer spawns enemies at simulation interval and pauses', () => {
  const scene = new VNextScene();
  scene.create();
  const before = scene.world.query('Faction').filter(id => scene.world.get(id, 'Faction').side === 'enemy').length;
- scene.waveClock.elapsedMs = waves.wave(1).dueAtMs - 60;
+ scene.waveClock.elapsedMs = waves.wave(1, scene.waveClock.seed).dueAtMs - 60;
  scene.update(0, 60);
  assert.equal(scene.waveClock.number, 1);
  const enemies = scene.world.query('Faction').filter(id => scene.world.get(id, 'Faction').side === 'enemy').length;
- assert.equal(enemies, before + waves.wave(1).enemies[0].count);
+ assert.equal(enemies, before + waves.wave(1, scene.waveClock.seed).enemies[0].count);
  scene.selectSpeed(0);
  scene.update(0, 60);
  assert.equal(scene.waveClock.number, 1);

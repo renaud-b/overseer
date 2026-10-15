@@ -30,7 +30,7 @@ class VNextScene extends Phaser.Scene {
         this.hoveredTile = null;
         this.tooltipObjects = [];
         this.waveTooltipObjects = [];
-        this.waveClock = { number: 0, elapsedMs: 0, seed: 137 };
+        this.waveClock = { number: 0, elapsedMs: 0, seed: Math.floor(Math.random() * 0x100000000) };
         this.previewWaves = OverseerVNextWaves.preview(8, this.waveClock.seed);
 
         OverseerVNextCards.initialize(this.model);
