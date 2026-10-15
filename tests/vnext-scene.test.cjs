@@ -260,7 +260,7 @@ test('resource panel narrows and reveals each resource name only on hover', () =
     assert.ok(scene.layout.battleW > 0);
     const allText = scene.ui.filter(o => typeof o.value === 'string').map(o => o.value);
     assert.equal(allText.includes('Refroidissement'), false);
-    const zone = scene.ui.find(o => o.handlers?.pointerover && o.handlers?.pointerout && !o.getData('palette'));
+    const zone = scene.ui.find(o => o.getData?.('resource') === 'energy');
     assert.ok(zone);
     zone.handlers.pointerover();
     assert.equal(scene.resourceTooltip.value, 'Énergie');
@@ -268,7 +268,7 @@ test('resource panel narrows and reveals each resource name only on hover', () =
     assert.equal(scene.resourceTooltip, null);
     scene.scale.width = 800;
     scene.buildUi();
-    const compactZone = scene.ui.find(o => o.handlers?.pointerover && o.handlers?.pointerout && !o.getData('palette'));
+    const compactZone = scene.ui.find(o => o.getData?.('resource') === 'energy');
     compactZone.handlers.pointerover();
     assert.equal(scene.resourceTooltip.value, 'Énergie');
 });

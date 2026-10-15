@@ -487,6 +487,7 @@ class VNextScene extends Phaser.Scene {
 
     resourceHoverZone(style, x, y, w, h, tipX, tipY) {
         const zone = this.keep(this.add.zone(x + w / 2, y + h / 2, w, h).setInteractive());
+        zone.setData('resource', style.id);
         zone.on('pointerover', () => this.showResourceTooltip(style, tipX, tipY));
         zone.on('pointerout', () => this.hideResourceTooltip());
         return zone;
