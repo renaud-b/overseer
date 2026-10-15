@@ -1,4 +1,4 @@
-// Isolated VNext visual sandbox: existing ECS and combat, no new gameplay economy.
+// Isolated VNext sandbox: ECS combat plus experimental, attention-driven production.
 class VNextScene extends Phaser.Scene {
     constructor() { super({ key: 'VNextScene' }); }
 
@@ -24,6 +24,7 @@ class VNextScene extends Phaser.Scene {
         ];
         [['reactor', 6], ['extractor', 7], ['factory', 11], ['laboratory', 18]]
             .forEach(([type, index]) => OverseerVNextPreview.placeBuilding(this.model, type, index));
+        OverseerVNextEconomy.initialize(this.model);
         this.applyAttention();
         this.resetBattle();
         this.buildUi();
@@ -88,8 +89,12 @@ class VNextScene extends Phaser.Scene {
         this.drawPalette();
         this.drawBoard();
         this.drawBattlePanel();
+        this.resourceLabels = {};
+        this.compactResources = null;
         if (rightW) this.drawRightPanel();
+        else this.compactResources = this.text(m + 13, mainBottom - 95, '', 11, '#62e7e1');
         this.drawFooter();
+        this.updateResourceHud();
         this.paintBoard();
         this.paintBattle();
     }
@@ -127,7 +132,11 @@ class VNextScene extends Phaser.Scene {
             const x = l.m + 12, y = l.mainTop + 76 + 75 * i;
             const cw = l.leftW - 24;
             this.text(x + 53, y + 19, type.label, 12);
-            this.text(x + 53, y + 38, 'APERÇU', 10, '#7393a8');
+            const captions = {
+                reactor: '+2 ÉNERGIE / 2 S', extractor: '+2 MATIÈRE / 2 S',
+                factory: '2 E + 2 M → 1 C / 3 S', laboratory: 'PAS ENCORE SIMULÉ'
+            };
+            this.text(x + 53, y + 38, captions[type.id], 10, '#7393a8');
             const hit = this.keep(this.add.zone(x + cw / 2, y + 32, cw, 65).setInteractive({ useHandCursor: true }));
             hit.setData('palette', type.id);
             hit.on('pointerdown', () => {
@@ -140,8 +149,8 @@ class VNextScene extends Phaser.Scene {
         });
         this.paletteGraphics = g;
         this.refreshPaletteSelection();
-        this.note = this.text(l.m + 13, l.mainBottom - 75, 'Économie : non branchée', 11, '#a5b8c6');
-        this.text(l.m + 13, l.mainBottom - 53, 'Aucun coût de construction', 10, '#7292a6');
+        this.note = this.text(l.m + 13, l.mainBottom - 75, 'Économie ECS : test actif', 11, '#a5b8c6');
+        this.text(l.m + 13, l.mainBottom - 53, 'Coûts de pose non définis', 10, '#7292a6');
     }
 
     refreshPaletteSelection() {
@@ -176,7 +185,9 @@ class VNextScene extends Phaser.Scene {
             hit.on('pointerover', () => {
                 const building = OverseerVNextPreview.buildingAt(this.model, index);
                 const name = building ? this.types.find(t => t.id === this.world.get(building, 'Building').type)?.label : null;
-                this.boardHint.setText(name ? `${name} · ${this.world.get(this.model.tiles[index], 'Watched').active ? 'ACTIF' : 'INACTIF'}` : 'Emplacement libre');
+                const active = this.world.get(this.model.tiles[index], 'Watched').active;
+                const production = building ? this.world.get(building, 'Production') : null;
+                this.boardHint.setText(name ? `${name} · ${active ? (production?.blocked ? 'EN ATTENTE DE RESSOURCES' : 'ACTIF') : 'INACTIF'}` : 'Emplacement libre');
             });
             hit.on('pointerout', () => this.updateBoardHint());
         }
@@ -270,6 +281,14 @@ class VNextScene extends Phaser.Scene {
                 g.lineStyle(1, 0x67e5e7, 0.7).strokeCircle(p.x, p.y, cell * 0.36);
             }
             this.drawGlyph(g, type, p.x, p.y, active ? style.color : 0x5b7687, cell * 0.18);
+            const progress = this.world.get(id, 'Production');
+            if (active && progress) {
+                // Small progress indicator, driven by ECS state, not a Phaser timer.
+                const px = p.x - cell * 0.25, py = p.y + cell * 0.36, pw = cell * 0.5;
+                g.fillStyle(0x294354, 0.8).fillRect(px, py, pw, 3);
+                g.fillStyle(progress.blocked ? 0xff6674 : 0x62e7e1, 0.95)
+                    .fillRect(px, py, pw * Math.min(1, progress.elapsedMs / progress.cooldownMs), 3);
+            }
             if (id === this.movingId) g.lineStyle(2, 0xffffff, 0.9).strokeCircle(p.x, p.y, cell * 0.4);
         });
     }
@@ -350,14 +369,33 @@ class VNextScene extends Phaser.Scene {
     drawRightPanel() {
         const l = this.layout, x = l.rightX + 15;
         this.text(x, l.mainTop + 18, 'RESSOURCES', 15);
-        ['Énergie', 'Matière', 'Refroidissement', 'Composants', 'Données'].forEach((name, i) => {
+        this.resourceLabels = {};
+        const resourceRows = [
+            ['energy', 'Énergie'], ['matter', 'Matière'],
+            [null, 'Refroidissement'], ['components', 'Composants'], [null, 'Données']
+        ];
+        resourceRows.forEach(([id, name], i) => {
             this.text(x, l.mainTop + 63 + i * 39, name, 12, '#a8c2d1');
-            this.text(x + l.rightW - 48, l.mainTop + 63 + i * 39, '—', 12, '#58798e');
+            const value = this.text(x + l.rightW - 55, l.mainTop + 63 + i * 39,
+                id ? '0' : '—', 12, id ? '#62e7e1' : '#58798e');
+            if (id) this.resourceLabels[id] = value;
         });
+        this.updateResourceHud();
         const y = l.mainTop + 292;
         this.text(x, y, 'PROTOCOLES', 15);
         this.text(x, y + 37, 'À définir avec l’économie', 11, '#7d9bb1');
         this.text(x, y + 59, 'Aucun sort simulé ici', 11, '#7d9bb1');
+    }
+
+    updateResourceHud() {
+        if (!this.model || !this.world.hasComponent(this.model.game, 'Resources')) return;
+        const balance = this.world.get(this.model.game, 'Resources');
+        for (const [id, label] of Object.entries(this.resourceLabels || {})) {
+            label.setText(String(balance[id]));
+        }
+        if (this.compactResources) {
+            this.compactResources.setText(`E ${balance.energy}   M ${balance.matter}   C ${balance.components}`);
+        }
     }
 
     drawFooter() {
@@ -371,7 +409,7 @@ class VNextScene extends Phaser.Scene {
             const px = x1 + (x2 - x1) * i / 7;
             g.fillStyle(0x45677f, 1).fillCircle(px, y + 18, 3);
         }
-        this.text(l.m + 15, y + 36, 'Escarmouche ECS · pas de vagues ni de production VNext', 11, '#829fb1');
+        this.text(l.m + 15, y + 36, 'Économie ECS expérimentale · pas encore de vagues VNext', 11, '#829fb1');
         const replay = this.text(l.w - 203, y + 36, '↻ REJOUER LE COMBAT', 12, '#6de8e8');
         replay.setPadding(5).setInteractive({ useHandCursor: true });
         replay.on('pointerdown', () => this.resetBattle());
@@ -446,6 +484,9 @@ class VNextScene extends Phaser.Scene {
     update(time, delta) {
         if (!this.model || this.speed === 0 || !this.battleUnits) return;
         const dt = Math.min(delta, 60) * this.speed;
+        OverseerVNextEconomy.step(this.model, dt);
+        this.updateResourceHud();
+        this.paintBoard();
         const players = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'player' && this.world.get(id, 'Health').hp > 0);
         const enemies = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'enemy' && this.world.get(id, 'Health').hp > 0);
         for (const id of [...players, ...enemies]) {

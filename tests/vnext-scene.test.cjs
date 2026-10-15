@@ -7,6 +7,7 @@ const path = require('node:path');
 const { World } = require('../src/core/World.js');
 const preview = require('../src/core/VNextPreview.js');
 const combat = require('../src/core/CombatSystem.js');
+const economy = require('../src/core/VNextEconomy.js');
 const ROOT = path.resolve(__dirname, '..');
 const visionSource = fs.readFileSync(path.join(ROOT, 'src/scene/entities/Vision.js'), 'utf8');
 const sceneSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextScene.js'), 'utf8');
@@ -60,7 +61,7 @@ class FakeScene {
 const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
 const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
-    OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview, Vision
+    OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview, OverseerVNextEconomy: economy, Vision
 });
 
 test('scene creates, resizes, places and simulates against existing ECS', () => {
@@ -104,4 +105,26 @@ test('observed empty tiles use a large bright marker and fine ring', () => {
     assert.ok(callsAt(8, 'strokeCircle').some(c => c.r >= 10));
     assert.ok(callsAt(0, 'fillCircle').some(c => c.r < 3));
     assert.equal(callsAt(0, 'strokeCircle').length, 0);
+});
+
+test('VNext economy runs with scaled ECS ticks, pauses, and updates resource HUD', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const balance = scene.world.get(scene.model.game, 'Resources');
+    assert.deepEqual(balance, { energy: 0, matter: 0, components: 0 });
+    assert.equal(scene.resourceLabels.energy.value, '0');
+    for (let i = 0; i < 100; i++) scene.update(0, 60);
+    assert.ok(balance.components > 0, 'Factory should process watched producer outputs');
+    assert.equal(scene.resourceLabels.components.value, String(balance.components));
+    const amount = { ...balance };
+    const production = preview.buildingAt(scene.model, 6);
+    const previousProgress = scene.world.get(production, 'Production').elapsedMs;
+    scene.selectSpeed(0);
+    for (let i = 0; i < 10; i++) scene.update(0, 60);
+    assert.deepEqual(balance, amount);
+    assert.equal(scene.world.get(production, 'Production').elapsedMs, previousProgress);
+    scene.selectSpeed(3);
+    for (let i = 0; i < 20; i++) scene.update(0, 60);
+    assert.ok(balance.energy + balance.matter + balance.components >= 0);
+    assert.equal(scene.resourceLabels.energy.value, String(balance.energy));
 });
