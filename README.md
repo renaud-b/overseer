@@ -10,19 +10,19 @@ Le jeu fonctionne **sans Utopixia**. Phaser et le serveur statique sont install�
 
 Prérequis : Node.js **22+** et npm.
 
-\`\`\`bash
+```bash
 npm install
 npm test
 npm start
-\`\`\`
+```
 
 Ouvrir **http://localhost:8097**.
 
 Alternative Docker :
 
-\`\`\`bash
+```bash
 docker compose up --build
-\`\`\`
+```
 
 Pour tester une PR empilée, se placer sur **sa branche**, qui comprend les changements des PR précédentes. Vérifier l'état réel des PR avant de modifier ou merger.
 
@@ -38,15 +38,15 @@ Le jeu comprend également un système de talents et une progression entre les p
 
 ## Architecture du prototype
 
-- \`index.html\`, \`src/main.js\` : chargement et démarrage Phaser.
-- \`src/scene/GameScene.js\` : orchestration du jeu existant.
-- \`src/core/World.js\` : registre ECS de données, entités, composants et hiérarchie.
-- \`src/core/CombatSystem.js\` : première tranche de simulation de combat indépendante de Phaser.
-- \`src/scene/entities/\` : éléments de gameplay et adaptateurs graphiques, encore partiellement historiques.
-- \`src/scene/managers/\` : construction, ressources, talents, sorts, vagues et HUD.
-- \`assets/game_stats.json\` : **configuration utilisée actuellement**, héritée de l'ancien contrat ; elle décrit huit ressources et 23 types de bâtiments, **pas** les cinq ressources proposées pour la refonte.
-- \`assets/game_texts_*.json\` : textes localisés.
-- \`tests/\` : tests Node exécutés par \`npm test\`.
+- `index.html`, `src/main.js` : chargement et démarrage Phaser.
+- `src/scene/GameScene.js` : orchestration du jeu existant.
+- `src/core/World.js` : registre ECS de données, entités, composants et hiérarchie.
+- `src/core/CombatSystem.js` : première tranche de simulation de combat indépendante de Phaser.
+- `src/scene/entities/` : éléments de gameplay et adaptateurs graphiques, encore partiellement historiques.
+- `src/scene/managers/` : construction, ressources, talents, sorts, vagues et HUD.
+- `assets/game_stats.json` : **configuration utilisée actuellement**, héritée de l'ancien contrat ; elle décrit huit ressources et 23 types de bâtiments, **pas** les cinq ressources proposées pour la refonte.
+- `assets/game_texts_*.json` : textes localisés.
+- `tests/` : tests Node exécutés par `npm test`.
 
 **Principe architectural :** l'état du monde et les règles doivent progressivement devenir indépendants du rendu ; Phaser reflète la simulation et collecte les actions du joueur. Les chemins historiques sont migrés par petites tranches testées, sans interrompre la jouabilité.
 

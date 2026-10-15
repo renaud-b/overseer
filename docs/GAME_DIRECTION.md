@@ -9,7 +9,7 @@ Une IA défend son installation sur une planète hostile. Le joueur ne contrôle
 
 **Arbitrage principal :** où consacrer les cycles d'attention maintenant pour survivre à la prochaine vague ?
 
-\`\`\`text
+```text
 Attention du joueur
     ↓
 Bâtiments activés (parmi 25 emplacements)
@@ -19,7 +19,7 @@ Ressources / fabrication / protocoles
 Défense autonome de la base
     ↓
 Vagues, récompenses, décisions de progression
-\`\`\`
+```
 
 Les cases non construites doivent rester repérables pour le placement même si aucune bordure décorative n'entoure la grille.
 
@@ -34,11 +34,11 @@ Fond sombre uni, peu de panneaux, typographie claire, composants fonctionnels, c
 - **Unités alliées** = formes synthétiques claires ; **ennemis** = silhouettes distinctes, éventuellement plus organiques. Les tirs et dégâts doivent rester lisibles sans pollution visuelle.
 - L'objectif est une **grammaire graphique reproductible** : ajouter un bâtiment courant sans commander une nouvelle illustration.
 
-Palette indicative, non figée : fond \`#08121C\`, texte \`#DFEAF0\`, activité \`#62E7E1\`, danger \`#FF6674\`, ressource industrielle \`#F5B94F\`, données \`#AA8CF6\`.
+Palette indicative, non figée : fond `#08121C`, texte `#DFEAF0`, activité `#62E7E1`, danger `#FF6674`, ressource industrielle `#F5B94F`, données `#AA8CF6`.
 
 ## Disposition de l'interface
 
-\`\`\`text
+```text
 ┌────────┬─────────────────────┬──────────────────────┬─────────┐
 │ CARDS  │ BASE 5×5            │ CHAMP DE BATAILLE    │ RESS.   │
 │        │ symboles/connexions │ unités / ennemis     │ SORTS   │
@@ -46,7 +46,7 @@ Palette indicative, non figée : fond \`#08121C\`, texte \`#DFEAF0\`, activité 
 └────────┴─────────────────────┴──────────────────────┴─────────┘
 │                        VAGUES / TIMELINE                       │
 └────────────────────────────────────────────────────────────────┘
-\`\`\`
+```
 
 La barre supérieure, si nécessaire, ne contient que le strict minimum (vie de la base, vitesse, vision). Le champ de bataille ne doit pas disparaître derrière des panneaux HUD. Test visuel aux résolutions courantes, dont 1366 × 768. Cette esquisse est une **intention**, pas un layout pixel-perfect ; l'adaptation sur petits écrans reste à définir.
 
@@ -60,7 +60,7 @@ La barre supérieure, si nécessaire, ne contient que le strict minimum (vie de 
 | **Composants** | Fabrique | Transformer matière et énergie en intrants pour bâtiments et unités |
 | **Données** | Laboratoire | Générer des sorts et des protocoles temporaires affectant la base |
 
-Ces ressources remplaceraient les huit ressources **actuellement dans \`assets/game_stats.json\`**. Elles sont **une proposition de remplacement**, pas un renommage mécanique. La chaîne matière → composants doit apporter des décisions utiles ; sinon réexaminer sa raison d'être.
+Ces ressources remplaceraient les huit ressources **actuellement dans `assets/game_stats.json`**. Elles sont **une proposition de remplacement**, pas un renommage mécanique. La chaîne matière → composants doit apporter des décisions utiles ; sinon réexaminer sa raison d'être.
 
 ### Refroidissement : intention, pas protocole fixé
 
@@ -83,7 +83,7 @@ La troisième option a été proposée, **mais n'est pas encore une décision**.
 
 ## Périmètre du premier prototype de refonte
 
-1. **Conserver le prototype actuel jouable** et les tests existants, sans changer \`main\` par surprise.
+1. **Conserver le prototype actuel jouable** et les tests existants, sans changer `main` par surprise.
 2. Dessiner une tranche de la **DA** sur une grille logique 5 × 5 : nœuds, liens de vision, activité, un champ de bataille visuellement distinct. Pas besoin de redessiner tous les bâtiments.
 3. Valider la lisibilité et le drag-and-drop avec des utilisateurs réels, notamment aux vitesses accélérées.
 4. Définir séparément un **petit circuit économique** (réacteur, extracteur, fabrique et leur débouché) avant d'introduire tous les nouveaux types de bâtiments et les coûts.
@@ -95,7 +95,7 @@ La troisième option a été proposée, **mais n'est pas encore une décision**.
 
 L'idée d'une « V2 » est légitime, mais un big-bang rendrait les régressions difficiles à identifier. Comparer avant décision :
 - **Migrations verticales** sur le dépôt existant : une mécanique à la fois, gameplay immédiatement comparé.
-- **Tranche VNext isolée** réutilisant \`World\`, les tests et Phaser : nouvelle surface visuelle + boucle énergie/matière/unités, puis remplacement progressif.
+- **Tranche VNext isolée** réutilisant `World`, les tests et Phaser : nouvelle surface visuelle + boucle énergie/matière/unités, puis remplacement progressif.
 
 Critère de réussite : une partie courte jouable où le joueur comprend l'activation par la vision, gère une petite chaîne de production et résiste à une vague, avec des tests indépendants du rendu pour les règles et un smoke test navigateur.
 
