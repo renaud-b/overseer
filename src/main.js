@@ -6,12 +6,9 @@
         scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
     };
     const savedLang = localStorage.getItem('selectedLanguage');
-    if (savedLang) {
-        window.selectedLanguage = savedLang;
-        config.scene = [VNextScene, MainMenuScene, GameScene, OptionsScene, TalentScene];
-    } else {
-        config.scene = [VNextScene, HomeScene, OptionsScene, MainMenuScene, GameScene, TalentScene];
-    }
+    if (savedLang) window.selectedLanguage = savedLang;
+    // Keep historical scenes available without making them the entry point.
+    config.scene = [MainMenuScene, VNextScene, GameScene, OptionsScene, TalentScene, LegacyMainMenuScene, HomeScene];
     const savedLayout = localStorage.getItem('keyboardLayout');
     if (savedLayout) {
         window.keyboardLayout = savedLayout;
