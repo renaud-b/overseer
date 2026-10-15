@@ -311,9 +311,9 @@ class VNextScene extends Phaser.Scene {
             }
         };
         const inputs = Object.entries(recipe.consumes);
-        drawItems(type === 'barracks' ? 'COÛT PAR UNITÉ' : 'CONSOMME / CYCLE', inputs, y + 99);
-        drawItems(type === 'barracks' ? 'FABRIQUE / UNITÉ' : 'PRODUIT / CYCLE', Object.entries(recipe.produces).filter(([key]) => key !== 'unit_guard'), y + 138);
-        if (type === 'barracks') label(x + 18, y + 162, `SOLDATS ${OverseerVNextEconomy.aliveUnits(this.model, type)}/${OverseerVNextEconomy.unitCapacity(this.model, type)}`, 11, '#62e7e1');
+        drawItems(OverseerVNextEconomy.MILITARY[type] ? 'COÛT PAR UNITÉ' : 'CONSOMME / CYCLE', inputs, y + 99);
+        drawItems(OverseerVNextEconomy.MILITARY[type] ? 'FABRIQUE / UNITÉ' : 'PRODUIT / CYCLE', Object.entries(recipe.produces).filter(([key]) => !key.startsWith('unit_')), y + 138);
+        if (OverseerVNextEconomy.MILITARY[type]) label(x + 18, y + 162, `UNITÉS ${OverseerVNextEconomy.aliveUnits(this.model, type)}/${OverseerVNextEconomy.unitCapacity(this.model, type)}`, 11, '#62e7e1');
         else label(x + width - 78, y + 168, `${recipe.cycleMs / 1000}s/cycle`, 9, '#819eaf');
     }
 
@@ -793,9 +793,9 @@ class VNextScene extends Phaser.Scene {
         this.world.set(id, 'Faction', { side: 'player' });
         this.world.set(id, 'Movement', { speed: config.speed });
         this.world.set(id, 'Combat', {
-            damage: config.attack_damage, range: config.attack_range,
+            damage: config.attack_damage, range: type === 'unit_dronoid' ? 65 : config.attack_range,
             attackType: config.attack_type, cooldownMs: config.attack_speed * 1000,
-            elapsedMs: 0, detectionRadius: 400, behavior: config.behavior || null
+            elapsedMs: 0, detectionRadius: 400, behavior: type === 'unit_dronoid' ? 'healer' : config.behavior || null
         });
         this.world.set(id, 'PreviewUnit', { type });
         this.battleUnits.push(id);
@@ -857,7 +857,8 @@ class VNextScene extends Phaser.Scene {
             const events = OverseerCombat.stepUnit(this.world, id, dt, {
                 opponents: side === 'player' ? enemies : players,
                 base: side === 'enemy' && this.baseHp > 0 ? { x: 65, y: 300 } : null,
-                patrol: side === 'player' ? { x: 280, y: 300 } : null
+                patrol: side === 'player' ? { x: 280, y: 300 } : null,
+                allies: side === 'player' ? players : []
             });
             events.forEach(e => { if (e.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - e.damage); });
         }

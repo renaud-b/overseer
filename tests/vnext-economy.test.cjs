@@ -143,3 +143,25 @@ test('each barracks raises living guard cap by three, without spending resources
     assert.equal(economy.aliveUnits(model, 'barracks'), 2);
     assert.equal(economy.step(model, 60).length, 1);
 });
+
+test('all specialized producers spend their provisional costs and honor independent caps', () => {
+    const models = [
+        ['ballistics','unit_sniper',35,20],
+        ['armor_forge','unit_mecha',60,35],
+        ['medical_center','unit_dronoid',40,25]
+    ];
+    for (const [type, unit, components, energy] of models) {
+        const model = preview.createModel(World);
+        preview.placeBuilding(model, type, 6);
+        economy.initialize(model);
+        preview.setObserved(model,[6]);
+        const resources=model.world.get(model.game,'Resources');
+        resources.components=components; resources.energy=energy;
+        const events=economy.step(model,60);
+        assert.equal(events.length,1);
+        assert.equal(events[0].unitType,unit);
+        assert.equal(resources.components,0);
+        assert.equal(resources.energy,0);
+        assert.equal(economy.unitCapacity(model,type),3);
+    }
+});
