@@ -199,6 +199,7 @@ class GameScene extends Phaser.Scene {
         this.setupDragDrop();
 
         this.talentManager.applyAll(); // applique tous les effets globaux
+        this.hud.updateVisionUpgradeButton();
         this.cameras.main.setBackgroundColor('#141e28'); // ou une autre couleur hexadécimale
 
 

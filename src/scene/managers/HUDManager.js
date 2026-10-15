@@ -7,6 +7,7 @@ class HUDManager {
         this.createInfoPanel();
         const lastPosition = this.createTimeControlButtons();
         this.createWaveCounter(lastPosition);
+        this.createVisionUpgradeButton();
         this.updateHUD(resources, units, {});
     }
     showStatsOverlay() {
@@ -220,6 +221,7 @@ class HUDManager {
         );
 
         // Do not recreate sprites on every resource/HUD update.
+        this.updateVisionUpgradeButton();
     }
     createInfoPanel() {
         this.infoPanel = this.scene.add
@@ -307,6 +309,76 @@ class HUDManager {
         if (!this.waveText) return;
         this.waveText.setText(this.scene.translate("wave_counter", { wave: waveNumber }));
         this.scene.children.bringToTop(this.waveText);
+    }
+
+    createVisionUpgradeButton() {
+        // The HUD is initialized before Vision; the first refresh happens after
+        // the game has created Vision and applied any starting talents.
+        const x = 260;
+        const y = 56;
+        this.visionUpgradeButton = this.scene.add
+            .rectangle(x, y, 180, 46, 0x263b48)
+            .setStrokeStyle(1, 0x577c91)
+            .setInteractive()
+            .setDepth(101);
+        this.visionUpgradeLabel = this.scene.add
+            .text(x, y - 11, this.scene.translate('upgrade_vision'), {
+                fontFamily: 'monospace', fontSize: '15px', color: '#84f7ff'
+            })
+            .setOrigin(0.5)
+            .setDepth(102);
+        this.visionUpgradeCost = this.scene.add
+            .text(x, y + 12, '', {
+                fontFamily: 'monospace', fontSize: '12px', color: '#c8d9e2'
+            })
+            .setOrigin(0.5)
+            .setDepth(102);
+
+        this.visionUpgradeButton.on('pointerdown', () => {
+            this.scene.vision?.tryUpgradeVision();
+        });
+        this.visionUpgradeButton.on('pointerover', () => {
+            const vision = this.scene.vision;
+            if (!vision) return;
+            const maxLevel = vision.levelPatterns.length - 1;
+            const description = [
+                this.scene.translate('current_level_text', { level: vision.level + 1 }),
+                vision.level >= maxLevel
+                    ? this.scene.translate('vision_max')
+                    : this.scene.translate('upgrade_cost_text', {
+                        cost: vision.getUpgradeCost(vision.level)
+                    })
+            ].join('\n');
+            this.showInfoPanel(
+                this.scene.translate('upgrade_vision_title'),
+                description,
+                this.visionUpgradeButton.x - 80,
+                this.visionUpgradeButton.y + 60
+            );
+        });
+        this.visionUpgradeButton.on('pointerout', () => this.hideInfoPanel());
+        this.updateVisionUpgradeButton();
+    }
+
+    updateVisionUpgradeButton() {
+        const vision = this.scene.vision;
+        if (!vision || !this.visionUpgradeButton) return;
+
+        const maxLevel = vision.levelPatterns.length - 1;
+        const maxed = vision.level >= maxLevel;
+        const cost = maxed ? 0 : vision.getUpgradeCost(vision.level);
+        const affordable = !maxed && (this.scene.resources.compute_units || 0) >= cost;
+
+        this.visionUpgradeCost.setText(
+            maxed
+                ? this.scene.translate('vision_max')
+                : `${cost} CU · ${vision.level + 1} → ${vision.level + 2}`
+        );
+        this.visionUpgradeButton
+            .setFillStyle(affordable ? 0x155765 : 0x26313a)
+            .setStrokeStyle(1, affordable ? 0x84f7ff : 0x577c91);
+        this.visionUpgradeLabel.setColor(affordable ? '#84f7ff' : '#a0afb8');
+        this.visionUpgradeCost.setColor(affordable ? '#ffffff' : '#a0afb8');
     }
 
     createTimeControlButtons() {
