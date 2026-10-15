@@ -71,7 +71,7 @@ class VNextScene extends Phaser.Scene {
     buildUi() {
         if (!this.model) return;
         if (this.dragGhost) { this.dragGhost.destroy(); this.dragGhost = null; }
-        this.tooltipObjects = [];
+        this.hideBuildingTooltip();
         this.ui.forEach(object => object.destroy());
         this.ui = [];
         const w = this.scale.width, h = this.scale.height;
@@ -261,17 +261,17 @@ class VNextScene extends Phaser.Scene {
         const recipe = OverseerVNextEconomy.PROTOTYPE_RECIPES[type];
         const { x: gx, y: gy, cell } = this.gridLayout;
         const cx = gx + (index % 5 + 0.5) * cell;
-        const cy = gy + (Math.floor(index / 5 + 0.5)) * cell;
-        const width = 266, height = 172, pad = 13;
+        const cy = gy + (Math.floor(index / 5) + 0.5) * cell;
+        const width = 266, height = 185, pad = 13;
         const x = Math.max(8, Math.min(this.scale.width - width - 8, cx + cell * 0.48));
         const y = Math.max(72, Math.min(this.scale.height - height - 8, cy - height / 2));
-        const keepTip = object => { this.tooltipObjects.push(object); this.keep(object); return object; };
+        const keepTip = object => { this.tooltipObjects.push(object); return object; };
         const g = keepTip(this.add.graphics().setDepth(210));
         g.fillStyle(0x0b1d2b, 0.98).fillRoundedRect(x, y, width, height, 6);
         g.lineStyle(1, info.color, 0.7).strokeRoundedRect(x, y, width, height, 6);
         this.drawGlyph(g, type, x + 22, y + 23, info.color, 11);
         const label = (tx, ty, content, size = 11, color = '#c7dce6') =>
-            keepTip(this.text(tx, ty, content, size, color).setDepth(211));
+            keepTip(this.add.text(tx, ty, content, { fontFamily: 'monospace', fontSize: `${size}px`, color }).setDepth(211));
         label(x + 41, y + 14, info.label, 15, '#e3f0f5');
         const descriptions = {
             reactor: 'Génère l’énergie des machines.',
@@ -297,9 +297,9 @@ class VNextScene extends Phaser.Scene {
             }
         };
         const inputs = Object.entries(recipe.consumes);
-        drawItems('CONSOMME / CYCLE', inputs.length ? inputs : [], y + 99);
-        drawItems('PRODUIT / CYCLE', Object.entries(recipe.produces), y + 133);
-        label(x + width - 69, y + 151, `${recipe.cycleMs / 1000}s/cycle`, 9, '#819eaf');
+        drawItems('CONSOMME / CYCLE', inputs, y + 99);
+        drawItems('PRODUIT / CYCLE', Object.entries(recipe.produces), y + 138);
+        label(x + width - 78, y + 168, `${recipe.cycleMs / 1000}s/cycle`, 9, '#819eaf');
     }
 
     drawGlyph(g, type, x, y, color, r) {

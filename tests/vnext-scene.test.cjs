@@ -200,3 +200,39 @@ test('factory displays negative input deltas and waiting status without inventin
     assert.equal(scene.resourceStatusLabels.components.value, 'EN ATTENTE');
     assert.equal(scene.resourceStatusLabels.components.color, '#ff9e8c');
 });
+
+test('grid hover tooltip shows recipe inputs and outputs, not invented construction costs', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.showBuildingTooltip(11); // Factory
+    assert.equal(scene.hoveredTile, 11);
+    const labels = scene.tooltipObjects.filter(o => typeof o.value === 'string').map(o => o.value);
+    assert.ok(labels.includes('Fabrique'));
+    assert.ok(labels.includes('CONSTRUCTION : COÛT À DÉFINIR'));
+    assert.ok(labels.includes('CONSOMME / CYCLE'));
+    assert.ok(labels.includes('PRODUIT / CYCLE'));
+    assert.ok(labels.includes('2'));
+    assert.ok(labels.includes('1'));
+    assert.ok(labels.includes('3s/cycle'));
+    const graphics = scene.tooltipObjects[0];
+    assert.ok(graphics, 'tooltip draws its own geometric resource icons');
+    const previous = [...scene.tooltipObjects];
+    scene.showBuildingTooltip(18); // Laboratory: no invented production
+    assert.ok(previous.every(o => o.destroyed), 'previous tooltip is destroyed on hover change');
+    assert.ok(scene.tooltipObjects.some(o => o.value === 'PRODUCTION NON SIMULÉE'));
+    scene.hideBuildingTooltip();
+    assert.equal(scene.tooltipObjects.length, 0);
+    scene.showBuildingTooltip(24);
+    assert.equal(scene.tooltipObjects.length, 0, 'empty cells have no card');
+});
+
+test('tooltip survives layout rebuild without stale display elements', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.showBuildingTooltip(6);
+    const old = [...scene.tooltipObjects];
+    scene.scale.width = 800;
+    scene.buildUi();
+    assert.ok(old.every(o => o.destroyed));
+    assert.equal(scene.tooltipObjects.length, 0);
+});
