@@ -706,6 +706,13 @@ class VNextScene extends Phaser.Scene {
             const zone = this.keep(this.add.zone(cx + cardW / 2, cy + 54, cardW, 108)
                 .setInteractive({useHandCursor:true}).setDepth(302));
             zone.setData('reward', type);
+            zone.on('pointerover', () => {
+                this.showCardTooltip(type, cx + cardW / 2, cy - 205);
+                // Reward selection overlay is above the game HUD (depth 300).
+                // Reuse the same building popup, but draw it over the overlay.
+                this.tooltipObjects.forEach(object => object.setDepth(310));
+            });
+            zone.on('pointerout', () => this.hideBuildingTooltip());
             zone.on('pointerdown', () => this.chooseReward(type));
         });
     }

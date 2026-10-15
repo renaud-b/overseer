@@ -409,3 +409,25 @@ test('two cleared overlapping waves queue rewards without duplication', () => {
     scene.chooseReward(scene.activeReward.options[0]);
     assert.equal(scene.activeReward, null);
 });
+
+test('reward cards show and clean up existing building detail popup above overlay', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.activeReward = { number: 1, options: ['reactor', 'factory', 'barracks'] };
+    scene.buildUi();
+    const card = scene.ui.find(o => o.getData?.('reward') === 'barracks');
+    assert.ok(card);
+    card.handlers.pointerover();
+    const labels = scene.tooltipObjects.filter(o => typeof o.value === 'string').map(o => o.value);
+    assert.ok(labels.includes('Caserne'));
+    assert.ok(labels.includes('COÛT PAR UNITÉ'));
+    assert.ok(labels.includes('50'));
+    assert.ok(labels.includes('30'));
+    const objects = [...scene.tooltipObjects];
+    card.handlers.pointerout();
+    assert.equal(scene.tooltipObjects.length, 0);
+    assert.ok(objects.every(o => o.destroyed));
+    card.handlers.pointerover();
+    scene.chooseReward('barracks');
+    assert.equal(scene.tooltipObjects.length, 0);
+});
