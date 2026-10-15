@@ -10,6 +10,7 @@ const catalog = require('../src/core/VNextBuildings.js');
 const cards = require('../src/core/VNextCards.js');
 const combat = require('../src/core/CombatSystem.js');
 const economy = require('../src/core/VNextEconomy.js');
+const waves = require('../src/core/VNextWaves.js');
 const ROOT = path.resolve(__dirname, '..');
 const visionSource = fs.readFileSync(path.join(ROOT, 'src/scene/entities/Vision.js'), 'utf8');
 const sceneSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextScene.js'), 'utf8');
@@ -66,7 +67,7 @@ class FakeScene {
 const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
 const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
-    OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview, OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards, Vision
+    OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview, OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards, OverseerVNextWaves: waves, Vision
 });
 
 test('scene begins with exactly four unspent cards and empty base', () => {
@@ -293,4 +294,25 @@ test('right panel reserves only a narrow resource strip for battle', () => {
     scene.buildUi();
     assert.ok(scene.layout.battleW > previous);
     assert.equal(scene.layout.rightW, 112);
+});
+
+test('wave timeline exposes stable composition details on marker hover', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const zones = scene.ui.filter(o => Number.isInteger(o.getData?.('wave')));
+    assert.equal(zones.length, 8);
+    const index = 3, marker = zones[index];
+    marker.handlers.pointerover();
+    const labels = scene.waveTooltipObjects.filter(o => typeof o.value === 'string').map(o => o.value);
+    assert.ok(labels.includes('VAGUE 4'));
+    assert.ok(labels.some(s => s.includes('Ennemi de base')));
+    assert.ok(labels.some(s => s.includes(String(scene.previewWaves[index].enemies[0].count))));
+    const old = [...scene.waveTooltipObjects];
+    marker.handlers.pointerout();
+    assert.ok(old.every(o => o.destroyed));
+    assert.equal(scene.waveTooltipObjects.length, 0);
+    scene.showWaveTooltip(2, 400, 800);
+    scene.scale.width = 800;
+    scene.buildUi();
+    assert.equal(scene.waveTooltipObjects.length, 0);
 });

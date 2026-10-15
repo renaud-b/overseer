@@ -29,6 +29,8 @@ class VNextScene extends Phaser.Scene {
         this.lastResourceChanges = {}; // Transient HUD feedback, not economy state.
         this.hoveredTile = null;
         this.tooltipObjects = [];
+        this.waveTooltipObjects = [];
+        this.previewWaves = OverseerVNextWaves.preview();
 
         OverseerVNextCards.initialize(this.model);
         OverseerVNextEconomy.initialize(this.model);
@@ -67,6 +69,7 @@ class VNextScene extends Phaser.Scene {
         if (this.dragGhost) { this.dragGhost.destroy(); this.dragGhost = null; }
         this.hideBuildingTooltip();
         this.hideResourceTooltip();
+        this.hideWaveTooltip();
         this.ui.forEach(object => object.destroy());
         this.ui = [];
         const w = this.scale.width, h = this.scale.height;
@@ -568,6 +571,32 @@ class VNextScene extends Phaser.Scene {
         }
     }
 
+    hideWaveTooltip() {
+        for (const object of this.waveTooltipObjects || []) object.destroy();
+        this.waveTooltipObjects = [];
+    }
+
+    showWaveTooltip(index, x, y) {
+        this.hideWaveTooltip();
+        const wave = this.previewWaves[index];
+        if (!wave) return;
+        const width = 214, height = 105;
+        const tx = Math.max(8, Math.min(this.scale.width - width - 8, x - width / 2));
+        const ty = Math.max(72, y - height - 15);
+        const g = this.add.graphics().setDepth(230);
+        g.fillStyle(0x0b1d2b, 0.98).fillRoundedRect(tx, ty, width, height, 6);
+        g.lineStyle(1, 0xff6674, 0.7).strokeRoundedRect(tx, ty, width, height, 6);
+        g.lineStyle(2, 0xff6674).strokeCircle(tx + 23, ty + 57, 8);
+        this.waveTooltipObjects.push(g);
+        const text = (dx, dy, str, size = 12, color = '#dfeaf0') =>
+            this.waveTooltipObjects.push(this.add.text(tx + dx, ty + dy, str, {
+                fontFamily: 'monospace', fontSize: `${size}px`, color
+            }).setDepth(231));
+        text(13, 12, `VAGUE ${wave.number}`, 15);
+        text(42, 49, `×${wave.enemies[0].count} · Ennemi de base`, 11, '#e9b6bf');
+        text(13, 80, 'Composition prévisionnelle', 10, '#819eaf');
+    }
+
     drawFooter() {
         const l = this.layout;
         const y = l.h - 102;
@@ -575,11 +604,15 @@ class VNextScene extends Phaser.Scene {
         const g = this.keep(this.add.graphics());
         const x1 = l.m + 230, x2 = l.w - 290;
         g.lineStyle(1, 0x29495b, 0.8).lineBetween(x1, y + 18, x2, y + 18);
-        for (let i = 0; i < 8; i++) {
-            const px = x1 + (x2 - x1) * i / 7;
-            g.fillStyle(0x45677f, 1).fillCircle(px, y + 18, 3);
-        }
-        this.text(l.m + 15, y + 36, 'Économie ECS expérimentale · pas encore de vagues VNext', 11, '#829fb1');
+        this.previewWaves.forEach((wave, i) => {
+            const px = x1 + (x2 - x1) * i / (this.previewWaves.length - 1);
+            g.fillStyle(0x45677f, 1).fillCircle(px, y + 18, 4);
+            const zone = this.keep(this.add.zone(px, y + 18, 25, 35).setInteractive({ useHandCursor: true }));
+            zone.setData('wave', i);
+            zone.on('pointerover', () => this.showWaveTooltip(i, px, y + 18));
+            zone.on('pointerout', () => this.hideWaveTooltip());
+        });
+        this.text(l.m + 15, y + 36, 'Prévisualisation uniquement · vagues non déclenchées', 11, '#829fb1');
         const replay = this.text(l.w - 203, y + 36, '↻ REJOUER LE COMBAT', 12, '#6de8e8');
         replay.setPadding(5).setInteractive({ useHandCursor: true });
         replay.on('pointerdown', () => this.resetBattle());
