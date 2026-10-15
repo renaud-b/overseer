@@ -316,3 +316,18 @@ test('wave timeline exposes stable composition details on marker hover', () => {
     scene.buildUi();
     assert.equal(scene.waveTooltipObjects.length, 0);
 });
+
+test('wave timer spawns enemies at simulation interval and pauses', () => {
+ const scene = new VNextScene();
+ scene.create();
+ const before = scene.world.query('Faction').filter(id => scene.world.get(id, 'Faction').side === 'enemy').length;
+ scene.waveClock.elapsedMs = 59940;
+ scene.update(0, 60);
+ assert.equal(scene.waveClock.number, 1);
+ const enemies = scene.world.query('Faction').filter(id => scene.world.get(id, 'Faction').side === 'enemy').length;
+ assert.equal(enemies, before + waves.wave(1).enemies[0].count);
+ scene.selectSpeed(0);
+ scene.update(0, 60);
+ assert.equal(scene.waveClock.number, 1);
+ assert.ok(scene.waveCountdownLabel.value.includes('Vague 2'));
+});

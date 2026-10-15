@@ -30,7 +30,8 @@ class VNextScene extends Phaser.Scene {
         this.hoveredTile = null;
         this.tooltipObjects = [];
         this.waveTooltipObjects = [];
-        this.previewWaves = OverseerVNextWaves.preview();
+        this.waveClock = { number: 0, elapsedMs: 0, seed: 137 };
+        this.previewWaves = OverseerVNextWaves.preview(8, this.waveClock.seed);
 
         OverseerVNextCards.initialize(this.model);
         OverseerVNextEconomy.initialize(this.model);
@@ -597,6 +598,41 @@ class VNextScene extends Phaser.Scene {
         text(13, 80, 'Composition prévisionnelle', 10, '#819eaf');
     }
 
+    updateWaveTimeline() {
+        if (!this.waveCountdownLabel) return;
+        const seconds = Math.ceil((OverseerVNextWaves.INTERVAL_MS - this.waveClock.elapsedMs) / 1000);
+        this.waveCountdownLabel.setText(`Vague ${this.waveClock.number + 1} dans ${seconds}s (temps de jeu)`);
+    }
+
+    spawnEnemyUnit(type, index, count) {
+        const config = this.cache.json.get('vnextLegacyStats').enemies.find(unit => unit.id === type);
+        if (!config) return;
+        const id = this.world.create(this.model.game);
+        // Fan out spawn positions without altering stats or attack behavior.
+        const x = 800 + (index % 3) * 14, y = 100 + ((index * 47) % 400);
+        this.world.set(id, 'Position', { x, y });
+        this.world.set(id, 'Health', { hp: config.hp, maxHp: config.hp });
+        this.world.set(id, 'Faction', { side: 'enemy' });
+        this.world.set(id, 'Movement', { speed: config.speed });
+        this.world.set(id, 'Combat', {
+            damage: config.attack_damage, range: config.attack_range,
+            attackType: config.attack_type, cooldownMs: config.attack_speed * 1000,
+            elapsedMs: 0, detectionRadius: 220, behavior: config.behavior || null
+        });
+        this.world.set(id, 'PreviewUnit', { type });
+        this.battleUnits.push(id);
+    }
+
+    triggerWave(wave) {
+        for (const group of wave.enemies) {
+            for (let i = 0; i < group.count; i++) this.spawnEnemyUnit(group.type, i, group.count);
+        }
+        // Preview markers slide forward; the wave plan itself remains deterministic.
+        this.previewWaves = Array.from({ length: 8 }, (_, i) =>
+            OverseerVNextWaves.wave(this.waveClock.number + i + 1, this.waveClock.seed));
+        this.buildUi();
+    }
+
     drawFooter() {
         const l = this.layout;
         const y = l.h - 102;
@@ -606,13 +642,15 @@ class VNextScene extends Phaser.Scene {
         g.lineStyle(1, 0x29495b, 0.8).lineBetween(x1, y + 18, x2, y + 18);
         this.previewWaves.forEach((wave, i) => {
             const px = x1 + (x2 - x1) * i / (this.previewWaves.length - 1);
-            g.fillStyle(0x45677f, 1).fillCircle(px, y + 18, 4);
+            g.fillStyle(0x547e96, 1).fillCircle(px, y + 18, 5);
+            this.text(px - 5, y - 3, String(wave.number), 10, '#aac5d3');
             const zone = this.keep(this.add.zone(px, y + 18, 25, 35).setInteractive({ useHandCursor: true }));
             zone.setData('wave', i);
             zone.on('pointerover', () => this.showWaveTooltip(i, px, y + 18));
             zone.on('pointerout', () => this.hideWaveTooltip());
         });
-        this.text(l.m + 15, y + 36, 'Prévisualisation uniquement · vagues non déclenchées', 11, '#829fb1');
+        this.waveCountdownLabel = this.text(l.m + 15, y + 36, '', 11, '#829fb1');
+        this.updateWaveTimeline();
         const replay = this.text(l.w - 203, y + 36, '↻ REJOUER LE COMBAT', 12, '#6de8e8');
         replay.setPadding(5).setInteractive({ useHandCursor: true });
         replay.on('pointerdown', () => this.resetBattle());
@@ -705,6 +743,8 @@ class VNextScene extends Phaser.Scene {
     update(time, delta) {
         if (!this.model || this.speed === 0 || !this.battleUnits) return;
         const dt = Math.min(delta, 60) * this.speed;
+        for (const wave of OverseerVNextWaves.advance(this.waveClock, dt)) this.triggerWave(wave);
+        this.updateWaveTimeline();
         const previousResources = { ...this.world.get(this.model.game, 'Resources') };
         const economyEvents = OverseerVNextEconomy.step(this.model, dt);
         for (const event of economyEvents) {
