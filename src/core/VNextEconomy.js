@@ -8,8 +8,23 @@
         extractor: Object.freeze({ cycleMs: 2000, produces: { matter: 2 }, consumes: {} }),
         factory: Object.freeze({ cycleMs: 3000, produces: { components: 1 }, consumes: { energy: 2, matter: 2 } }),
         // No cadence specified yet: immediately build one base unit when observed and affordable.
-        barracks: Object.freeze({ cycleMs: 0, produces: { unit_guard: 1 }, consumes: { components: 50, energy: 30 } })
+        barracks: Object.freeze({ cycleMs: 0, produces: { unit_guard: 1 }, consumes: { components: 25, energy: 15 } })
     });
+
+    const MILITARY = Object.freeze({ barracks: Object.freeze({ unitType: 'unit_guard', capacityPerBuilding: 3 }) });
+    function unitCapacity(model, type) {
+        if (!MILITARY[type]) return 0;
+        return model.world.query('Building').filter(id => model.world.get(id, 'Building').type === type).length *
+            MILITARY[type].capacityPerBuilding;
+    }
+    function aliveUnits(model, type) {
+        const unitType = MILITARY[type]?.unitType;
+        if (!unitType) return 0;
+        return model.world.query('PreviewUnit', 'Health', 'Faction').filter(id =>
+            model.world.get(id, 'Faction').side === 'player' &&
+            model.world.get(id, 'PreviewUnit').type === unitType &&
+            model.world.get(id, 'Health').hp > 0).length;
+    }
 
     function ensureProduction(model) {
         for (const id of model.world.query('Building')) {
@@ -43,7 +58,13 @@
             const progress = model.world.get(id, 'Production');
             progress.elapsedMs += deltaMs;
             progress.blocked = false;
-            if (type === 'barracks') {
+            if (MILITARY[type]) {
+                // Alive units count against capacity; a dead unit immediately frees a slot.
+                // No resources are consumed when a military building is full.
+                if (aliveUnits(model, type) + events.filter(e => e.type === 'unit-produced' && e.buildingType === type).length >= unitCapacity(model, type)) {
+                    progress.blocked = true;
+                    continue;
+                }
                 if (Object.entries(recipe.consumes).some(([key, qty]) => resources[key] < qty)) {
                     progress.blocked = true;
                     continue;
@@ -68,7 +89,7 @@
         return events;
     }
 
-    const api = { PROTOTYPE_RECIPES, initialize, step };
+    const api = { PROTOTYPE_RECIPES, MILITARY, unitCapacity, aliveUnits, initialize, step };
     root.OverseerVNextEconomy = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
