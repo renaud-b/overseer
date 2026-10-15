@@ -507,12 +507,11 @@ class VNextScene extends Phaser.Scene {
 
     drawRightPanel() {
         const l = this.layout, x = l.rightX + 17;
-        this.text(x, l.mainTop + 18, 'RESSOURCES', 15);
         const g = this.resourceGraphics = this.keep(this.add.graphics());
         this.resourceLabels = {};
         this.resourceStatusLabels = {};
         this.resourceStyles.forEach((style, i) => {
-            const y = l.mainTop + 64 + i * 34;
+            const y = l.mainTop + 24 + i * 34;
             this.drawResourceIcon(g, style, x + 10, y + 9, 9);
             this.resourceHoverZone(style, x - 8, y - 4, l.rightW - 20, 30, l.rightX - 190, y - 2);
             const color = style.pending ? '#67869b' : `#${style.color.toString(16).padStart(6, '0')}`;
@@ -523,10 +522,6 @@ class VNextScene extends Phaser.Scene {
             this.resourceLabels[style.id] = this.text(x + 28, y - 2, '0', 17, color);
             this.resourceStatusLabels[style.id] = this.text(l.rightX + l.rightW - 17, y + 1, '—', 11, '#7898aa').setOrigin(1, 0);
         });
-        const y = l.mainTop + 261;
-        this.text(x, y, 'PROTOCOLES', 15);
-        this.text(x, y + 37, 'À définir avec l’économie', 11, '#7d9bb1');
-        this.text(x, y + 59, 'Aucun sort simulé ici', 11, '#7d9bb1');
     }
 
     // Statuses report real ECS activation/blockage. A recent delta reports only

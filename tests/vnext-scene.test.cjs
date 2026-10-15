@@ -272,3 +272,14 @@ test('resource panel narrows and reveals each resource name only on hover', () =
     compactZone.handlers.pointerover();
     assert.equal(scene.resourceTooltip.value, 'Énergie');
 });
+
+test('right resource panel has no resource heading or protocols content', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const labels = scene.ui.filter(item => typeof item.value === 'string').map(item => item.value);
+    for (const removed of ['RESSOURCES', 'PROTOCOLES', 'À définir avec l’économie', 'Aucun sort simulé ici']) {
+        assert.equal(labels.includes(removed), false, removed);
+    }
+    assert.ok(scene.resourceLabels.energy);
+    assert.ok(scene.resourceStatusLabels.components);
+});
