@@ -66,12 +66,13 @@ class VNextScene extends Phaser.Scene {
         if (!this.model) return;
         if (this.dragGhost) { this.dragGhost.destroy(); this.dragGhost = null; }
         this.hideBuildingTooltip();
+        this.hideResourceTooltip();
         this.ui.forEach(object => object.destroy());
         this.ui = [];
         const w = this.scale.width, h = this.scale.height;
         const m = 16, gap = 12, mainTop = 82, mainBottom = h - 126;
         const leftW = Math.min(244, Math.max(178, w * 0.18));
-        const rightW = w >= 1160 ? Math.min(250, w * 0.18) : 0;
+        const rightW = w >= 1160 ? 172 : 0;
         const centerX = m + leftW + gap;
         const centerRight = w - m - (rightW ? rightW + gap : 0);
         const centerW = centerRight - centerX;
@@ -454,6 +455,21 @@ class VNextScene extends Phaser.Scene {
         }
     }
 
+    hideResourceTooltip() {
+        if (this.resourceTooltip) this.resourceTooltip.destroy();
+        this.resourceTooltip = null;
+    }
+
+    showResourceTooltip(style, x, y) {
+        this.hideResourceTooltip();
+        const tipX = Math.max(8, Math.min(this.scale.width - 190, x));
+        const tipY = Math.max(72, Math.min(this.scale.height - 35, y));
+        this.resourceTooltip = this.add.text(tipX, tipY, style.label, {
+            fontFamily: 'monospace', fontSize: '12px', color: '#e3f0f5',
+            backgroundColor: '#0b1d2b', padding: { x: 9, y: 6 }
+        }).setDepth(220);
+    }
+
     drawCompactResources() {
         const l = this.layout, x = l.m + 17, startY = l.mainBottom - 156;
         const g = this.keep(this.add.graphics());
@@ -465,7 +481,15 @@ class VNextScene extends Phaser.Scene {
             const color = `#${style.color.toString(16).padStart(6, '0')}`;
             this.compactResources[style.id] = this.text(x + 25, y - 2, '0', 14, color);
             this.compactResourceDeltas[style.id] = this.text(l.m + l.leftW - 17, y, '—', 11, '#7898aa').setOrigin(1, 0);
+            this.resourceHoverZone(style, x, y - 3, l.leftW - 32, 22, x + 7, y - 30);
         });
+    }
+
+    resourceHoverZone(style, x, y, w, h, tipX, tipY) {
+        const zone = this.keep(this.add.zone(x + w / 2, y + h / 2, w, h).setInteractive());
+        zone.on('pointerover', () => this.showResourceTooltip(style, tipX, tipY));
+        zone.on('pointerout', () => this.hideResourceTooltip());
+        return zone;
     }
 
     drawBattlePanel() {
@@ -489,6 +513,7 @@ class VNextScene extends Phaser.Scene {
         this.resourceStyles.forEach((style, i) => {
             const y = l.mainTop + 64 + i * 34;
             this.drawResourceIcon(g, style, x + 10, y + 9, 9);
+            this.resourceHoverZone(style, x - 8, y - 4, l.rightW - 20, 30, l.rightX - 190, y - 2);
             const color = style.pending ? '#67869b' : `#${style.color.toString(16).padStart(6, '0')}`;
             if (style.pending) {
                 this.text(x + 28, y, '—', 16, color);

@@ -252,3 +252,23 @@ test('compact resource HUD shows only icon, count and real recent delta', () => 
     assert.equal(scene.compactResources.energy.value, '2');
     assert.equal(scene.compactResourceDeltas.energy.value, '+2');
 });
+
+test('resource panel narrows and reveals each resource name only on hover', () => {
+    const scene = new VNextScene();
+    scene.create();
+    assert.equal(scene.layout.rightW, 172);
+    assert.ok(scene.layout.battleW > 0);
+    const allText = scene.ui.filter(o => typeof o.value === 'string').map(o => o.value);
+    assert.equal(allText.includes('Refroidissement'), false);
+    const zone = scene.ui.find(o => o.handlers?.pointerover && o.handlers?.pointerout && !o.getData('palette'));
+    assert.ok(zone);
+    zone.handlers.pointerover();
+    assert.equal(scene.resourceTooltip.value, 'Énergie');
+    zone.handlers.pointerout();
+    assert.equal(scene.resourceTooltip, null);
+    scene.scale.width = 800;
+    scene.buildUi();
+    const compactZone = scene.ui.find(o => o.handlers?.pointerover && o.handlers?.pointerout && !o.getData('palette'));
+    compactZone.handlers.pointerover();
+    assert.equal(scene.resourceTooltip.value, 'Énergie');
+});
