@@ -148,6 +148,8 @@ class VNextScene extends Phaser.Scene {
             this.text(x + 53, y + 38, recipe ? 'PRODUCTION EXPÉRIMENTALE' : 'À IMPLÉMENTER', 10, '#7393a8');
             const hit = this.keep(this.add.zone(x + cw / 2, y + 32, cw, 65).setInteractive({ useHandCursor: true }));
             hit.setData('palette', typeId);
+            hit.on('pointerover', () => this.showCardTooltip(typeId, x + cw, y + 10));
+            hit.on('pointerout', () => this.hideBuildingTooltip());
             hit.on('pointerdown', () => {
                 this.selectedType = this.selectedType === typeId ? null : typeId;
                 this.movingId = null;
@@ -253,16 +255,24 @@ class VNextScene extends Phaser.Scene {
         const id = OverseerVNextPreview.buildingAt(this.model, index);
         if (id === null) return;
         const type = this.world.get(id, 'Building').type;
-        const info = this.types.find(entry => entry.id === type);
-        if (!info) return;
-        this.hoveredTile = index;
-        const recipe = OverseerVNextEconomy.PROTOTYPE_RECIPES[type];
         const { x: gx, y: gy, cell } = this.gridLayout;
         const cx = gx + (index % 5 + 0.5) * cell;
         const cy = gy + (Math.floor(index / 5) + 0.5) * cell;
+        this.renderBuildingTooltip(type, cx + cell * 0.48, cy - 92);
+    }
+
+    showCardTooltip(type, x, y) {
+        this.hideBuildingTooltip();
+        this.renderBuildingTooltip(type, x + 12, y);
+    }
+
+    renderBuildingTooltip(type, anchorX, anchorY) {
+        const info = OverseerVNextBuildings.getBuilding(type);
+        if (!info) return;
+        const recipe = OverseerVNextEconomy.PROTOTYPE_RECIPES[type];
         const width = 266, height = 185, pad = 13;
-        const x = Math.max(8, Math.min(this.scale.width - width - 8, cx + cell * 0.48));
-        const y = Math.max(72, Math.min(this.scale.height - height - 8, cy - height / 2));
+        const x = Math.max(8, Math.min(this.scale.width - width - 8, anchorX));
+        const y = Math.max(72, Math.min(this.scale.height - height - 8, anchorY));
         const keepTip = object => { this.tooltipObjects.push(object); return object; };
         const g = keepTip(this.add.graphics().setDepth(210));
         g.fillStyle(0x0b1d2b, 0.98).fillRoundedRect(x, y, width, height, 6);
@@ -271,13 +281,7 @@ class VNextScene extends Phaser.Scene {
         const label = (tx, ty, content, size = 11, color = '#c7dce6') =>
             keepTip(this.add.text(tx, ty, content, { fontFamily: 'monospace', fontSize: `${size}px`, color }).setDepth(211));
         label(x + 41, y + 14, info.label, 15, '#e3f0f5');
-        const descriptions = {
-            reactor: 'Génère l’énergie des machines.',
-            extractor: 'Extrait la matière première.',
-            factory: 'Transforme les intrants en composants.',
-            laboratory: 'Prépare des protocoles (à définir).'
-        };
-        label(x + pad, y + 48, descriptions[type] || info.description, 11, '#a6bfce');
+        label(x + pad, y + 48, info.description, 11, '#a6bfce');
         label(x + pad, y + 77, 'CONSTRUCTION : COÛT À DÉFINIR', 10, '#819eaf');
         if (!recipe) {
             label(x + pad, y + 105, 'PRODUCTION NON SIMULÉE', 11, '#819eaf');
@@ -296,8 +300,9 @@ class VNextScene extends Phaser.Scene {
         };
         const inputs = Object.entries(recipe.consumes);
         drawItems('CONSOMME / CYCLE', inputs, y + 99);
-        drawItems('PRODUIT / CYCLE', Object.entries(recipe.produces), y + 138);
-        label(x + width - 78, y + 168, `${recipe.cycleMs / 1000}s/cycle`, 9, '#819eaf');
+        drawItems(type === 'barracks' ? 'FABRIQUE / UNITÉ' : 'PRODUIT / CYCLE', Object.entries(recipe.produces).filter(([key]) => key !== 'unit_guard'), y + 138);
+        if (type === 'barracks') label(x + 18, y + 162, '1 UNITÉ DE BASE', 11, '#62e7e1');
+        else label(x + width - 78, y + 168, `${recipe.cycleMs / 1000}s/cycle`, 9, '#819eaf');
     }
 
     drawGlyph(g, type, x, y, color, r) {
@@ -592,6 +597,24 @@ class VNextScene extends Phaser.Scene {
         this.paintBattle();
     }
 
+    spawnFriendlyUnit(type) {
+        const stats = this.cache.json.get('vnextLegacyStats');
+        const config = stats.units.find(unit => unit.id === type);
+        if (!config) return;
+        const id = this.world.create(this.model.game);
+        this.world.set(id, 'Position', { x: 195, y: 290 });
+        this.world.set(id, 'Health', { hp: config.hp, maxHp: config.hp });
+        this.world.set(id, 'Faction', { side: 'player' });
+        this.world.set(id, 'Movement', { speed: config.speed });
+        this.world.set(id, 'Combat', {
+            damage: config.attack_damage, range: config.attack_range,
+            attackType: config.attack_type, cooldownMs: config.attack_speed * 1000,
+            elapsedMs: 0, detectionRadius: 400, behavior: config.behavior || null
+        });
+        this.world.set(id, 'PreviewUnit', { type });
+        this.battleUnits.push(id);
+    }
+
     paintBattle() {
         if (!this.battleGraphics || !this.battleBounds) return;
         const g = this.battleGraphics, b = this.battleBounds;
@@ -631,7 +654,10 @@ class VNextScene extends Phaser.Scene {
         if (!this.model || this.speed === 0 || !this.battleUnits) return;
         const dt = Math.min(delta, 60) * this.speed;
         const previousResources = { ...this.world.get(this.model.game, 'Resources') };
-        OverseerVNextEconomy.step(this.model, dt);
+        const economyEvents = OverseerVNextEconomy.step(this.model, dt);
+        for (const event of economyEvents) {
+            if (event.type === 'unit-produced') this.spawnFriendlyUnit(event.unitType);
+        }
         this.noteResourceChanges(previousResources, dt);
         this.updateResourceHud();
         this.paintBoard();

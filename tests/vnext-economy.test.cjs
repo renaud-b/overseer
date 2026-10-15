@@ -89,3 +89,22 @@ test('simulated balance and production components survive repeated initializatio
     assert.equal(model.world.query('Production').length, 3);
     assert.throws(() => economy.step(model, -1), /Invalid simulation delta/);
 });
+
+test('barracks only consumes 50 components and 30 energy when watched and affordable', () => {
+    const model = preview.createModel(World);
+    const id = preview.placeBuilding(model, 'barracks', 6);
+    economy.initialize(model);
+    const balance = model.world.get(model.game, 'Resources');
+    balance.components = 49; balance.energy = 30;
+    preview.setObserved(model, [6]);
+    assert.deepEqual(economy.step(model, 60), []);
+    assert.equal(model.world.get(id, 'Production').blocked, true);
+    balance.components = 50;
+    const events = economy.step(model, 60);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].type, 'unit-produced');
+    assert.equal(events[0].unitType, 'unit_guard');
+    assert.equal(balance.components, 0);
+    assert.equal(balance.energy, 0);
+    assert.deepEqual(economy.step(model, 60), []);
+});

@@ -205,3 +205,31 @@ test('drag and drop consumes a single card only on valid target', () => {
     assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory']);
     assert.ok(preview.buildingAt(scene.model, 0));
 });
+
+test('barracks creates an autonomous player ECS unit after spending resources', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.selectedType = 'barracks';
+    scene.clickTile(6);
+    const balance = scene.world.get(scene.model.game, 'Resources');
+    balance.energy = 30; balance.components = 50;
+    const before = scene.world.query('PreviewUnit').length;
+    scene.update(0, 60);
+    assert.equal(scene.world.query('PreviewUnit').length, before + 1);
+    assert.equal(balance.components, 0);
+    assert.equal(balance.energy, 0);
+    assert.equal(scene.world.query('Faction').filter(id => scene.world.get(id, 'Faction').side === 'player').length, 4);
+});
+
+test('card hover shares building recipe tooltip with grid hover', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.showCardTooltip('barracks', 180, 150);
+    assert.ok(scene.tooltipObjects.some(object => object.value === 'Caserne'));
+    assert.ok(scene.tooltipObjects.some(object => object.value === '50'));
+    assert.ok(scene.tooltipObjects.some(object => object.value === '30'));
+    assert.ok(scene.tooltipObjects.some(object => object.value === '1 UNITÉ DE BASE'));
+    const previous = [...scene.tooltipObjects];
+    scene.hideBuildingTooltip();
+    assert.ok(previous.every(object => object.destroyed));
+});

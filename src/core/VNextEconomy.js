@@ -6,7 +6,9 @@
     const PROTOTYPE_RECIPES = Object.freeze({
         reactor: Object.freeze({ cycleMs: 2000, produces: { energy: 2 }, consumes: {} }),
         extractor: Object.freeze({ cycleMs: 2000, produces: { matter: 2 }, consumes: {} }),
-        factory: Object.freeze({ cycleMs: 3000, produces: { components: 1 }, consumes: { energy: 2, matter: 2 } })
+        factory: Object.freeze({ cycleMs: 3000, produces: { components: 1 }, consumes: { energy: 2, matter: 2 } }),
+        // No cadence specified yet: immediately build one base unit when observed and affordable.
+        barracks: Object.freeze({ cycleMs: 0, produces: { unit_guard: 1 }, consumes: { components: 50, energy: 30 } })
     });
 
     function ensureProduction(model) {
@@ -41,6 +43,15 @@
             const progress = model.world.get(id, 'Production');
             progress.elapsedMs += deltaMs;
             progress.blocked = false;
+            if (type === 'barracks') {
+                if (Object.entries(recipe.consumes).some(([key, qty]) => resources[key] < qty)) {
+                    progress.blocked = true;
+                    continue;
+                }
+                for (const [key, qty] of Object.entries(recipe.consumes)) resources[key] -= qty;
+                events.push({ type: 'unit-produced', building: id, buildingType: type, unitType: 'unit_guard' });
+                continue;
+            }
             while (progress.elapsedMs >= recipe.cycleMs) {
                 if (Object.entries(recipe.consumes).some(([key, qty]) => resources[key] < qty)) {
                     // The machine stays ready, then retries as soon as inputs are available.
