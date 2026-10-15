@@ -90,16 +90,16 @@ test('simulated balance and production components survive repeated initializatio
     assert.throws(() => economy.step(model, -1), /Invalid simulation delta/);
 });
 
-test('barracks only consumes 50 components and 30 energy when watched and affordable', () => {
+test('barracks only consumes 25 components and 15 energy when watched and affordable', () => {
     const model = preview.createModel(World);
     const id = preview.placeBuilding(model, 'barracks', 6);
     economy.initialize(model);
     const balance = model.world.get(model.game, 'Resources');
-    balance.components = 49; balance.energy = 30;
+    balance.components = 24; balance.energy = 15;
     preview.setObserved(model, [6]);
     assert.deepEqual(economy.step(model, 60), []);
     assert.equal(model.world.get(id, 'Production').blocked, true);
-    balance.components = 50;
+    balance.components = 25;
     const events = economy.step(model, 60);
     assert.equal(events.length, 1);
     assert.equal(events[0].type, 'unit-produced');
@@ -107,4 +107,61 @@ test('barracks only consumes 50 components and 30 energy when watched and afford
     assert.equal(balance.components, 0);
     assert.equal(balance.energy, 0);
     assert.deepEqual(economy.step(model, 60), []);
+});
+
+test('each barracks raises living guard cap by three, without spending resources at cap', () => {
+    const model = preview.createModel(World);
+    preview.placeBuilding(model, 'barracks', 6);
+    economy.initialize(model);
+    preview.setObserved(model, [6]);
+    const resources = model.world.get(model.game, 'Resources');
+    resources.components = 200; resources.energy = 200;
+    const spawn = () => {
+        const id = model.world.create(model.game);
+        model.world.set(id, 'PreviewUnit', { type: 'unit_guard' });
+        model.world.set(id, 'Health', { hp: 7 });
+        model.world.set(id, 'Faction', { side: 'player' });
+        return id;
+    };
+    assert.equal(economy.unitCapacity(model, 'barracks'), 3);
+    for (let i = 0; i < 3; i++) {
+        const events = economy.step(model, 60);
+        assert.equal(events.length, 1);
+        assert.equal(events[0].unitType, 'unit_guard');
+        spawn();
+    }
+    assert.equal(economy.aliveUnits(model, 'barracks'), 3);
+    const before = { ...resources };
+    assert.deepEqual(economy.step(model, 60), []);
+    assert.deepEqual(resources, before);
+    const second = preview.placeBuilding(model, 'barracks', 8);
+    assert.ok(second);
+    assert.equal(economy.unitCapacity(model, 'barracks'), 6);
+    assert.equal(economy.step(model, 60).length, 1);
+    const guard = model.world.query('PreviewUnit')[0];
+    model.world.get(guard, 'Health').hp = 0;
+    assert.equal(economy.aliveUnits(model, 'barracks'), 2);
+    assert.equal(economy.step(model, 60).length, 1);
+});
+
+test('all specialized producers spend their provisional costs and honor independent caps', () => {
+    const models = [
+        ['ballistics','unit_sniper',35,20],
+        ['armor_forge','unit_mecha',60,35],
+        ['medical_center','unit_dronoid',40,25]
+    ];
+    for (const [type, unit, components, energy] of models) {
+        const model = preview.createModel(World);
+        preview.placeBuilding(model, type, 6);
+        economy.initialize(model);
+        preview.setObserved(model,[6]);
+        const resources=model.world.get(model.game,'Resources');
+        resources.components=components; resources.energy=energy;
+        const events=economy.step(model,60);
+        assert.equal(events.length,1);
+        assert.equal(events[0].unitType,unit);
+        assert.equal(resources.components,0);
+        assert.equal(resources.energy,0);
+        assert.equal(economy.unitCapacity(model,type),3);
+    }
 });

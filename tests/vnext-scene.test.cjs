@@ -12,9 +12,9 @@ const combat = require('../src/core/CombatSystem.js');
 const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
 const ROOT = path.resolve(__dirname, '..');
+const brandSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBrand.js'), 'utf8');
 const visionSource = fs.readFileSync(path.join(ROOT, 'src/scene/entities/Vision.js'), 'utf8');
 const sceneSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextScene.js'), 'utf8');
-const brandSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBrand.js'), 'utf8');
 
 class Display {
     constructor(x = 0, y = 0) { this.x = x; this.y = y; this.handlers = {}; this.data = {}; this.drawCalls = []; }
@@ -56,7 +56,7 @@ class FakeScene {
             zone: (x, y) => new Display(x, y)
         };
         this.scene = { start() {} };
-        const units = ['unit_guard', 'unit_sniper', 'unit_dronoid'].map(id => ({
+        const units = ['unit_guard', 'unit_sniper', 'unit_dronoid', 'unit_mecha'].map(id => ({
             id, hp: 5, speed: 40, attack_damage: 1, attack_range: 30, attack_type: 'ranged', attack_speed: 1
         }));
         const enemies = ['basic_monster', 'ranged_monster', 'base_rusher'].map(id => ({
@@ -65,8 +65,8 @@ class FakeScene {
         this.cache = { json: { get: () => ({ units, enemies }) } };
     }
 }
-const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
 const OverseerVNextBrand = vm.runInNewContext(brandSource + '\nOverseerVNextBrand;', {});
+const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
 const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
     OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview, OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards, OverseerVNextWaves: waves, Vision, OverseerVNextBrand
@@ -182,7 +182,7 @@ test('hover tooltip uses real factory recipe and barracks placeholder', () => {
     scene.showBuildingTooltip(12);
     assert.ok(old.every(o => o.destroyed));
     assert.ok(scene.tooltipObjects.some(o => o.value === 'COÛT PAR UNITÉ'));
-    assert.ok(scene.tooltipObjects.some(o => o.value === '1 UNITÉ DE BASE'));
+    assert.ok(scene.tooltipObjects.some(o => /^UNITÉS \d+\/\d+$/.test(o.value)));
     scene.hideBuildingTooltip();
     assert.equal(scene.tooltipObjects.length, 0);
 });
@@ -217,7 +217,7 @@ test('barracks creates an autonomous player ECS unit after spending resources', 
     scene.selectedType = 'barracks';
     scene.clickTile(6);
     const balance = scene.world.get(scene.model.game, 'Resources');
-    balance.energy = 30; balance.components = 50;
+    balance.energy = 15; balance.components = 25;
     const before = scene.world.query('PreviewUnit').length;
     scene.update(0, 60);
     assert.equal(scene.world.query('PreviewUnit').length, before + 1);
@@ -231,9 +231,9 @@ test('card hover shares building recipe tooltip with grid hover', () => {
     scene.create();
     scene.showCardTooltip('barracks', 180, 150);
     assert.ok(scene.tooltipObjects.some(object => object.value === 'Caserne'));
-    assert.ok(scene.tooltipObjects.some(object => object.value === '50'));
-    assert.ok(scene.tooltipObjects.some(object => object.value === '30'));
-    assert.ok(scene.tooltipObjects.some(object => object.value === '1 UNITÉ DE BASE'));
+    assert.ok(scene.tooltipObjects.some(object => object.value === '25'));
+    assert.ok(scene.tooltipObjects.some(object => object.value === '15'));
+    assert.ok(scene.tooltipObjects.some(object => /^UNITÉS \d+\/\d+$/.test(object.value)));
     const previous = [...scene.tooltipObjects];
     scene.hideBuildingTooltip();
     assert.ok(previous.every(object => object.destroyed));
@@ -424,8 +424,8 @@ test('reward cards show and clean up existing building detail popup above overla
     const labels = scene.tooltipObjects.filter(o => typeof o.value === 'string').map(o => o.value);
     assert.ok(labels.includes('Caserne'));
     assert.ok(labels.includes('COÛT PAR UNITÉ'));
-    assert.ok(labels.includes('50'));
-    assert.ok(labels.includes('30'));
+    assert.ok(labels.includes('25'));
+    assert.ok(labels.includes('15'));
     const objects = [...scene.tooltipObjects];
     card.handlers.pointerout();
     assert.equal(scene.tooltipObjects.length, 0);
@@ -433,6 +433,23 @@ test('reward cards show and clean up existing building detail popup above overla
     card.handlers.pointerover();
     scene.chooseReward('barracks');
     assert.equal(scene.tooltipObjects.length, 0);
+});
+
+test('military specialty rewards include all three new production cards', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const choices = new Set();
+    for (let n = 1; n <= 60; n++) for (const type of scene.rewardOptions(n)) choices.add(type);
+    assert.ok(choices.has('ballistics'));
+    assert.ok(choices.has('armor_forge'));
+    assert.ok(choices.has('medical_center'));
+    scene.selectedType = null;
+    for (const [type, slot] of [['ballistics',6],['armor_forge',7],['medical_center',11]]) {
+        cards.grant(scene.model,type);
+        scene.selectedType = type;
+        scene.clickTile(slot);
+        assert.equal(scene.world.get(preview.buildingAt(scene.model,slot),'Building').type,type);
+    }
 });
 
 test('VNext shares its title with the menu and MENU returns there', () => {

@@ -11,6 +11,14 @@ function stepUnit(world,id,delta,options={}){
  const candidate=opponents.filter(o=>distance(position,o.position)<detection).sort((a,b)=>distance(position,a.position)-distance(position,b.position))[0];
  const target=combat.behavior==='base_rusher'?null:candidate;
  const events=[];
+ if(combat.behavior==='healer' && faction.side==='player') {
+   const allies=(options.allies||[]).filter(other=>world.has(other) && other!==id && world.get(other,'Health')?.hp>0 && world.get(other,'Health').hp<world.get(other,'Health').maxHp && world.get(other,'Position'));
+   allies.sort((a,b)=>distance(position,world.get(a,'Position'))-distance(position,world.get(b,'Position')));
+   const ally=allies[0];
+   if(ally){const pos=world.get(ally,'Position');moveTowards(position,pos,movement.speed,delta,combat.range);if(distance(position,pos)<=combat.range && combat.elapsedMs>=combat.cooldownMs){const h=world.get(ally,'Health');const amount=Math.min(combat.damage,h.maxHp-h.hp);h.hp+=amount;combat.elapsedMs=0;events.push({type:'heal',healer:id,target:ally,amount});}}
+   else if(options.patrol)moveTowards(position,options.patrol,movement.speed,delta,5);
+   return events;
+ }
  if(target){
    const stop=combat.attackType==='ranged'?combat.range:10;
    moveTowards(position,target.position,movement.speed,delta,stop);
