@@ -647,7 +647,7 @@ class VNextScene extends Phaser.Scene {
     // Reward choices stay in the small, already-playable building catalog.
     // Generate once per cleared wave, never on each render.
     rewardOptions(number) {
-        const pool = [...OverseerVNextCards.STARTER_CARDS, 'ballistics', 'armor_forge', 'medical_center'];
+        const pool = OverseerVNextCards.REWARD_CARDS.slice();
         let state = (this.waveClock.seed ^ Math.imul(number, 0x9e3779b1)) >>> 0;
         for (let i = pool.length - 1; i > 0; i--) {
             state = (Math.imul(state, 1664525) + 1013904223) >>> 0;

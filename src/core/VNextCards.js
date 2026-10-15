@@ -19,12 +19,13 @@
         return id;
     }
     // Rewards grant one new one-shot card, even if the hand has another of that type.
+    const REWARD_CARDS = Object.freeze([...STARTER_CARDS, 'ballistics', 'armor_forge', 'medical_center']);
     function grant(model, type) {
-        if (!STARTER_CARDS.includes(type)) return false;
+        if (!REWARD_CARDS.includes(type)) return false;
         initialize(model).cards.push(type);
         return true;
     }
-    const api = { STARTER_CARDS, initialize, cards, play, grant };
+    const api = { STARTER_CARDS, REWARD_CARDS, initialize, cards, play, grant };
     root.OverseerVNextCards = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
