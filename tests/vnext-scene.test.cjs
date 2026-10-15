@@ -69,22 +69,22 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview, OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards, Vision
 });
 
-test('scene begins with exactly three unspent cards and empty base', () => {
+test('scene begins with exactly four unspent cards and empty base', () => {
     const scene = new VNextScene();
     scene.create();
     assert.equal(scene.world.query('Tile').length, 25);
     assert.equal(scene.world.query('Building').length, 0);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'factory', 'barracks']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks']);
     assert.equal(scene.world.query('PreviewUnit').length, 7);
     scene.selectedType = 'reactor';
     scene.clickTile(6);
     assert.ok(preview.buildingAt(scene.model, 6));
-    assert.deepEqual(cards.cards(scene.model), ['factory', 'barracks']);
+    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks']);
     scene.clickTile(6);
     scene.clickTile(23);
     assert.equal(preview.buildingAt(scene.model, 6), null);
     assert.ok(preview.buildingAt(scene.model, 23));
-    assert.deepEqual(cards.cards(scene.model), ['factory', 'barracks']);
+    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks']);
     scene.scale.width = 800;
     scene.buildUi();
     scene.resetBattle();
@@ -107,18 +107,19 @@ test('observed empty tiles use a large bright marker and fine ring', () => {
     assert.equal(callsAt(0, 'strokeCircle').length, 0);
 });
 
-test('economy remains valid with only starter cards and no extractor', () => {
+test('starter economy runs with an extractor placed', () => {
     const scene = new VNextScene();
     scene.create();
     scene.selectedType = 'reactor';
     scene.clickTile(6);
+    scene.selectedType = 'extractor';
+    scene.clickTile(7);
     scene.selectedType = 'factory';
     scene.clickTile(11);
     const balance = scene.world.get(scene.model.game, 'Resources');
     for (let i = 0; i < 100; i++) scene.update(0, 60);
     assert.ok(balance.energy > 0);
-    assert.equal(balance.matter, 0);
-    assert.equal(balance.components, 0);
+    assert.ok(balance.components > 0, 'Factory converts energy and matter');
     const previous = { ...balance };
     scene.selectSpeed(0);
     for (let i = 0; i < 10; i++) scene.update(0, 60);
@@ -198,9 +199,9 @@ test('drag and drop consumes a single card only on valid target', () => {
     scene.create();
     const dragged = { getData: () => 'barracks' };
     scene.onDragEnd({ x: -100, y: -100 }, dragged);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'factory', 'barracks']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks']);
     const { x, y, cell } = scene.gridLayout;
     scene.onDragEnd({ x: x + cell * 0.5, y: y + cell * 0.5 }, dragged);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'factory']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory']);
     assert.ok(preview.buildingAt(scene.model, 0));
 });
