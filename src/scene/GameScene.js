@@ -140,6 +140,10 @@ class GameScene extends Phaser.Scene {
         const offsetX = 90
         const offsetY = 95
 
+        this.world = new OverseerECS.World();
+        this.gameEntity = this.world.create();
+        this.world.set(this.gameEntity, 'Game', { version: 1 });
+
         this.gridWidth = 5;
         this.gridHeight = 5;
         this.gridManager = new GridManager(this, this.gridWidth, this.gridHeight, this.tileSizeX, this.tileSizeY, offsetX, offsetY);
