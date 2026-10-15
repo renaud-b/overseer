@@ -12,7 +12,8 @@
         const hand = initialize(model);
         const at = hand.cards.indexOf(type);
         if (at === -1) return null;
-        const id = root.OverseerVNextPreview.placeBuilding(model, type, index);
+        const preview = root.OverseerVNextPreview || (typeof require === 'function' ? require('./VNextPreview.js') : null);
+        const id = preview.placeBuilding(model, type, index);
         if (id === null) return null; // Never spend a card when placement fails.
         hand.cards.splice(at, 1);
         return id;

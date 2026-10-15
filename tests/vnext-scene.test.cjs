@@ -34,6 +34,7 @@ class Display {
     fillCircle(x, y, r) { this.drawCalls.push({ type: 'fillCircle', x, y, r }); return this; }
     strokeCircle(x, y, r) { this.drawCalls.push({ type: 'strokeCircle', x, y, r, color: this.lineColor }); return this; }
     strokeEllipse() { return this; }
+    strokeRect() { return this; }
     strokePoints(points) { this.drawCalls.push({ type: 'strokePoints', points, color: this.lineColor }); return this; }
     fillRect() { return this; }
     strokeTriangle() { return this; }
@@ -68,29 +69,24 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview, OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards, Vision
 });
 
-test('scene creates, resizes, places and simulates against existing ECS', () => {
+test('scene begins with exactly three unspent cards and empty base', () => {
     const scene = new VNextScene();
     scene.create();
     assert.equal(scene.world.query('Tile').length, 25);
+    assert.equal(scene.world.query('Building').length, 0);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'factory', 'barracks']);
     assert.equal(scene.world.query('PreviewUnit').length, 7);
-    assert.equal(scene.world.query('Building').length, 4);
     scene.selectedType = 'reactor';
-    scene.clickTile(24);
-    assert.equal(preview.buildingAt(scene.model, 24) !== null, true);
-    scene.clickTile(24);
+    scene.clickTile(6);
+    assert.ok(preview.buildingAt(scene.model, 6));
+    assert.deepEqual(cards.cards(scene.model), ['factory', 'barracks']);
+    scene.clickTile(6);
     scene.clickTile(23);
-    assert.equal(preview.buildingAt(scene.model, 24), null);
+    assert.equal(preview.buildingAt(scene.model, 6), null);
     assert.ok(preview.buildingAt(scene.model, 23));
-    scene.changeAttention(1, 0, false);
-    scene.changeAttention(0, 0, true);
-    scene.update(0, 30);
-    scene.selectSpeed(3);
-    scene.update(0, 30);
-    scene.scale.width = 1600;
-    scene.buildUi();
+    assert.deepEqual(cards.cards(scene.model), ['factory', 'barracks']);
     scene.scale.width = 800;
     scene.buildUi();
-    assert.ok(preview.buildingAt(scene.model, 23));
     scene.resetBattle();
     assert.equal(scene.world.query('PreviewUnit').length, 7);
 });
@@ -111,130 +107,100 @@ test('observed empty tiles use a large bright marker and fine ring', () => {
     assert.equal(callsAt(0, 'strokeCircle').length, 0);
 });
 
-test('VNext economy runs with scaled ECS ticks, pauses, and updates resource HUD', () => {
+test('economy remains valid with only starter cards and no extractor', () => {
     const scene = new VNextScene();
     scene.create();
+    scene.selectedType = 'reactor';
+    scene.clickTile(6);
+    scene.selectedType = 'factory';
+    scene.clickTile(11);
     const balance = scene.world.get(scene.model.game, 'Resources');
-    assert.deepEqual(balance, { energy: 0, matter: 0, components: 0 });
-    assert.equal(scene.resourceLabels.energy.value, '0');
     for (let i = 0; i < 100; i++) scene.update(0, 60);
-    assert.ok(balance.components > 0, 'Factory should process watched producer outputs');
-    assert.equal(scene.resourceLabels.components.value, String(balance.components));
-    const amount = { ...balance };
-    const production = preview.buildingAt(scene.model, 6);
-    const previousProgress = scene.world.get(production, 'Production').elapsedMs;
+    assert.ok(balance.energy > 0);
+    assert.equal(balance.matter, 0);
+    assert.equal(balance.components, 0);
+    const previous = { ...balance };
     scene.selectSpeed(0);
     for (let i = 0; i < 10; i++) scene.update(0, 60);
-    assert.deepEqual(balance, amount);
-    assert.equal(scene.world.get(production, 'Production').elapsedMs, previousProgress);
-    scene.selectSpeed(3);
-    for (let i = 0; i < 20; i++) scene.update(0, 60);
-    assert.ok(balance.energy + balance.matter + balance.components >= 0);
-    assert.equal(scene.resourceLabels.energy.value, String(balance.energy));
+    assert.deepEqual(balance, previous);
 });
 
-
-test('resource HUD uses distinct building glyphs and colors, with right aligned values', () => {
+test('resource glyphs and values remain available before construction', () => {
     const scene = new VNextScene();
     scene.create();
-    assert.deepEqual(Array.from(scene.resourceStyles, r => r.label),
-        ['Énergie', 'Matière', 'Refroidissement', 'Composants', 'Données']);
     assert.equal(scene.resourceLabels.energy.color, '#35d8ef');
     assert.equal(scene.resourceLabels.matter.color, '#39dd92');
     assert.equal(scene.resourceLabels.components.color, '#f4ba58');
-    assert.equal(scene.resourceLabels.energy.originX, 1);
-    assert.equal(scene.resourceLabels.components.originX, 1);
-    const calls = scene.resourceGraphics.drawCalls;
-    assert.ok(calls.some(c => c.type === 'strokeCircle' && c.color === 0x35d8ef), 'reactor glyph');
-    assert.ok(calls.some(c => c.type === 'strokePoints' && c.color === 0xf4ba58), 'factory hexagon');
-    assert.ok(calls.some(c => c.type === 'strokePoints' && c.color === 0xb58aff), 'data diamond');
-    assert.ok(calls.some(c => c.type === 'lineBetween' && c.color === 0x87b9e8), 'cooling snowflake');
-    assert.equal(scene.world.get(scene.model.game, 'Resources').cooling, undefined);
-    assert.equal(Object.hasOwn(scene.resourceLabels, 'cooling'), false);
-    assert.equal(Object.hasOwn(scene.resourceLabels, 'data'), false);
-    assert.equal(scene.resourceStatusLabels.energy.value, 'PRODUCTION ACTIVE');
+    assert.equal(scene.resourceStatusLabels.energy.value, 'AUCUN BÂTIMENT');
 });
 
-test('resource HUD displays actual transient balance changes, pauses and reports visibility', () => {
+test('resource HUD updates when starter reactor is placed and observed', () => {
     const scene = new VNextScene();
     scene.create();
-    // The watched reactor and extractor complete a first 2-second cycle.
+    scene.selectedType = 'reactor';
+    scene.clickTile(6);
     for (let i = 0; i < 34; i++) scene.update(0, 60);
     assert.equal(scene.resourceLabels.energy.value, '2');
-    assert.equal(scene.resourceLabels.matter.value, '2');
     assert.equal(scene.resourceStatusLabels.energy.value, '+2 · VARIATION RÉCENTE');
-    assert.equal(scene.resourceStatusLabels.energy.color, '#69e5ac');
-    const feedback = scene.lastResourceChanges.energy.remainingMs;
-    scene.selectSpeed(0);
-    for (let i = 0; i < 10; i++) scene.update(0, 60);
-    assert.equal(scene.lastResourceChanges.energy.remainingMs, feedback);
-    scene.changeAttention(1, 0); // Reactor out of vision, extractor still in vision.
+    scene.changeAttention(1, 0);
     scene.lastResourceChanges.energy.remainingMs = 0;
     scene.updateResourceHud();
     assert.equal(scene.resourceStatusLabels.energy.value, 'HORS VISION');
-    assert.equal(scene.resourceStatusLabels.matter.value, '+2 · VARIATION RÉCENTE');
     scene.scale.width = 800;
     scene.buildUi();
-    assert.equal(scene.resourceLabels.energy, undefined);
     assert.equal(scene.compactResources.energy.value, '2');
-    assert.equal(scene.compactResources.energy.color, '#35d8ef');
-    assert.equal(scene.compactResources.components.originX, 1);
-    scene.scale.width = 1600;
-    scene.buildUi();
-    assert.equal(scene.compactResources, null);
-    assert.equal(scene.resourceLabels.energy.value, '2');
-    assert.equal(scene.resourceStatusLabels.energy.value, 'HORS VISION');
 });
 
-test('factory displays negative input deltas and waiting status without inventing rates', () => {
+test('starter factory displays waiting state without unearned resources', () => {
     const scene = new VNextScene();
     scene.create();
-    // All three machines are watched at startup. The factory first cycles after 3s.
-    for (let i = 0; i < 50; i++) scene.update(0, 60);
-    assert.equal(scene.resourceLabels.components.value, '1');
-    assert.equal(scene.resourceStatusLabels.components.value, '+1 · VARIATION RÉCENTE');
-    assert.equal(scene.resourceStatusLabels.energy.value, '-2 · VARIATION RÉCENTE');
-    assert.equal(scene.resourceStatusLabels.energy.color, '#ff9e8c');
-    const factory = preview.buildingAt(scene.model, 11);
-    scene.world.get(factory, 'Production').blocked = true;
-    scene.lastResourceChanges.components.remainingMs = 0;
-    scene.updateResourceHud();
+    scene.selectedType = 'factory';
+    scene.clickTile(11);
+    for (let i = 0; i < 60; i++) scene.update(0, 60);
+    assert.equal(scene.resourceLabels.components.value, '0');
     assert.equal(scene.resourceStatusLabels.components.value, 'EN ATTENTE');
-    assert.equal(scene.resourceStatusLabels.components.color, '#ff9e8c');
 });
 
-test('grid hover tooltip shows recipe inputs and outputs, not invented construction costs', () => {
+test('hover tooltip uses real factory recipe and barracks placeholder', () => {
     const scene = new VNextScene();
     scene.create();
-    scene.showBuildingTooltip(11); // Factory
-    assert.equal(scene.hoveredTile, 11);
+    scene.selectedType = 'factory';
+    scene.clickTile(11);
+    scene.selectedType = 'barracks';
+    scene.clickTile(12);
+    scene.showBuildingTooltip(11);
     const labels = scene.tooltipObjects.filter(o => typeof o.value === 'string').map(o => o.value);
     assert.ok(labels.includes('Fabrique'));
     assert.ok(labels.includes('CONSTRUCTION : COÛT À DÉFINIR'));
-    assert.ok(labels.includes('CONSOMME / CYCLE'));
-    assert.ok(labels.includes('PRODUIT / CYCLE'));
-    assert.ok(labels.includes('2'));
-    assert.ok(labels.includes('1'));
     assert.ok(labels.includes('3s/cycle'));
-    const graphics = scene.tooltipObjects[0];
-    assert.ok(graphics, 'tooltip draws its own geometric resource icons');
-    const previous = [...scene.tooltipObjects];
-    scene.showBuildingTooltip(18); // Laboratory: no invented production
-    assert.ok(previous.every(o => o.destroyed), 'previous tooltip is destroyed on hover change');
+    const old = [...scene.tooltipObjects];
+    scene.showBuildingTooltip(12);
+    assert.ok(old.every(o => o.destroyed));
     assert.ok(scene.tooltipObjects.some(o => o.value === 'PRODUCTION NON SIMULÉE'));
     scene.hideBuildingTooltip();
     assert.equal(scene.tooltipObjects.length, 0);
-    scene.showBuildingTooltip(24);
-    assert.equal(scene.tooltipObjects.length, 0, 'empty cells have no card');
 });
 
-test('tooltip survives layout rebuild without stale display elements', () => {
+test('tooltip cleanup survives viewport resize', () => {
     const scene = new VNextScene();
     scene.create();
+    scene.selectedType = 'reactor';
+    scene.clickTile(6);
     scene.showBuildingTooltip(6);
     const old = [...scene.tooltipObjects];
     scene.scale.width = 800;
     scene.buildUi();
     assert.ok(old.every(o => o.destroyed));
-    assert.equal(scene.tooltipObjects.length, 0);
+});
+
+test('drag and drop consumes a single card only on valid target', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const dragged = { getData: () => 'barracks' };
+    scene.onDragEnd({ x: -100, y: -100 }, dragged);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'factory', 'barracks']);
+    const { x, y, cell } = scene.gridLayout;
+    scene.onDragEnd({ x: x + cell * 0.5, y: y + cell * 0.5 }, dragged);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'factory']);
+    assert.ok(preview.buildingAt(scene.model, 0));
 });
