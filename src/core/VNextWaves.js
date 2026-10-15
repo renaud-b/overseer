@@ -5,10 +5,13 @@
     const ENEMY_TYPE = 'basic_monster';
     function wave(number, seed = 137) {
         if (!Number.isInteger(number) || number < 1) throw new Error('Invalid wave number');
-        const mixed = (Math.imul(number, 1103515245) + seed) >>> 0;
-        const jitter = mixed % (number + 2);
+        let count = 2;
+        for (let index = 1; index <= number; index++) {
+            const mixed = (Math.imul(index, 1103515245) + seed) >>> 0;
+            count += 2 + (mixed % 3);
+        }
         return Object.freeze({
-            number, enemies: Object.freeze([{ type: ENEMY_TYPE, count: 2 + number * 2 + jitter }])
+            number, enemies: Object.freeze([{ type: ENEMY_TYPE, count }])
         });
     }
     function preview(count = 8, seed = 137) {
