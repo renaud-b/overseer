@@ -1,0 +1,456 @@
+// Isolated VNext visual sandbox: existing ECS and combat, no new gameplay economy.
+class VNextScene extends Phaser.Scene {
+    constructor() { super({ key: 'VNextScene' }); }
+
+    preload() { this.load.json('vnextLegacyStats', 'assets/game_stats.json'); }
+
+    create() {
+        this.model = OverseerVNextPreview.createModel(OverseerECS.World);
+        this.world = this.model.world;
+        this.visionRules = Object.create(Vision.prototype);
+        this.visionRules.level = 0;
+        this.visionRules.createPatterns(); // Same L shape and rotations as the playable prototype.
+        this.attention = { x: 1, y: 1 };
+        this.selectedType = null;
+        this.movingId = null;
+        this.speed = 1;
+        this.baseHp = 100;
+        this.ui = [];
+        this.types = [
+            { id: 'reactor', label: 'Réacteur', color: 0x35d8ef },
+            { id: 'extractor', label: 'Extracteur', color: 0x39dd92 },
+            { id: 'factory', label: 'Fabrique', color: 0xf4ba58 },
+            { id: 'laboratory', label: 'Laboratoire', color: 0xb58aff }
+        ];
+        [['reactor', 6], ['extractor', 7], ['factory', 11], ['laboratory', 18]]
+            .forEach(([type, index]) => OverseerVNextPreview.placeBuilding(this.model, type, index));
+        this.applyAttention();
+        this.resetBattle();
+        this.buildUi();
+        this.input.keyboard.on('keydown', this.onKey, this);
+        this.input.on('dragstart', this.onDragStart, this);
+        this.input.on('drag', this.onDrag, this);
+        this.input.on('dragend', this.onDragEnd, this);
+        this.scale.on('resize', this.buildUi, this);
+        this.events.once('shutdown', () => {
+            this.scale.off('resize', this.buildUi, this);
+            this.input.keyboard.off('keydown', this.onKey, this);
+            this.input.off('dragstart', this.onDragStart, this);
+            this.input.off('drag', this.onDrag, this);
+            this.input.off('dragend', this.onDragEnd, this);
+        });
+    }
+
+    keep(object) { this.ui.push(object); return object; }
+
+    text(x, y, value, size = 14, color = '#dfeaf0') {
+        return this.keep(this.add.text(x, y, value, {
+            fontFamily: 'monospace', fontSize: `${size}px`, color
+        }));
+    }
+
+    panel(g, x, y, w, h) {
+        g.fillStyle(0x0a1a26, 0.75).fillRoundedRect(x, y, w, h, 7);
+        g.lineStyle(1, 0x213b4a, 0.8).strokeRoundedRect(x, y, w, h, 7);
+    }
+
+    buildUi() {
+        if (!this.model) return;
+        if (this.dragGhost) { this.dragGhost.destroy(); this.dragGhost = null; }
+        this.ui.forEach(object => object.destroy());
+        this.ui = [];
+        const w = this.scale.width, h = this.scale.height;
+        const m = 16, gap = 12, mainTop = 82, mainBottom = h - 126;
+        const leftW = Math.min(244, Math.max(178, w * 0.18));
+        const rightW = w >= 1160 ? Math.min(250, w * 0.18) : 0;
+        const centerX = m + leftW + gap;
+        const centerRight = w - m - (rightW ? rightW + gap : 0);
+        const centerW = centerRight - centerX;
+        const boardW = Math.min(440, Math.max(205, centerW * 0.45));
+        this.layout = {
+            w, h, m, leftW, rightW, mainTop, mainBottom,
+            centerX, centerRight, boardX: centerX, boardW,
+            battleX: centerX + boardW + gap,
+            battleW: centerW - boardW - gap,
+            rightX: w - m - rightW
+        };
+        const g = this.keep(this.add.graphics());
+        g.fillStyle(0x08121c).fillRect(0, 0, w, h);
+        g.lineStyle(1, 0x1d3644, 0.9).lineBetween(m, 65, w - m, 65);
+        this.text(m + 6, 19, 'O V E R S E E R', 23, '#e2eef3');
+        this.text(m + 7, 49, 'VNEXT  /  LABORATOIRE VISUEL', 10, '#86a6ba');
+        this.drawSpeedControls(w);
+        this.panel(g, m, mainTop, leftW, mainBottom - mainTop);
+        this.panel(g, centerX, mainTop, boardW, mainBottom - mainTop);
+        this.panel(g, this.layout.battleX, mainTop, this.layout.battleW, mainBottom - mainTop);
+        if (rightW) this.panel(g, this.layout.rightX, mainTop, rightW, mainBottom - mainTop);
+        this.panel(g, m, h - 112, w - m * 2, 96);
+        this.drawPalette();
+        this.drawBoard();
+        this.drawBattlePanel();
+        if (rightW) this.drawRightPanel();
+        this.drawFooter();
+        this.paintBoard();
+        this.paintBattle();
+    }
+
+    drawSpeedControls(w) {
+        const labels = [0, 1, 2, 3, 5];
+        const startX = Math.max(330, w - 472);
+        labels.forEach((speed, i) => {
+            const x = startX + 50 * i;
+            const label = this.text(x, 23, speed === 0 ? 'Ⅱ' : `×${speed}`, 15,
+                this.speed === speed ? '#64e9ee' : '#97b7c9');
+            label.setPadding(11, 5, 11, 5).setInteractive({ useHandCursor: true });
+            label.on('pointerdown', () => this.selectSpeed(speed));
+        });
+        const legacy = this.text(w - 183, 24, 'JEU ACTUEL ↗', 12, '#d4e4ee');
+        legacy.setPadding(5).setInteractive({ useHandCursor: true });
+        legacy.on('pointerdown', () => this.scene.start('GameScene'));
+        const menu = this.text(w - 59, 24, 'MENU', 12, '#7b9aad');
+        menu.setPadding(5).setInteractive({ useHandCursor: true });
+        menu.on('pointerdown', () => this.scene.start(window.selectedLanguage ? 'MainMenuScene' : 'HomeScene'));
+    }
+
+    selectSpeed(speed) {
+        if (speed === 0 && this.speed > 0) this.lastSpeed = this.speed;
+        this.speed = speed;
+        this.buildUi();
+    }
+
+    drawPalette() {
+        const l = this.layout;
+        this.text(l.m + 16, l.mainTop + 18, 'CONSTRUCTION', 15);
+        this.text(l.m + 16, l.mainTop + 44, 'Déposer ou cliquer', 11, '#7da0b3');
+        const g = this.keep(this.add.graphics());
+        this.types.forEach((type, i) => {
+            const x = l.m + 12, y = l.mainTop + 76 + 75 * i;
+            const cw = l.leftW - 24;
+            this.text(x + 53, y + 19, type.label, 12);
+            this.text(x + 53, y + 38, 'APERÇU', 10, '#7393a8');
+            const hit = this.keep(this.add.zone(x + cw / 2, y + 32, cw, 65).setInteractive({ useHandCursor: true }));
+            hit.setData('palette', type.id);
+            hit.on('pointerdown', () => {
+                this.selectedType = this.selectedType === type.id ? null : type.id;
+                this.movingId = null;
+                this.paintBoard();
+                this.refreshPaletteSelection();
+            });
+            this.input.setDraggable(hit);
+        });
+        this.paletteGraphics = g;
+        this.refreshPaletteSelection();
+        this.note = this.text(l.m + 13, l.mainBottom - 75, 'Économie : non branchée', 11, '#a5b8c6');
+        this.text(l.m + 13, l.mainBottom - 53, 'Aucun coût de construction', 10, '#7292a6');
+    }
+
+    refreshPaletteSelection() {
+        const g = this.paletteGraphics, l = this.layout;
+        if (!g) return;
+        g.clear();
+        this.types.forEach((type, i) => {
+            const x = l.m + 12, y = l.mainTop + 76 + 75 * i;
+            const cw = l.leftW - 24;
+            const chosen = this.selectedType === type.id;
+            g.fillStyle(chosen ? 0x133448 : 0x0b1c29).fillRoundedRect(x, y, cw, 65, 5);
+            g.lineStyle(1, chosen ? 0x55cce0 : 0x1b3c4d).strokeRoundedRect(x, y, cw, 65, 5);
+            this.drawGlyph(g, type.id, x + 29, y + 32, type.color, 14);
+        });
+    }
+
+    drawBoard() {
+        const l = this.layout;
+        this.text(l.boardX + 16, l.mainTop + 17, 'BASE  5 × 5', 15);
+        const usableH = l.mainBottom - l.mainTop;
+        const gridSize = Math.max(110, Math.min(l.boardW - 26, usableH - 119));
+        const cell = gridSize / 5;
+        const x = l.boardX + (l.boardW - gridSize) / 2;
+        const y = l.mainTop + 50 + Math.max(0, (usableH - 120 - gridSize) / 2);
+        this.gridLayout = { x, y, size: gridSize, cell };
+        this.boardGraphics = this.keep(this.add.graphics());
+        for (let index = 0; index < 25; index++) {
+            const cx = x + (index % 5 + 0.5) * cell;
+            const cy = y + (Math.floor(index / 5) + 0.5) * cell;
+            const hit = this.keep(this.add.zone(cx, cy, cell, cell).setInteractive({ useHandCursor: true }));
+            hit.on('pointerdown', () => this.clickTile(index));
+            hit.on('pointerover', () => {
+                const building = OverseerVNextPreview.buildingAt(this.model, index);
+                const name = building ? this.types.find(t => t.id === this.world.get(building, 'Building').type)?.label : null;
+                this.boardHint.setText(name ? `${name} · ${this.world.get(this.model.tiles[index], 'Watched').active ? 'ACTIF' : 'INACTIF'}` : 'Emplacement libre');
+            });
+            hit.on('pointerout', () => this.updateBoardHint());
+        }
+        this.boardHint = this.text(l.boardX + 15, l.mainBottom - 42, '', 11, '#98b5c7');
+        this.updateBoardHint();
+    }
+
+    gridIndex(x, y) {
+        const { x: gx, y: gy, size, cell } = this.gridLayout;
+        if (x < gx || y < gy || x >= gx + size || y >= gy + size) return -1;
+        return Math.floor((y - gy) / cell) * 5 + Math.floor((x - gx) / cell);
+    }
+
+    clickTile(index) {
+        const existing = OverseerVNextPreview.buildingAt(this.model, index);
+        if (this.movingId !== null) {
+            if (OverseerVNextPreview.moveBuilding(this.model, this.movingId, index)) this.movingId = null;
+        } else if (this.selectedType && !existing) {
+            OverseerVNextPreview.placeBuilding(this.model, this.selectedType, index);
+            this.selectedType = null;
+        } else if (existing && !this.selectedType) {
+            this.movingId = existing;
+        }
+        this.paintBoard();
+        this.refreshPaletteSelection();
+        this.updateBoardHint();
+    }
+
+    updateBoardHint() {
+        if (!this.boardHint) return;
+        this.boardHint.setText(this.movingId !== null ? 'Déplacer : choisir une case libre' :
+            this.selectedType ? 'Choisir une case libre' : 'ZQSD / WASD : vision   E : tourner');
+    }
+
+    drawGlyph(g, type, x, y, color, r) {
+        g.lineStyle(2, color, 1);
+        if (type === 'reactor') g.strokeCircle(x, y, r * 0.75);
+        else if (type === 'extractor') {
+            g.strokeEllipse(x, y, r * 1.5, r * 0.95);
+            g.lineBetween(x - r * 0.7, y + r * 0.7, x + r * 0.7, y - r * 0.7);
+        } else if (type === 'factory') {
+            const points = Array.from({ length: 6 }, (_, i) => ({
+                x: x + Math.cos(Math.PI * i / 3) * r,
+                y: y + Math.sin(Math.PI * i / 3) * r
+            }));
+            g.strokePoints(points, true);
+        } else if (type === 'laboratory') {
+            g.strokePoints([{ x, y: y - r }, { x: x + r, y }, { x, y: y + r }, { x: x - r, y }], true);
+        }
+    }
+
+    paintBoard() {
+        if (!this.boardGraphics || !this.gridLayout) return;
+        const g = this.boardGraphics;
+        g.clear();
+        const { x, y, size, cell } = this.gridLayout;
+        g.lineStyle(1, 0x214052, 0.32);
+        for (let i = 0; i <= 5; i++) {
+            g.lineBetween(x + cell * i, y, x + cell * i, y + size);
+            g.lineBetween(x, y + cell * i, x + size, y + cell * i);
+        }
+        const point = index => ({ x: x + (index % 5 + 0.5) * cell, y: y + (Math.floor(index / 5) + 0.5) * cell });
+        for (let i = 0; i < 25; i++) {
+            const p = point(i);
+            g.fillStyle(this.world.get(this.model.tiles[i], 'Watched').active ? 0x43889a : 0x315269, 0.85);
+            g.fillCircle(p.x, p.y, 2.5);
+        }
+        g.lineStyle(2, 0x55d6e8, 0.75);
+        OverseerVNextPreview.attentionLinks(this.model).forEach(([a, b]) => {
+            const pa = point(a), pb = point(b);
+            g.lineBetween(pa.x, pa.y, pb.x, pb.y);
+        });
+        this.world.query('Building', 'GridSlot').forEach(id => {
+            const slot = this.world.get(id, 'GridSlot').index;
+            const p = point(slot);
+            const type = this.world.get(id, 'Building').type;
+            const style = this.types.find(t => t.id === type);
+            if (!style) return;
+            const active = this.world.get(this.model.tiles[slot], 'Watched').active;
+            g.fillStyle(0x08121c, 1).fillCircle(p.x, p.y, cell * 0.31);
+            g.lineStyle(active ? 2.5 : 1.5, style.color, active ? 1 : 0.34);
+            g.strokeCircle(p.x, p.y, cell * 0.29);
+            if (active) {
+                g.lineStyle(1, 0x67e5e7, 0.7).strokeCircle(p.x, p.y, cell * 0.36);
+            }
+            this.drawGlyph(g, type, p.x, p.y, active ? style.color : 0x5b7687, cell * 0.18);
+            if (id === this.movingId) g.lineStyle(2, 0xffffff, 0.9).strokeCircle(p.x, p.y, cell * 0.4);
+        });
+    }
+
+    applyAttention() {
+        const offsets = this.visionRules.visionPatterns[this.visionRules.patternIndex];
+        const indices = offsets.map(({ x, y }) => (this.attention.y + y) * 5 + this.attention.x + x);
+        return OverseerVNextPreview.setObserved(this.model, indices);
+    }
+
+    changeAttention(dx, dy, rotate = false) {
+        const candidate = { x: this.attention.x + dx, y: this.attention.y + dy };
+        const nextRotation = (this.visionRules.patternIndex + (rotate ? 1 : 0)) % 4;
+        const pattern = this.visionRules.visionPatterns[nextRotation];
+        if (!pattern.every(p => candidate.x + p.x >= 0 && candidate.x + p.x < 5 &&
+                                  candidate.y + p.y >= 0 && candidate.y + p.y < 5)) return false;
+        this.attention = candidate;
+        this.visionRules.patternIndex = nextRotation;
+        this.applyAttention();
+        this.paintBoard();
+        return true;
+    }
+
+    onKey(event) {
+        if (event.code === 'Space') { event.preventDefault(); this.selectSpeed(this.speed === 0 ? (this.lastSpeed || 1) : 0); return; }
+        if (['Digit1', 'Digit2', 'Digit3', 'Digit5'].includes(event.code)) {
+            this.selectSpeed(Number(event.code.slice(-1))); return;
+        }
+        if (event.code === 'KeyE') { this.changeAttention(0, 0, true); return; }
+        const key = event.key.toLowerCase();
+        const azerty = window.keyboardLayout === 'azerty';
+        const arrows = {
+            arrowup: [0, -1], arrowdown: [0, 1], arrowleft: [-1, 0], arrowright: [1, 0]
+        };
+        const move = arrows[key] || (key === (azerty ? 'z' : 'w') ? [0, -1] :
+            key === (azerty ? 'q' : 'a') ? [-1, 0] : key === 's' ? [0, 1] : key === 'd' ? [1, 0] : null);
+        if (move) this.changeAttention(...move);
+    }
+
+    onDragStart(pointer, object) {
+        const type = object.getData('palette');
+        if (!type) return;
+        this.dragType = type;
+        this.dragGhost = this.add.graphics();
+        this.drawGlyph(this.dragGhost, type, 0, 0, this.types.find(t => t.id === type).color, 21);
+        this.dragGhost.setPosition(pointer.x, pointer.y).setDepth(300);
+    }
+
+    onDrag(pointer, object) {
+        if (object.getData('palette') && this.dragGhost) this.dragGhost.setPosition(pointer.x, pointer.y);
+    }
+
+    onDragEnd(pointer, object) {
+        if (!object.getData('palette')) return;
+        const index = this.gridIndex(pointer.x, pointer.y);
+        if (index !== -1) OverseerVNextPreview.placeBuilding(this.model, object.getData('palette'), index);
+        this.dragGhost?.destroy();
+        this.dragGhost = null;
+        this.dragType = null;
+        this.selectedType = null;
+        this.paintBoard();
+        this.updateBoardHint();
+        this.buildUi();
+    }
+
+    drawBattlePanel() {
+        const l = this.layout;
+        this.text(l.battleX + 15, l.mainTop + 17, 'CHAMP DE BATAILLE', 15);
+        const { battleX, battleW, mainTop, mainBottom } = l;
+        this.battleBounds = { x: battleX + 12, y: mainTop + 48, w: battleW - 24, h: mainBottom - mainTop - 96 };
+        const g = this.keep(this.add.graphics());
+        const b = this.battleBounds;
+        g.lineStyle(1, 0x1c3949, 0.5).lineBetween(b.x + b.w * 0.52, b.y, b.x + b.w * 0.52, b.y + b.h);
+        this.battleGraphics = this.keep(this.add.graphics());
+        this.battleStatus = this.text(l.battleX + 15, mainBottom - 38, '', 11, '#8eabbc');
+    }
+
+    drawRightPanel() {
+        const l = this.layout, x = l.rightX + 15;
+        this.text(x, l.mainTop + 18, 'RESSOURCES', 15);
+        ['Énergie', 'Matière', 'Refroidissement', 'Composants', 'Données'].forEach((name, i) => {
+            this.text(x, l.mainTop + 63 + i * 39, name, 12, '#a8c2d1');
+            this.text(x + l.rightW - 48, l.mainTop + 63 + i * 39, '—', 12, '#58798e');
+        });
+        const y = l.mainTop + 292;
+        this.text(x, y, 'PROTOCOLES', 15);
+        this.text(x, y + 37, 'À définir avec l’économie', 11, '#7d9bb1');
+        this.text(x, y + 59, 'Aucun sort simulé ici', 11, '#7d9bb1');
+    }
+
+    drawFooter() {
+        const l = this.layout;
+        const y = l.h - 102;
+        this.text(l.m + 15, y, 'VAGUES / TIMELINE', 14);
+        const g = this.keep(this.add.graphics());
+        const x1 = l.m + 230, x2 = l.w - 290;
+        g.lineStyle(1, 0x29495b, 0.8).lineBetween(x1, y + 18, x2, y + 18);
+        for (let i = 0; i < 8; i++) {
+            const px = x1 + (x2 - x1) * i / 7;
+            g.fillStyle(0x45677f, 1).fillCircle(px, y + 18, 3);
+        }
+        this.text(l.m + 15, y + 36, 'Escarmouche ECS · pas de vagues ni de production VNext', 11, '#829fb1');
+        const replay = this.text(l.w - 203, y + 36, '↻ REJOUER LE COMBAT', 12, '#6de8e8');
+        replay.setPadding(5).setInteractive({ useHandCursor: true });
+        replay.on('pointerdown', () => this.resetBattle());
+    }
+
+    resetBattle() {
+        (this.battleUnits || []).forEach(id => { if (this.world.has(id)) this.world.destroy(id); });
+        this.battleUnits = [];
+        this.baseHp = 100;
+        const stats = this.cache.json.get('vnextLegacyStats');
+        const lineup = [
+            ['player', 'unit_guard', 200, 185], ['player', 'unit_sniper', 260, 305],
+            ['player', 'unit_dronoid', 230, 425], ['enemy', 'basic_monster', 650, 180],
+            ['enemy', 'basic_monster', 720, 390], ['enemy', 'ranged_monster', 790, 275],
+            ['enemy', 'base_rusher', 870, 460]
+        ];
+        lineup.forEach(([side, type, x, y]) => {
+            const config = (side === 'player' ? stats.units : stats.enemies).find(d => d.id === type);
+            if (!config) return;
+            const id = this.world.create(this.model.game);
+            this.world.set(id, 'Position', { x, y });
+            this.world.set(id, 'Health', { hp: config.hp, maxHp: config.hp });
+            this.world.set(id, 'Faction', { side });
+            this.world.set(id, 'Movement', { speed: config.speed });
+            this.world.set(id, 'Combat', {
+                damage: config.attack_damage, range: config.attack_range,
+                attackType: config.attack_type, cooldownMs: config.attack_speed * 1000,
+                elapsedMs: 0, detectionRadius: side === 'player' ? 400 : 220,
+                behavior: config.behavior || null
+            });
+            this.world.set(id, 'PreviewUnit', { type });
+            this.battleUnits.push(id);
+        });
+        this.paintBattle();
+    }
+
+    paintBattle() {
+        if (!this.battleGraphics || !this.battleBounds) return;
+        const g = this.battleGraphics, b = this.battleBounds;
+        g.clear();
+        const p = (x, y) => ({ x: b.x + b.w * x / 1000, y: b.y + b.h * y / 600 });
+        const base = p(65, 300);
+        g.lineStyle(1, 0x48b8c4, 0.65).strokeCircle(base.x, base.y, 12);
+        g.lineStyle(1, 0x48b8c4, 0.3).strokeCircle(base.x, base.y, 21);
+        for (const id of this.battleUnits) {
+            if (!this.world.has(id)) continue;
+            const hp = this.world.get(id, 'Health');
+            if (hp.hp <= 0) continue;
+            const pos = this.world.get(id, 'Position');
+            const side = this.world.get(id, 'Faction').side;
+            const q = p(pos.x, pos.y);
+            const color = side === 'player' ? 0x38d9f1 : 0xff5c79;
+            g.lineStyle(2, color, 0.98);
+            const r = Math.min(12, Math.max(6, b.w * 0.024));
+            if (side === 'player') {
+                g.strokeTriangle(q.x, q.y - r, q.x + r, q.y + r, q.x - r, q.y + r);
+            } else {
+                g.strokeCircle(q.x, q.y, r * 0.8);
+                g.fillStyle(color, 0.5).fillCircle(q.x, q.y, r * 0.26);
+            }
+            g.fillStyle(0x23404e, 0.8).fillRect(q.x - 11, q.y - r - 9, 22, 3);
+            g.fillStyle(side === 'player' ? 0x44dc91 : 0xff5e79, 1)
+                .fillRect(q.x - 11, q.y - r - 9, 22 * Math.max(0, hp.hp / hp.maxHp), 3);
+        }
+        if (this.battleStatus) {
+            const alive = side => this.battleUnits.filter(id => this.world.has(id) &&
+                this.world.get(id, 'Faction').side === side && this.world.get(id, 'Health').hp > 0).length;
+            this.battleStatus.setText(`Alliés ${alive('player')}   Menaces ${alive('enemy')}   Base ${this.baseHp}/100`);
+        }
+    }
+
+    update(time, delta) {
+        if (!this.model || this.speed === 0 || !this.battleUnits) return;
+        const dt = Math.min(delta, 60) * this.speed;
+        const players = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'player' && this.world.get(id, 'Health').hp > 0);
+        const enemies = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'enemy' && this.world.get(id, 'Health').hp > 0);
+        for (const id of [...players, ...enemies]) {
+            if (this.world.get(id, 'Health').hp <= 0) continue;
+            const side = this.world.get(id, 'Faction').side;
+            const events = OverseerCombat.stepUnit(this.world, id, dt, {
+                opponents: side === 'player' ? enemies : players,
+                base: side === 'enemy' && this.baseHp > 0 ? { x: 65, y: 300 } : null,
+                patrol: side === 'player' ? { x: 280, y: 300 } : null
+            });
+            events.forEach(e => { if (e.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - e.damage); });
+        }
+        this.paintBattle();
+    }
+}
