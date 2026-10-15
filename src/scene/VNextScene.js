@@ -100,6 +100,7 @@ class VNextScene extends Phaser.Scene {
         this.resourceLabels = {};
         this.resourceStatusLabels = {};
         this.compactResources = null;
+        this.compactResourceDeltas = null;
         if (rightW) this.drawRightPanel();
         else this.drawCompactResources();
         this.drawFooter();
@@ -457,13 +458,13 @@ class VNextScene extends Phaser.Scene {
         const l = this.layout, x = l.m + 17, startY = l.mainBottom - 156;
         const g = this.keep(this.add.graphics());
         this.compactResources = {};
+        this.compactResourceDeltas = {};
         this.resourceStyles.filter(style => !style.pending).forEach((style, i) => {
             const y = startY + i * 21;
             this.drawResourceIcon(g, style, x + 8, y + 7, 8);
             const color = `#${style.color.toString(16).padStart(6, '0')}`;
-            this.text(x + 26, y, style.label, 10, '#aec6d2');
-            this.compactResources[style.id] = this.text(l.m + l.leftW - 18, y - 2, '0', 13, color)
-                .setOrigin(1, 0);
+            this.compactResources[style.id] = this.text(x + 25, y - 2, '0', 14, color);
+            this.compactResourceDeltas[style.id] = this.text(l.m + l.leftW - 17, y, '—', 11, '#7898aa').setOrigin(1, 0);
         });
     }
 
@@ -480,24 +481,23 @@ class VNextScene extends Phaser.Scene {
     }
 
     drawRightPanel() {
-        const l = this.layout, x = l.rightX + 15;
+        const l = this.layout, x = l.rightX + 17;
         this.text(x, l.mainTop + 18, 'RESSOURCES', 15);
         const g = this.resourceGraphics = this.keep(this.add.graphics());
+        this.resourceLabels = {};
+        this.resourceStatusLabels = {};
         this.resourceStyles.forEach((style, i) => {
-            const y = l.mainTop + 64 + i * 44;
-            this.drawResourceIcon(g, style, x + 11, y + 12);
-            this.text(x + 30, y, style.label, 12, style.pending ? '#849eaf' : '#c6d9e2');
+            const y = l.mainTop + 64 + i * 34;
+            this.drawResourceIcon(g, style, x + 10, y + 9, 9);
             const color = style.pending ? '#67869b' : `#${style.color.toString(16).padStart(6, '0')}`;
-            const value = this.text(l.rightX + l.rightW - 17, y - 3,
-                style.pending ? '—' : '0', 17, color).setOrigin(1, 0);
-            if (!style.pending) {
-                this.resourceLabels[style.id] = value;
-                this.resourceStatusLabels[style.id] = this.text(x + 30, y + 19, '', 10, '#7898aa');
-            } else {
-                this.text(x + 30, y + 19, 'NON SIMULÉ', 10, '#617f91');
+            if (style.pending) {
+                this.text(x + 28, y, '—', 16, color);
+                return;
             }
+            this.resourceLabels[style.id] = this.text(x + 28, y - 2, '0', 17, color);
+            this.resourceStatusLabels[style.id] = this.text(l.rightX + l.rightW - 17, y + 1, '—', 11, '#7898aa').setOrigin(1, 0);
         });
-        const y = l.mainTop + 304;
+        const y = l.mainTop + 261;
         this.text(x, y, 'PROTOCOLES', 15);
         this.text(x, y + 37, 'À définir avec l’économie', 11, '#7d9bb1');
         this.text(x, y + 59, 'Aucun sort simulé ici', 11, '#7d9bb1');
@@ -535,16 +535,14 @@ class VNextScene extends Phaser.Scene {
             if (style.pending) continue;
             this.resourceLabels[style.id]?.setText(String(balance[style.id]));
             this.compactResources?.[style.id]?.setText(String(balance[style.id]));
-            const status = this.resourceStatusLabels[style.id];
-            if (!status) continue;
             const recent = this.lastResourceChanges[style.id];
-            if (recent?.remainingMs > 0) {
-                status.setText(`${recent.change > 0 ? '+' : ''}${recent.change} · VARIATION RÉCENTE`);
-                status.setColor(recent.change > 0 ? '#69e5ac' : '#ff9e8c');
-            } else {
-                const activity = this.resourceActivity(style.source);
-                status.setText(activity);
-                status.setColor(activity === 'EN ATTENTE' ? '#ff9e8c' : '#7898aa');
+            const delta = recent?.remainingMs > 0
+                ? `${recent.change > 0 ? '+' : ''}${recent.change}` : '—';
+            const color = recent?.remainingMs > 0
+                ? (recent.change > 0 ? '#69e5ac' : '#ff9e8c') : '#7898aa';
+            for (const status of [this.resourceStatusLabels[style.id], this.compactResourceDeltas?.[style.id]]) {
+                status?.setText(delta);
+                status?.setColor(color);
             }
         }
     }

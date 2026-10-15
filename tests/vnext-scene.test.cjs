@@ -132,7 +132,7 @@ test('resource glyphs and values remain available before construction', () => {
     assert.equal(scene.resourceLabels.energy.color, '#35d8ef');
     assert.equal(scene.resourceLabels.matter.color, '#39dd92');
     assert.equal(scene.resourceLabels.components.color, '#f4ba58');
-    assert.equal(scene.resourceStatusLabels.energy.value, 'AUCUN BÂTIMENT');
+    assert.equal(scene.resourceStatusLabels.energy.value, '—');
 });
 
 test('resource HUD updates when starter reactor is placed and observed', () => {
@@ -142,14 +142,15 @@ test('resource HUD updates when starter reactor is placed and observed', () => {
     scene.clickTile(6);
     for (let i = 0; i < 34; i++) scene.update(0, 60);
     assert.equal(scene.resourceLabels.energy.value, '2');
-    assert.equal(scene.resourceStatusLabels.energy.value, '+2 · VARIATION RÉCENTE');
+    assert.equal(scene.resourceStatusLabels.energy.value, '+2');
     scene.changeAttention(1, 0);
     scene.lastResourceChanges.energy.remainingMs = 0;
     scene.updateResourceHud();
-    assert.equal(scene.resourceStatusLabels.energy.value, 'HORS VISION');
+    assert.equal(scene.resourceStatusLabels.energy.value, '—');
     scene.scale.width = 800;
     scene.buildUi();
     assert.equal(scene.compactResources.energy.value, '2');
+    assert.equal(scene.compactResourceDeltas.energy.value, '—');
 });
 
 test('starter factory displays waiting state without unearned resources', () => {
@@ -159,7 +160,7 @@ test('starter factory displays waiting state without unearned resources', () => 
     scene.clickTile(11);
     for (let i = 0; i < 60; i++) scene.update(0, 60);
     assert.equal(scene.resourceLabels.components.value, '0');
-    assert.equal(scene.resourceStatusLabels.components.value, 'EN ATTENTE');
+    assert.equal(scene.resourceStatusLabels.components.value, '—');
 });
 
 test('hover tooltip uses real factory recipe and barracks placeholder', () => {
@@ -232,4 +233,22 @@ test('card hover shares building recipe tooltip with grid hover', () => {
     const previous = [...scene.tooltipObjects];
     scene.hideBuildingTooltip();
     assert.ok(previous.every(object => object.destroyed));
+});
+
+test('compact resource HUD shows only icon, count and real recent delta', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const allText = scene.ui.filter(o => typeof o.value === 'string').map(o => o.value);
+    assert.equal(allText.includes('Énergie'), false);
+    assert.equal(allText.includes('Matière'), false);
+    assert.equal(allText.includes('Composants'), false);
+    scene.selectedType = 'reactor';
+    scene.clickTile(6);
+    for (let i = 0; i < 34; i++) scene.update(0, 60);
+    assert.equal(scene.resourceLabels.energy.value, '2');
+    assert.equal(scene.resourceStatusLabels.energy.value, '+2');
+    scene.scale.width = 800;
+    scene.buildUi();
+    assert.equal(scene.compactResources.energy.value, '2');
+    assert.equal(scene.compactResourceDeltas.energy.value, '+2');
 });
