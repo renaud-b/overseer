@@ -180,7 +180,7 @@ test('hover tooltip uses real factory recipe and barracks placeholder', () => {
     scene.showBuildingTooltip(12);
     assert.ok(old.every(o => o.destroyed));
     assert.ok(scene.tooltipObjects.some(o => o.value === 'COÛT PAR UNITÉ'));
-    assert.ok(scene.tooltipObjects.some(o => /^UNITÉS \d+\/\d+$/.test(o.value)));
+    assert.ok(scene.tooltipObjects.some(o => /^SOLDATS \d+\/\d+$/.test(o.value)));
     scene.hideBuildingTooltip();
     assert.equal(scene.tooltipObjects.length, 0);
 });
@@ -231,7 +231,7 @@ test('card hover shares building recipe tooltip with grid hover', () => {
     assert.ok(scene.tooltipObjects.some(object => object.value === 'Caserne'));
     assert.ok(scene.tooltipObjects.some(object => object.value === '25'));
     assert.ok(scene.tooltipObjects.some(object => object.value === '15'));
-    assert.ok(scene.tooltipObjects.some(object => /^UNITÉS \d+\/\d+$/.test(object.value)));
+    assert.ok(scene.tooltipObjects.some(object => /^SOLDATS \d+\/\d+$/.test(object.value)));
     const previous = [...scene.tooltipObjects];
     scene.hideBuildingTooltip();
     assert.ok(previous.every(object => object.destroyed));
