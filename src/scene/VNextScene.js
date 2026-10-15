@@ -72,7 +72,7 @@ class VNextScene extends Phaser.Scene {
         const w = this.scale.width, h = this.scale.height;
         const m = 16, gap = 12, mainTop = 82, mainBottom = h - 126;
         const leftW = Math.min(244, Math.max(178, w * 0.18));
-        const rightW = w >= 1160 ? 172 : 0;
+        const rightW = w >= 1160 ? 112 : 0;
         const centerX = m + leftW + gap;
         const centerRight = w - m - (rightW ? rightW + gap : 0);
         const centerW = centerRight - centerX;
@@ -506,21 +506,21 @@ class VNextScene extends Phaser.Scene {
     }
 
     drawRightPanel() {
-        const l = this.layout, x = l.rightX + 17;
+        const l = this.layout, x = l.rightX + 9;
         const g = this.resourceGraphics = this.keep(this.add.graphics());
         this.resourceLabels = {};
         this.resourceStatusLabels = {};
         this.resourceStyles.forEach((style, i) => {
             const y = l.mainTop + 24 + i * 34;
-            this.drawResourceIcon(g, style, x + 10, y + 9, 9);
-            this.resourceHoverZone(style, x - 8, y - 4, l.rightW - 20, 30, l.rightX - 190, y - 2);
+            this.drawResourceIcon(g, style, x + 8, y + 9, 8);
+            this.resourceHoverZone(style, x - 4, y - 4, l.rightW - 10, 30, l.rightX - 190, y - 2);
             const color = style.pending ? '#67869b' : `#${style.color.toString(16).padStart(6, '0')}`;
             if (style.pending) {
-                this.text(x + 28, y, '—', 16, color);
+                this.text(x + 21, y, '—', 15, color);
                 return;
             }
-            this.resourceLabels[style.id] = this.text(x + 28, y - 2, '0', 17, color);
-            this.resourceStatusLabels[style.id] = this.text(l.rightX + l.rightW - 17, y + 1, '—', 11, '#7898aa').setOrigin(1, 0);
+            this.resourceLabels[style.id] = this.text(x + 21, y - 2, '0', 15, color);
+            this.resourceStatusLabels[style.id] = this.text(l.rightX + l.rightW - 8, y + 1, '—', 10, '#7898aa').setOrigin(1, 0);
         });
     }
 

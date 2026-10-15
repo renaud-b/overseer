@@ -256,7 +256,7 @@ test('compact resource HUD shows only icon, count and real recent delta', () => 
 test('resource panel narrows and reveals each resource name only on hover', () => {
     const scene = new VNextScene();
     scene.create();
-    assert.equal(scene.layout.rightW, 172);
+    assert.equal(scene.layout.rightW, 112);
     assert.ok(scene.layout.battleW > 0);
     const allText = scene.ui.filter(o => typeof o.value === 'string').map(o => o.value);
     assert.equal(allText.includes('Refroidissement'), false);
@@ -282,4 +282,15 @@ test('right resource panel has no resource heading or protocols content', () => 
     }
     assert.ok(scene.resourceLabels.energy);
     assert.ok(scene.resourceStatusLabels.components);
+});
+
+test('right panel reserves only a narrow resource strip for battle', () => {
+    const scene = new VNextScene();
+    scene.create();
+    assert.equal(scene.layout.rightW, 112);
+    const previous = scene.layout.battleW;
+    scene.scale.width = 1600;
+    scene.buildUi();
+    assert.ok(scene.layout.battleW > previous);
+    assert.equal(scene.layout.rightW, 112);
 });
