@@ -12,7 +12,7 @@ const visionSource = fs.readFileSync(path.join(ROOT, 'src/scene/entities/Vision.
 const sceneSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextScene.js'), 'utf8');
 
 class Display {
-    constructor(x = 0, y = 0) { this.x = x; this.y = y; this.handlers = {}; this.data = {}; }
+    constructor(x = 0, y = 0) { this.x = x; this.y = y; this.handlers = {}; this.data = {}; this.drawCalls = []; }
     on(name, fn) { this.handlers[name] = fn; return this; }
     setInteractive() { return this; }
     setPadding() { return this; }
@@ -26,14 +26,14 @@ class Display {
     strokeRoundedRect() { return this; }
     lineStyle() { return this; }
     lineBetween() { return this; }
-    fillCircle() { return this; }
-    strokeCircle() { return this; }
+    fillCircle(x, y, r) { this.drawCalls.push({ type: 'fillCircle', x, y, r }); return this; }
+    strokeCircle(x, y, r) { this.drawCalls.push({ type: 'strokeCircle', x, y, r }); return this; }
     strokeEllipse() { return this; }
     strokePoints() { return this; }
     fillRect() { return this; }
     strokeTriangle() { return this; }
     fillTriangle() { return this; }
-    clear() { return this; }
+    clear() { this.drawCalls = []; return this; }
     destroy() { this.destroyed = true; }
 }
 
@@ -88,4 +88,20 @@ test('scene creates, resizes, places and simulates against existing ECS', () => 
     assert.ok(preview.buildingAt(scene.model, 23));
     scene.resetBattle();
     assert.equal(scene.world.query('PreviewUnit').length, 7);
+});
+
+test('observed empty tiles use a large bright marker and fine ring', () => {
+    const scene = new VNextScene();
+    scene.create();
+    // Shift the legacy L-shaped attention to cover empty positions 8 and 12.
+    assert.equal(scene.changeAttention(1, 0), true);
+    const { x, y, cell } = scene.gridLayout;
+    const at = index => ({ x: x + (index % 5 + 0.5) * cell, y: y + (Math.floor(index / 5) + 0.5) * cell });
+    const callsAt = (index, type) => scene.boardGraphics.drawCalls.filter(c => c.type === type &&
+        Math.abs(c.x - at(index).x) < 0.01 && Math.abs(c.y - at(index).y) < 0.01);
+    assert.equal(preview.buildingAt(scene.model, 8), null);
+    assert.ok(callsAt(8, 'fillCircle').some(c => c.r >= 5));
+    assert.ok(callsAt(8, 'strokeCircle').some(c => c.r >= 10));
+    assert.ok(callsAt(0, 'fillCircle').some(c => c.r < 3));
+    assert.equal(callsAt(0, 'strokeCircle').length, 0);
 });

@@ -241,8 +241,15 @@ class VNextScene extends Phaser.Scene {
         const point = index => ({ x: x + (index % 5 + 0.5) * cell, y: y + (Math.floor(index / 5) + 0.5) * cell });
         for (let i = 0; i < 25; i++) {
             const p = point(i);
-            g.fillStyle(this.world.get(this.model.tiles[i], 'Watched').active ? 0x43889a : 0x315269, 0.85);
-            g.fillCircle(p.x, p.y, 2.5);
+            const watched = this.world.get(this.model.tiles[i], 'Watched').active;
+            // Attention must remain legible even when no building occupies the tile.
+            // These markers are visual only: the Watched ECS component owns activation.
+            if (watched && OverseerVNextPreview.buildingAt(this.model, i) === null) {
+                g.fillStyle(0x75d8e6, 0.95).fillCircle(p.x, p.y, 5.5);
+                g.lineStyle(1, 0x75d8e6, 0.5).strokeCircle(p.x, p.y, 11);
+            } else if (!watched) {
+                g.fillStyle(0x315269, 0.7).fillCircle(p.x, p.y, 2.5);
+            }
         }
         g.lineStyle(2, 0x55d6e8, 0.75);
         OverseerVNextPreview.attentionLinks(this.model).forEach(([a, b]) => {
