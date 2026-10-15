@@ -180,7 +180,7 @@ test('hover tooltip uses real factory recipe and barracks placeholder', () => {
     scene.showBuildingTooltip(12);
     assert.ok(old.every(o => o.destroyed));
     assert.ok(scene.tooltipObjects.some(o => o.value === 'COÛT PAR UNITÉ'));
-    assert.ok(scene.tooltipObjects.some(o => o.value === '1 UNITÉ DE BASE'));
+    assert.ok(scene.tooltipObjects.some(o => o.value === 'UNITÉS 1/3'));
     scene.hideBuildingTooltip();
     assert.equal(scene.tooltipObjects.length, 0);
 });
@@ -215,7 +215,7 @@ test('barracks creates an autonomous player ECS unit after spending resources', 
     scene.selectedType = 'barracks';
     scene.clickTile(6);
     const balance = scene.world.get(scene.model.game, 'Resources');
-    balance.energy = 30; balance.components = 50;
+    balance.energy = 15; balance.components = 25;
     const before = scene.world.query('PreviewUnit').length;
     scene.update(0, 60);
     assert.equal(scene.world.query('PreviewUnit').length, before + 1);
@@ -229,9 +229,9 @@ test('card hover shares building recipe tooltip with grid hover', () => {
     scene.create();
     scene.showCardTooltip('barracks', 180, 150);
     assert.ok(scene.tooltipObjects.some(object => object.value === 'Caserne'));
-    assert.ok(scene.tooltipObjects.some(object => object.value === '50'));
-    assert.ok(scene.tooltipObjects.some(object => object.value === '30'));
-    assert.ok(scene.tooltipObjects.some(object => object.value === '1 UNITÉ DE BASE'));
+    assert.ok(scene.tooltipObjects.some(object => object.value === '25'));
+    assert.ok(scene.tooltipObjects.some(object => object.value === '15'));
+    assert.ok(scene.tooltipObjects.some(object => object.value === 'UNITÉS 1/3'));
     const previous = [...scene.tooltipObjects];
     scene.hideBuildingTooltip();
     assert.ok(previous.every(object => object.destroyed));
@@ -422,8 +422,8 @@ test('reward cards show and clean up existing building detail popup above overla
     const labels = scene.tooltipObjects.filter(o => typeof o.value === 'string').map(o => o.value);
     assert.ok(labels.includes('Caserne'));
     assert.ok(labels.includes('COÛT PAR UNITÉ'));
-    assert.ok(labels.includes('50'));
-    assert.ok(labels.includes('30'));
+    assert.ok(labels.includes('25'));
+    assert.ok(labels.includes('15'));
     const objects = [...scene.tooltipObjects];
     card.handlers.pointerout();
     assert.equal(scene.tooltipObjects.length, 0);
