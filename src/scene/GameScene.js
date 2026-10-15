@@ -12,7 +12,7 @@ class GameScene extends Phaser.Scene {
 
         this.load.image('droneSprite', 'assets/sprites/drone_01.png');
         this.load.image('ground', 'assets/sprites/ui/board.png');
-        this.load.image('city_board', 'assets/sprites/ui/CityBoard.png');
+        this.load.image('city_board', 'assets/sprites/ui/board.png');
         this.load.image('empty_spell_tile', 'assets/sprites/spells/empty_spell_tile.png');
         this.load.image('etchings', 'assets/sprites/spells/etchings.png');
         this.load.image('base_icon', 'assets/sprites/ui/base_icon.png');
@@ -25,7 +25,7 @@ class GameScene extends Phaser.Scene {
         this.load.image('time_speed_5', 'assets/sprites/ui/fast_forward_btn.png');
         this.load.image('wave_border', 'assets/sprites/ui/wave_border.png');
         this.load.image('vision_0', 'assets/sprites/ui/vision_0.png');
-        this.load.image('unit_frame', 'assets/ui/unit_frame.png');
+        this.load.image('unit_frame', 'assets/sprites/ui/units_frame.png');
 
         // Buildings
         this.load.image('building_card_background', 'assets/sprites/buildings/building-card-background.png');
@@ -52,27 +52,22 @@ class GameScene extends Phaser.Scene {
 
 
     create() {
-
-
-
-        const SmartContractID = "e975a90a-3116-468d-9f61-96ad4a1f363c"
-        const functionName ="GetGameStats"
-
-        Wormhole.executeContract(
-            SmartContractID,
-            functionName,
-            [],
-            "https://utopixia.com",
-        ).then((stats) => {
-            console.log("stats: ", stats)
-            this.cache.json.add('gameStats', stats);
-            this.startGame( stats);
-        }).catch((err) => {
-            console.error(err);
-            this.load.json('gameStats', 'assets/game_stats.json');
-        })
-
+        // Phaser's preload() guarantees the local JSON load has completed.
+        const stats = this.cache.json.get('gameStats');
+        const validation = OverseerGameData.validate(stats);
+        if (!validation.ok) {
+            console.error('Cannot start Overseer with invalid local GameStats:', validation.errors);
+            this.add.text(
+                this.scale.width / 2,
+                this.scale.height / 2,
+                'Unable to load local game data.\nCheck assets/game_stats.json and reload.',
+                { fontFamily: 'monospace', fontSize: '20px', color: '#ff7777', align: 'center' }
+            ).setOrigin(0.5);
+            return;
+        }
+        this.startGame(stats);
     }
+
     startGame (gameStats) {
 
 
@@ -129,6 +124,10 @@ class GameScene extends Phaser.Scene {
 
         const offsetX = 90
         const offsetY = 95
+
+        this.world = new OverseerECS.World();
+        this.gameEntity = this.world.create();
+        this.world.set(this.gameEntity, 'Game', { version: 1 });
 
         this.gridWidth = 5;
         this.gridHeight = 5;
@@ -188,7 +187,9 @@ class GameScene extends Phaser.Scene {
 
         this.input.keyboard.on('keydown-ZERO', () => this.setTimeScale(0));
         this.input.keyboard.on('keydown-ONE', () => this.setTimeScale(1));
-        this.input.keyboard.on('keydown-TWO', () => this.setTimeScale(5));
+        this.input.keyboard.on('keydown-TWO', () => this.setTimeScale(2));
+        this.input.keyboard.on('keydown-THREE', () => this.setTimeScale(3));
+        this.input.keyboard.on('keydown-FIVE', () => this.setTimeScale(5));
 
         this.input.keyboard.on('keydown-ESC', () => {
             if (!this.hud.menuOpen) this.hud.showStatsOverlay();
@@ -198,6 +199,7 @@ class GameScene extends Phaser.Scene {
         this.setupDragDrop();
 
         this.talentManager.applyAll(); // applique tous les effets globaux
+        this.hud.updateVisionUpgradeButton();
         this.cameras.main.setBackgroundColor('#141e28'); // ou une autre couleur hexadécimale
 
 
@@ -625,11 +627,9 @@ class GameScene extends Phaser.Scene {
 
     setTimeScale(scale) {
         this.timeScale = scale;
-
-        const speedMap = { 1: 0, 5: 1, 0: 2 };
-        const index = speedMap[scale] ?? 1;
-        console.log("Time scale set to", scale, "index", index);
-        this.hud.highlightSelectedSpeed(index);
+        // Clicking pause must not forget the speed to resume with Space.
+        if (scale > 0) this.lastTimeScale = scale;
+        this.hud?.highlightSelectedSpeed(scale);
     }
 
     refreshAllTalentEffects() {

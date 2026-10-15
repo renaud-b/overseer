@@ -9,6 +9,8 @@ class GridManager {
         this.offsetY = offsetY;
 
         this.tiles = [];
+        this.entity = this.scene.world.create(this.scene.gameEntity);
+        this.scene.world.set(this.entity, 'Grid', { width, height });
 
 
         this.scene.add.sprite(offsetX-40, offsetY-40, 'city_board')
@@ -47,7 +49,7 @@ class GridManager {
             for (let x = 0; x < this.width; x++) {
                 const tileX = this.offsetX + x * this.tileSizeX;
                 const tileY = this.offsetY + y * this.tileSizeY;
-                const tile = new Tile(this.scene, tileX, tileY, this.tileSizeX, this.tileSizeY, index);
+                const tile = new Tile(this.scene, tileX, tileY, this.tileSizeX, this.tileSizeY, index, this.entity);
                 this.tiles.push(tile);
                 index++;
             }

@@ -277,6 +277,7 @@
     }
   ],
   "ui": {
+    "vision_max": "視界レベル最大",
     "overlay_stats_title": "戦略解析",
     "overlay_artifact_title": "🔮 アクティブなアーティファクト",
     "overlay_waves_survived": "⏱️ 生き延びたウェーブ数",

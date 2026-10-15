@@ -1,0 +1,13 @@
+{
+  "name": "overseer",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "serve -s . -l 8097",
+    "test": "node --test tests/*.test.cjs"
+  },
+  "dependencies": {
+    "phaser": "3.60.0",
+    "serve": "14.2.4"
+  }
+}

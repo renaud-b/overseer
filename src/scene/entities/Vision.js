@@ -189,13 +189,16 @@ class Vision {
     }
 
     tryUpgradeVision() {
+        if (this.level >= this.levelPatterns.length - 1) return false;
+
         const cost = this.getUpgradeCost(this.level);
-        if (this.scene.resources['compute_units'] >= cost && this.level < 3) {
-            this.scene.resources['compute_units'] -= cost;
-            this.level++;
-            this.scene.hud.updateHUD(this.scene.resources, this.scene.units, this.scene.unitCapMap);
-            this.updatePatternForLevel();
-            this.updatePosition();
-        }
+        if ((this.scene.resources.compute_units || 0) < cost) return false;
+
+        this.scene.resources.compute_units -= cost;
+        this.level++;
+        this.updatePatternForLevel();
+        this.updatePosition();
+        this.scene.hud.updateHUD(this.scene.resources, this.scene.units, this.scene.unitCapMap);
+        return true;
     }
 }

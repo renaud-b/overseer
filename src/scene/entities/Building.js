@@ -4,6 +4,9 @@ class Building {
         this.tile = tile;
         this.type = type;
         this.buildingData = buildingData;
+        this.entity = scene.world.create(tile.entity);
+        scene.world.set(this.entity, 'Building', { type, produces: buildingData.produces || null, producesType: buildingData.producesType || null });
+        scene.world.set(this.entity, 'Production', { elapsedMs: 0, cooldownMs: buildingData.cooldown || 1000 });
         this.productionTimer = 0;
         this.cooldown = scene.buildingManager.buildingMap[type]?.cooldown || 1000;
 
@@ -205,10 +208,12 @@ class Building {
 
         this.updateCooldownVisual();
 
-        this.productionTimer += delta;
-        if (this.productionTimer < this.cooldown) return;
+        const production = this.scene.world.get(this.entity, 'Production');
+        production.elapsedMs += delta;
+        production.cooldownMs = this.cooldown;
+        if (production.elapsedMs < production.cooldownMs) return;
 
-        this.productionTimer = 0;
+        production.elapsedMs = 0;
 
         const data = this.scene.buildingManager.buildingMap[this.type];
         if (!data) return;
@@ -348,6 +353,7 @@ class Building {
     }
 
     destroy() {
+        if (this.scene.world.has(this.entity)) this.scene.world.destroy(this.entity);
         this.container?.destroy();
         this.talentBadge?.destroy();
     }

@@ -7,11 +7,8 @@ class HUDManager {
         this.createInfoPanel();
         const lastPosition = this.createTimeControlButtons();
         this.createWaveCounter(lastPosition);
+        this.createVisionUpgradeButton();
         this.updateHUD(resources, units, {});
-    }
-    init(eventManager, userAddress) {
-        this.eventManager = eventManager;
-        this.userAddress = userAddress;
     }
     showStatsOverlay() {
         if (this.menuOpen) return;
@@ -120,73 +117,13 @@ class HUDManager {
             .setInteractive()
             .setDepth(902);
         quitBtn.on("pointerdown", () => {
-            // TODO skip the report generation in dev mode
             this.scene.cameras.main.fadeOut(500, 0, 0, 0);
             this.scene.time.delayedCall(500, () => {
                 this.scene.scene.start("MainMenuScene");
             });
-            return
-
-            const reportData = this.generateReport();
-            const htmlReportData = {};
-            Object.keys(reportData).forEach((reportKey) => {
-                htmlReportData["report-" + reportKey.toLocaleLowerCase()] =
-                    convertAccentsToHtmlCodes(reportData[reportKey]);
-            });
-            const encodedReport = btoa(
-                JSON.stringify({
-                    requestType: "submit-report",
-                    report: btoa(JSON.stringify(htmlReportData)),
-                })
-            );
-            const contractID = "dbcefa4c-54f4-45b5-8e4c-03ca73123beb";
-            if(!ContextManager.eventManager || !ContextManager.userAddress) {
-                console.warn("❌ EventManager ou userAddress non initialisés");
-                this.closeStatsOverlay();
-                return;
-            }
-            ContextManager.eventManager
-                .sign(ContextManager.userAddress, encodedReport, 0)
-                .then((signedTx) => {
-                    const encodedUserTx = btoa(JSON.stringify(signedTx));
-                    return Wormhole.executeContract(
-                        contractID,
-                        "SubmitReport",
-                        { encodedUserTx: encodedUserTx },
-                        "https://utopixia.com"
-                    );
-                })
-                .then((response) => {
-                    console.log("✅ Rapport soumis :", response);
-                })
-                .catch((err) => {
-                    console.warn("❌ Erreur soumission rapport :", err);
-                })
-                .finally(() => {
-                    this.scene.cameras.main.fadeOut(500, 0, 0, 0);
-                    this.scene.time.delayedCall(500, () => {
-                        this.scene.scene.start("MainMenuScene");
-                    });
-                });
         });
         this.statsOverlayElements.push(quitBtn);
         this.scene.setTimeScale(0);
-    }
-    generateReport() {
-        return {
-            waves: this.scene.waveManager.maxWave,
-            artifacts: this.scene.artifactManager.artifacts.join(", "),
-            resoures: Object.keys(this.scene.collectedResources)
-                .map((key) => {
-                    return key + ": " + this.scene.collectedResources[key];
-                })
-                .join(", "),
-            units: Object.keys(this.scene.unitManager.units)
-                .map((key) => {
-                    return key + ": " + this.scene.unitManager.units[key];
-                })
-                .join(", "),
-        };
     }
     closeStatsOverlay() {
         this.statsOverlayElements.forEach((e) => e.destroy());
@@ -283,7 +220,8 @@ class HUDManager {
             this.scene.translate("units_label") + `:\n  ${unitLines}`
         );
 
-        this.scene.add.image('unit_frame', 200, 200).setOrigin(0, 0).setDepth(999).setDisplaySize(300, 400);
+        // Do not recreate sprites on every resource/HUD update.
+        this.updateVisionUpgradeButton();
     }
     createInfoPanel() {
         this.infoPanel = this.scene.add
@@ -348,15 +286,17 @@ class HUDManager {
         this.wavePreviewPanel = null;
         this.wavePreviewText = null;
     }
-    createWaveCounter(offsetX) {
-        const img = this.scene.add
-            .image(offsetX+10, 15, "wave_border")
+    createWaveCounter(position) {
+        const { x, y } = position;
+        this.scene.add
+            .image(x + 10, y, "wave_border")
             .setOrigin(0, 0)
             .setDisplaySize(100, 25)
             .setDepth(50);
 
+        this.waveCounterY = y + 13;
         this.waveText = this.scene.add
-            .text(offsetX + 60, 28, this.scene.translate("wave_counter", { wave: 0 }), {
+            .text(x + 60, this.waveCounterY, this.scene.translate("wave_counter", { wave: 0 }), {
                 fontSize: "14px",
                 fill: "#84F7FF",
                 fontFamily: "inter",
@@ -364,98 +304,134 @@ class HUDManager {
             .setOrigin(0.5)
             .setDepth(51);
     }
+
     updateWaveCounter(waveNumber) {
         if (!this.waveText) return;
         this.waveText.setText(this.scene.translate("wave_counter", { wave: waveNumber }));
-        this.waveText.setPosition(this.waveText.x, 28);
         this.scene.children.bringToTop(this.waveText);
     }
-    createTimeControlButtons() {
-        const speeds = [1, 5, 0];
-        this.timeButtons = [];
 
-        const offsetX = 1290
-        let lastPosition = 0
-        speeds.forEach((speed, index) => {
-            const x = offsetX + (index * 29)
-            const y = 12;
-
-            console.log("loading image: ", `time_speed_${speed}`)
-            const img = this.scene.add
-                .image(x + 15, y + 15, `time_speed_${speed}`)
-                .setOrigin(0.5)
-                .setInteractive()
-                .setDisplaySize(25, 25)
-                .setDepth(51);
-
-            img.on("pointerdown", () => {
-                console.log("Setting time scale to: ", speed);
-                this.scene.setTimeScale(speed);
-            });
-            this.timeButtons.push({ img });
-            lastPosition = x + 30;
-        });
-        this.highlightSelectedSpeed(0);
-        return lastPosition
-
-        /*
-        const upgradeBtnX = offsetX + labels.length * 70 + 20;
-        const upgradeBtnY = 20;
-        this.upgradeVisionBtn = this.scene.add
-            .rectangle(upgradeBtnX, upgradeBtnY, 120, 30, 4473924)
-            .setStrokeStyle(2, 16777215)
-            .setOrigin(0, 0)
+    createVisionUpgradeButton() {
+        // The HUD is initialized before Vision; the first refresh happens after
+        // the game has created Vision and applied any starting talents.
+        const x = 260;
+        const y = 56;
+        this.visionUpgradeButton = this.scene.add
+            .rectangle(x, y, 180, 46, 0x263b48)
+            .setStrokeStyle(1, 0x577c91)
             .setInteractive()
-            .setDepth(50);
-        this.upgradeVisionText = this.scene.add
-            .text(
-                upgradeBtnX + 60,
-                upgradeBtnY + 15,
-                this.scene.translate("upgrade_vision"),
-                { fontSize: "14px", fill: "#ffffff", fontFamily: "monospace" }
-            )
+            .setDepth(101);
+        this.visionUpgradeLabel = this.scene.add
+            .text(x, y - 11, this.scene.translate('upgrade_vision'), {
+                fontFamily: 'monospace', fontSize: '15px', color: '#84f7ff'
+            })
             .setOrigin(0.5)
-            .setDepth(51);
-        this.upgradeVisionBtn.on("pointerover", () => {
-            const level = this.scene.vision.level || 0;
-            const title = this.scene.translate("upgrade_vision_title");
-            const description =
-                this.scene.translate("current_level_text", { level: level }) +
-                "\n" +
-                this.scene.translate("upgrade_cost_text", {
-                    cost: this.scene.vision.getUpgradeCost(level),
-                });
+            .setDepth(102);
+        this.visionUpgradeCost = this.scene.add
+            .text(x, y + 12, '', {
+                fontFamily: 'monospace', fontSize: '12px', color: '#c8d9e2'
+            })
+            .setOrigin(0.5)
+            .setDepth(102);
+
+        this.visionUpgradeButton.on('pointerdown', () => {
+            this.scene.vision?.tryUpgradeVision();
+        });
+        this.visionUpgradeButton.on('pointerover', () => {
+            const vision = this.scene.vision;
+            if (!vision) return;
+            const maxLevel = vision.levelPatterns.length - 1;
+            const description = [
+                this.scene.translate('current_level_text', { level: vision.level + 1 }),
+                vision.level >= maxLevel
+                    ? this.scene.translate('vision_max')
+                    : this.scene.translate('upgrade_cost_text', {
+                        cost: vision.getUpgradeCost(vision.level)
+                    })
+            ].join('\n');
             this.showInfoPanel(
-                title,
+                this.scene.translate('upgrade_vision_title'),
                 description,
-                upgradeBtnX + 140,
-                upgradeBtnY + 100
+                this.visionUpgradeButton.x - 80,
+                this.visionUpgradeButton.y + 60
             );
         });
-        this.upgradeVisionBtn.on("pointerout", () => this.hideInfoPanel());
-        this.upgradeVisionBtn.on("pointerdown", () => {
-            this.scene.vision.tryUpgradeVision();
-            if (this.scene.vision.level >= 3) {
-                this.upgradeVisionBtn.setVisible(false);
-                this.upgradeVisionText.setVisible(false);
-            }
+        this.visionUpgradeButton.on('pointerout', () => this.hideInfoPanel());
+        this.updateVisionUpgradeButton();
+    }
+
+    updateVisionUpgradeButton() {
+        const vision = this.scene.vision;
+        if (!vision || !this.visionUpgradeButton) return;
+
+        const maxLevel = vision.levelPatterns.length - 1;
+        const maxed = vision.level >= maxLevel;
+        const cost = maxed ? 0 : vision.getUpgradeCost(vision.level);
+        const affordable = !maxed && (this.scene.resources.compute_units || 0) >= cost;
+
+        this.visionUpgradeCost.setText(
+            maxed
+                ? this.scene.translate('vision_max')
+                : `${cost} CU · ${vision.level + 1} → ${vision.level + 2}`
+        );
+        this.visionUpgradeButton
+            .setFillStyle(affordable ? 0x155765 : 0x26313a)
+            .setStrokeStyle(1, affordable ? 0x84f7ff : 0x577c91);
+        this.visionUpgradeLabel.setColor(affordable ? '#84f7ff' : '#a0afb8');
+        this.visionUpgradeCost.setColor(affordable ? '#ffffff' : '#a0afb8');
+    }
+
+    createTimeControlButtons() {
+        const speeds = [
+            { speed: 1, label: "×1" },
+            { speed: 2, label: "×2" },
+            { speed: 3, label: "×3" },
+            { speed: 5, label: "×5" },
+            { speed: 0, label: "Ⅱ" },
+        ];
+        const width = 42;
+        const gap = 6;
+        const totalWidth = width * speeds.length + gap * (speeds.length - 1);
+        // Keep the speed controls on screen, away from the top-right menu.
+        // Placing them below the timeline avoids hiding flags on narrow desktops.
+        const startX = Math.max(12, this.scene.scale.width - 60 - totalWidth);
+        const centerY = 69;
+        this.timeButtons = [];
+
+        speeds.forEach(({ speed, label }, index) => {
+            const x = startX + index * (width + gap) + width / 2;
+            const background = this.scene.add
+                .rectangle(x, centerY, width, 28, 0x263b48)
+                .setStrokeStyle(1, 0x577c91)
+                .setInteractive()
+                .setDepth(51);
+            const text = this.scene.add
+                .text(x, centerY, label, {
+                    fontSize: "16px",
+                    fill: "#c8d9e2",
+                    fontFamily: "monospace",
+                })
+                .setOrigin(0.5)
+                .setDepth(52);
+
+            background.on("pointerdown", () => this.scene.setTimeScale(speed));
+            this.timeButtons.push({ speed, background, text });
         });
 
-         */
+        this.highlightSelectedSpeed(this.scene.timeScale ?? 1);
+        return { x: Math.max(12, startX - 120), y: 56 };
     }
-    highlightSelectedSpeed(index) {
-        this.timeButtons.forEach((b, i) => {
-            if (i === index) {
-                // Color l'image selectionnée en bleu
 
-                b.img.clearTint();
-            } else {
-                // Retire la couleur de l'image non selectionnée
-                b.img.setTint(0x5a5c5b);
-
-            }
+    highlightSelectedSpeed(speed) {
+        this.timeButtons.forEach((button) => {
+            const selected = button.speed === speed;
+            button.background
+                .setFillStyle(selected ? 0x166f88 : 0x263b48)
+                .setStrokeStyle(1, selected ? 0x84f7ff : 0x577c91);
+            button.text.setColor(selected ? "#ffffff" : "#c8d9e2");
         });
     }
+
     showRewardPopupWithChoices(rewards, onAllRewardsChosen = () => {}) {
         this.lastTimeScale = this.scene.timeScale;
         const resourcePacks = rewards.packs.filter((p) => p.type === "resource");

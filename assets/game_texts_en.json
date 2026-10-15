@@ -277,6 +277,7 @@
     }
   ],
   "ui": {
+    "vision_max": "Vision maxed",
     "overlay_stats_title": "Strategic Analysis",
     "overlay_artifact_title": "🔮 Active Artifacts",
     "overlay_waves_survived": "⏱️ Waves Survived",
