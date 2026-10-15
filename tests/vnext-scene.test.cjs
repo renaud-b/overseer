@@ -321,7 +321,7 @@ test('wave timer spawns enemies at simulation interval and pauses', () => {
  const scene = new VNextScene();
  scene.create();
  const before = scene.world.query('Faction').filter(id => scene.world.get(id, 'Faction').side === 'enemy').length;
- scene.waveClock.elapsedMs = 59940;
+ scene.waveClock.elapsedMs = waves.wave(1).dueAtMs - 60;
  scene.update(0, 60);
  assert.equal(scene.waveClock.number, 1);
  const enemies = scene.world.query('Faction').filter(id => scene.world.get(id, 'Faction').side === 'enemy').length;
@@ -330,4 +330,15 @@ test('wave timer spawns enemies at simulation interval and pauses', () => {
  scene.update(0, 60);
  assert.equal(scene.waveClock.number, 1);
  assert.ok(scene.waveCountdownLabel.value.includes('Vague 2'));
+});
+test('wave markers scroll, pause and accelerate with simulation speed',()=>{
+ const scene=new VNextScene();scene.create();
+ const x=scene.waveMarkers[0].zone.x;
+ scene.update(0,60);assert.ok(scene.waveMarkers[0].zone.x<x);
+ scene.selectSpeed(0);
+ const stopped=scene.waveMarkers[0].zone.x;
+ scene.update(0,60);assert.equal(scene.waveMarkers[0].zone.x,stopped);
+ scene.selectSpeed(5);
+ const before=scene.waveMarkers[0].zone.x;
+ scene.update(0,60);assert.ok(scene.waveMarkers[0].zone.x<before);
 });

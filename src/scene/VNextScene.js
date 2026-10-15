@@ -600,8 +600,9 @@ class VNextScene extends Phaser.Scene {
 
     updateWaveTimeline() {
         if (!this.waveCountdownLabel) return;
-        const seconds = Math.ceil((OverseerVNextWaves.INTERVAL_MS - this.waveClock.elapsedMs) / 1000);
+        const seconds = Math.ceil((this.previewWaves[0].dueAtMs - this.waveClock.elapsedMs) / 1000);
         this.waveCountdownLabel.setText(`Vague ${this.waveClock.number + 1} dans ${seconds}s (temps de jeu)`);
+        this.paintWaveTimeline();
     }
 
     spawnEnemyUnit(type, index, count) {
@@ -628,32 +629,47 @@ class VNextScene extends Phaser.Scene {
             for (let i = 0; i < group.count; i++) this.spawnEnemyUnit(group.type, i, group.count);
         }
         // Preview markers slide forward; the wave plan itself remains deterministic.
-        this.previewWaves = Array.from({ length: 8 }, (_, i) =>
-            OverseerVNextWaves.wave(this.waveClock.number + i + 1, this.waveClock.seed));
+        this.previewWaves = OverseerVNextWaves.preview(8, this.waveClock.seed, this.waveClock.number);
         this.buildUi();
     }
 
-    drawFooter() {
-        const l = this.layout;
-        const y = l.h - 102;
-        this.text(l.m + 15, y, 'VAGUES / TIMELINE', 14);
-        const g = this.keep(this.add.graphics());
-        const x1 = l.m + 230, x2 = l.w - 290;
-        g.lineStyle(1, 0x29495b, 0.8).lineBetween(x1, y + 18, x2, y + 18);
-        this.previewWaves.forEach((wave, i) => {
-            const px = x1 + (x2 - x1) * i / (this.previewWaves.length - 1);
-            g.fillStyle(0x547e96, 1).fillCircle(px, y + 18, 5);
-            this.text(px - 5, y - 3, String(wave.number), 10, '#aac5d3');
-            const zone = this.keep(this.add.zone(px, y + 18, 25, 35).setInteractive({ useHandCursor: true }));
-            zone.setData('wave', i);
-            zone.on('pointerover', () => this.showWaveTooltip(i, px, y + 18));
-            zone.on('pointerout', () => this.hideWaveTooltip());
+    paintWaveTimeline() {
+        if (!this.waveGraphics || !this.waveMarkers) return;
+        const g=this.waveGraphics, {x1,x2,y}=this.waveTimelineBounds, horizonMs=360000;
+        g.clear();
+        g.lineStyle(1,0x29495b,0.8).lineBetween(x1,y,x2,y);
+        g.lineStyle(2,0xff6674,0.95).lineBetween(x1,y-13,x1,y+13);
+        this.previewWaves.forEach((wave,i)=>{
+            const x=x1+(wave.dueAtMs-this.waveClock.elapsedMs)/horizonMs*(x2-x1);
+            const visible=x>=x1&&x<=x2, marker=this.waveMarkers[i];
+            marker.zone.setPosition(visible?x:-100,visible?y:-100);
+            marker.label.setPosition(visible?x-4:-100,visible?y-23:-100);
+            if(visible){
+                g.fillStyle(0xff6674,0.94).fillCircle(x,y,5);
+                g.lineStyle(1,0xff6674,0.55).strokeCircle(x,y,9);
+            }
         });
-        this.waveCountdownLabel = this.text(l.m + 15, y + 36, '', 11, '#829fb1');
+    }
+
+    drawFooter() {
+        const l=this.layout,y=l.h-102;
+        this.text(l.m+15,y,'VAGUES / TIMELINE',14);
+        const x1=l.m+230,x2=l.w-290;
+        this.waveTimelineBounds={x1,x2,y:y+18};
+        this.waveGraphics=this.keep(this.add.graphics());
+        this.waveMarkers=this.previewWaves.map((wave,i)=>{
+            const label=this.text(-100,-100,String(wave.number),10,'#e9b6bf');
+            const zone=this.keep(this.add.zone(-100,-100,25,35).setInteractive({useHandCursor:true}));
+            zone.setData('wave',i);
+            zone.on('pointerover',()=>this.showWaveTooltip(i,zone.x,this.waveTimelineBounds.y));
+            zone.on('pointerout',()=>this.hideWaveTooltip());
+            return {zone,label};
+        });
+        this.waveCountdownLabel=this.text(l.m+15,y+36,'',11,'#829fb1');
         this.updateWaveTimeline();
-        const replay = this.text(l.w - 203, y + 36, '↻ REJOUER LE COMBAT', 12, '#6de8e8');
-        replay.setPadding(5).setInteractive({ useHandCursor: true });
-        replay.on('pointerdown', () => this.resetBattle());
+        const replay=this.text(l.w-203,y+36,'↻ REJOUER LE COMBAT',12,'#6de8e8');
+        replay.setPadding(5).setInteractive({useHandCursor:true});
+        replay.on('pointerdown',()=>this.resetBattle());
     }
 
     resetBattle() {

@@ -12,15 +12,20 @@ test('wave plan always uses one enemy type with increasing randomized counts', (
     assert.ok(a.every(w => !('rewards' in w)));
 });
 
-test('wave clock triggers every 60 simulation seconds and respects pause by zero delta', () => {
- const state = { number: 0, elapsedMs: 0, seed: 137 };
- assert.equal(waves.advance(state, 59999).length, 0);
- assert.equal(waves.advance(state, 0).length, 0);
- assert.equal(waves.advance(state, 1).length, 1);
- assert.equal(state.number, 1);
- assert.equal(waves.advance(state, 120000).length, 2);
- assert.equal(state.number, 3);
- const fast = { number: 0, elapsedMs: 0, seed: 137 };
- for (let i=0;i<200;i++) waves.advance(fast, 60*5);
- assert.equal(fast.number, 1);
+test('wave gaps range from 60 to 120 simulated seconds',()=>{
+ const plan=waves.preview(40,981);
+ assert.ok(plan.every((w,i)=>w.dueAtMs-(i?plan[i-1].dueAtMs:0)>=60000&&w.dueAtMs-(i?plan[i-1].dueAtMs:0)<=120000));
+ assert.deepEqual(plan,waves.preview(40,981));
+ assert.ok(plan.some((w,i)=>w.dueAtMs!==waves.preview(40,13)[i].dueAtMs));
+});
+test('crossing each deadline triggers once; paused clock does not progress',()=>{
+ const state={number:0,elapsedMs:0,seed:137},first=waves.wave(1).dueAtMs;
+ assert.equal(waves.advance(state,first-1).length,0);
+ assert.equal(waves.advance(state,0).length,0);
+ assert.equal(waves.advance(state,1).length,1);
+ assert.equal(waves.advance(state,0).length,0);
+ const fast={number:0,elapsedMs:0,seed:137};
+ for(let i=0;i<Math.ceil(first/300);i++)waves.advance(fast,300);
+ assert.equal(fast.number,1);
+ assert.equal(waves.advance(state,waves.wave(3).dueAtMs-state.elapsedMs).length,2);
 });
