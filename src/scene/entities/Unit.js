@@ -2,7 +2,21 @@ class Unit {
     constructor(scene, x, y, side = 'enemy', waveId = null, unitData = null) {
         this.scene = scene;
         this.side = side;
-        this.hp = unitData?.hp || 3;
+        this.unitData = unitData;
+        this.entity = scene.world.create(scene.gameEntity);
+        scene.world.set(this.entity, 'Position', { x, y });
+        scene.world.set(this.entity, 'Health', { hp: unitData?.hp || 3, maxHp: unitData?.hp || 3 });
+        scene.world.set(this.entity, 'Faction', { side });
+        scene.world.set(this.entity, 'Movement', { speed: unitData?.speed || 40 });
+        scene.world.set(this.entity, 'Combat', {
+            damage: unitData?.attack_damage || 1,
+            range: unitData?.attack_range || 30,
+            attackType: unitData?.attack_type || 'melee',
+            cooldownMs: (unitData?.attack_speed || 1) * 1000,
+            elapsedMs: 0,
+            detectionRadius: side === 'enemy' ? 100 : 400,
+            behavior: unitData?.behavior || null
+        });
         this.speed = unitData?.speed || 40;
         this.attackDamage = unitData?.attack_damage || 1;
         this.attackType = unitData?.attack_type || 'melee';
@@ -45,80 +59,56 @@ class Unit {
             .setOrigin(0.5)
             .setDepth(10);
     }
+    get hp() {
+        return this.scene.world.has(this.entity) ? this.scene.world.get(this.entity, 'Health').hp : 0;
+    }
+
+    set hp(value) {
+        if (this.scene.world.has(this.entity)) this.scene.world.get(this.entity, 'Health').hp = value;
+    }
+
     update(delta, opposingUnits) {
         if (!this.sprite.active) return;
+        if (this.hp <= 0) { this.destroy(); return; }
 
-        this.timeSinceLastAttack += delta;
+        const world = this.scene.world;
+        world.get(this.entity, 'Movement').speed = this.speed;
+        const opposingIds = opposingUnits.filter(u => u.isAlive() && world.has(u.entity)).map(u => u.entity);
 
-        let closest = null;
-        let minDist = Infinity;
-
-        if (this.unitData?.behavior === 'base_rusher') {
-            this.attackBaseDirectly(delta);
-            this.updateHealthBar();
-            if (this.hp <= 0) this.destroy();
-            return;
+        // Keep the existing idle patrol target. The ECS simulation owns position.
+        if (this.side === 'player' && !this.returnTarget) {
+            this.returnTarget = this.scene.getRandomPointInCircle(
+                this.scene.playerSpawnCircle.x,
+                this.scene.playerSpawnCircle.y,
+                this.scene.playerSpawnCircle.radius
+            );
         }
 
-        for (let unit of opposingUnits) {
-            if (!unit.isAlive()) continue;
-            const dx = unit.sprite.x - this.sprite.x;
-            const dy = unit.sprite.y - this.sprite.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < this.detectionRadius && dist < minDist) {
-                minDist = dist;
-                closest = unit;
+        const base = this.scene.baseTarget;
+        const events = OverseerCombat.stepUnit(world, this.entity, delta, {
+            opponents: opposingIds,
+            base: base ? { x: base.x, y: base.y } : null,
+            patrol: this.returnTarget
+        });
+
+        const p = world.get(this.entity, 'Position');
+        this.sprite.setPosition(p.x, p.y);
+        if (this.returnTarget && Math.hypot(p.x - this.returnTarget.x, p.y - this.returnTarget.y) <= 5) {
+            this.returnTarget = null;
+        }
+
+        for (const event of events) {
+            if (event.type === 'base-attack' && base) base.hp -= event.damage;
+            if (event.type === 'attack') {
+                const target = opposingUnits.find(u => u.entity === event.target);
+                if (event.ranged && target?.sprite?.active) this.shootLaser(target);
+                if (this.isInvisible) {
+                    this.isInvisible = false;
+                    this.sprite.setAlpha(1);
+                }
             }
         }
-
-
-        if (closest) {
-            const dx = closest.sprite.x - this.sprite.x;
-            const dy = closest.sprite.y - this.sprite.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (this.attackType === 'melee') {
-                if (dist > 10) {
-                    this.sprite.x += (dx / dist) * this.speed * (delta / 1000);
-                    this.sprite.y += (dy / dist) * this.speed * (delta / 1000);
-                }
-                if (dist < 20 && this.timeSinceLastAttack >= this.attackCooldown) {
-                    closest.hp -= this.attackDamage;
-                    this.timeSinceLastAttack = 0;
-
-                    if (this.isInvisible) {
-                        this.isInvisible = false;
-                        this.sprite.setAlpha(1); // visible à l’attaque
-                    }
-                }
-
-            } else if (this.attackType === 'ranged') {
-                if (dist > this.attackRange) {
-                    this.sprite.x += (dx / dist) * this.speed * (delta / 1000);
-                    this.sprite.y += (dy / dist) * this.speed * (delta / 1000);
-                }
-                // Ne pas avancer, juste tirer
-                if (dist < this.attackRange && this.timeSinceLastAttack >= this.attackCooldown) {
-                    this.shootLaser(closest);
-                    this.timeSinceLastAttack = 0;
-
-                    if (this.isInvisible) {
-                        this.isInvisible = false;
-                        this.sprite.setAlpha(1); // visible à l’attaque
-                    }
-                }
-
-                const { separation, cohesion } = this.computeCrowdForces(this.scene.playerUnits);
-                const adjust = separation.clone().add(cohesion).scale(delta / 1000);
-                this.sprite.x += adjust.x;
-                this.sprite.y += adjust.y;
-            }
-        } else {
-            this.patrolOrReturn(delta);
-        }
-
         this.updateHealthBar();
-
         if (this.hp <= 0 && this.sprite.active) this.destroy();
     }
 
@@ -173,7 +163,7 @@ class Unit {
             onComplete: () => flash.destroy()
         });
 
-        target.hp -= this.attackDamage;
+        // Damage has already been applied by OverseerCombat.
     }
 
 
@@ -288,6 +278,7 @@ class Unit {
             }
         }
 
+        if (this.scene.world.has(this.entity)) this.scene.world.destroy(this.entity);
         this.sprite.destroy();
         if (this.hpBar) this.hpBar.destroy();
         if (this.hpBarBg) this.hpBarBg.destroy();
