@@ -55,7 +55,7 @@ class FakeScene {
             zone: (x, y) => new Display(x, y)
         };
         this.scene = { start() {} };
-        const units = ['unit_guard', 'unit_sniper', 'unit_dronoid'].map(id => ({
+        const units = ['unit_guard', 'unit_sniper', 'unit_dronoid', 'unit_mecha'].map(id => ({
             id, hp: 5, speed: 40, attack_damage: 1, attack_range: 30, attack_type: 'ranged', attack_speed: 1
         }));
         const enemies = ['basic_monster', 'ranged_monster', 'base_rusher'].map(id => ({
@@ -431,4 +431,21 @@ test('reward cards show and clean up existing building detail popup above overla
     card.handlers.pointerover();
     scene.chooseReward('barracks');
     assert.equal(scene.tooltipObjects.length, 0);
+});
+
+test('military specialty rewards include all three new production cards', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const choices = new Set();
+    for (let n = 1; n <= 60; n++) for (const type of scene.rewardOptions(n)) choices.add(type);
+    assert.ok(choices.has('ballistics'));
+    assert.ok(choices.has('armor_forge'));
+    assert.ok(choices.has('medical_center'));
+    scene.selectedType = null;
+    for (const [type, slot] of [['ballistics',6],['armor_forge',7],['medical_center',11]]) {
+        cards.grant(scene.model,type);
+        scene.selectedType = type;
+        scene.clickTile(slot);
+        assert.equal(scene.world.get(preview.buildingAt(scene.model,slot),'Building').type,type);
+    }
 });
