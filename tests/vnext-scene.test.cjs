@@ -6,6 +6,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { World } = require('../src/core/World.js');
 const preview = require('../src/core/VNextPreview.js');
+const catalog = require('../src/core/VNextBuildings.js');
+const cards = require('../src/core/VNextCards.js');
 const combat = require('../src/core/CombatSystem.js');
 const economy = require('../src/core/VNextEconomy.js');
 const ROOT = path.resolve(__dirname, '..');
@@ -63,7 +65,7 @@ class FakeScene {
 const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
 const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
-    OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview, OverseerVNextEconomy: economy, Vision
+    OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview, OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards, Vision
 });
 
 test('scene creates, resizes, places and simulates against existing ECS', () => {

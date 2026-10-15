@@ -16,12 +16,7 @@ class VNextScene extends Phaser.Scene {
         this.speed = 1;
         this.baseHp = 100;
         this.ui = [];
-        this.types = [
-            { id: 'reactor', label: 'Réacteur', color: 0x35d8ef },
-            { id: 'extractor', label: 'Extracteur', color: 0x39dd92 },
-            { id: 'factory', label: 'Fabrique', color: 0xf4ba58 },
-            { id: 'laboratory', label: 'Laboratoire', color: 0xb58aff }
-        ];
+        this.types = OverseerVNextBuildings.BUILDINGS;
         // The resource HUD borrows glyphs and colors from the corresponding buildings.
         // Cooling and data are placeholders: they have no ECS balances or simulation yet.
         this.resourceStyles = [
@@ -35,8 +30,7 @@ class VNextScene extends Phaser.Scene {
         this.hoveredTile = null;
         this.tooltipObjects = [];
 
-        [['reactor', 6], ['extractor', 7], ['factory', 11], ['laboratory', 18]]
-            .forEach(([type, index]) => OverseerVNextPreview.placeBuilding(this.model, type, index));
+        OverseerVNextCards.initialize(this.model);
         OverseerVNextEconomy.initialize(this.model);
         this.applyAttention();
         this.resetBattle();
@@ -144,25 +138,25 @@ class VNextScene extends Phaser.Scene {
         this.text(l.m + 16, l.mainTop + 18, 'CONSTRUCTION', 15);
         this.text(l.m + 16, l.mainTop + 44, 'Déposer ou cliquer', 11, '#7da0b3');
         const g = this.keep(this.add.graphics());
-        this.types.forEach((type, i) => {
+        const cards = OverseerVNextCards.cards(this.model);
+        cards.forEach((typeId, i) => {
+            const type = OverseerVNextBuildings.getBuilding(typeId);
             const x = l.m + 12, y = l.mainTop + 76 + 75 * i;
             const cw = l.leftW - 24;
             this.text(x + 53, y + 19, type.label, 12);
-            const captions = {
-                reactor: '+2 ÉNERGIE / 2 S', extractor: '+2 MATIÈRE / 2 S',
-                factory: '2 E + 2 M → 1 C / 3 S', laboratory: 'PAS ENCORE SIMULÉ'
-            };
-            this.text(x + 53, y + 38, captions[type.id], 10, '#7393a8');
+            const recipe = OverseerVNextEconomy.PROTOTYPE_RECIPES[typeId];
+            this.text(x + 53, y + 38, recipe ? 'PRODUCTION EXPÉRIMENTALE' : 'À IMPLÉMENTER', 10, '#7393a8');
             const hit = this.keep(this.add.zone(x + cw / 2, y + 32, cw, 65).setInteractive({ useHandCursor: true }));
-            hit.setData('palette', type.id);
+            hit.setData('palette', typeId);
             hit.on('pointerdown', () => {
-                this.selectedType = this.selectedType === type.id ? null : type.id;
+                this.selectedType = this.selectedType === typeId ? null : typeId;
                 this.movingId = null;
                 this.paintBoard();
                 this.refreshPaletteSelection();
             });
             this.input.setDraggable(hit);
         });
+        if (!cards.length) this.text(l.m + 13, l.mainTop + 86, 'Aucune carte en main', 11, '#8ba9b9');
         this.paletteGraphics = g;
         this.refreshPaletteSelection();
         this.note = this.text(l.m + 13, l.mainBottom - 75, 'Économie ECS : test actif', 11, '#a5b8c6');
@@ -173,7 +167,8 @@ class VNextScene extends Phaser.Scene {
         const g = this.paletteGraphics, l = this.layout;
         if (!g) return;
         g.clear();
-        this.types.forEach((type, i) => {
+        OverseerVNextCards.cards(this.model).forEach((typeId, i) => {
+            const type = OverseerVNextBuildings.getBuilding(typeId);
             const x = l.m + 12, y = l.mainTop + 76 + 75 * i;
             const cw = l.leftW - 24;
             const chosen = this.selectedType === type.id;
@@ -226,8 +221,11 @@ class VNextScene extends Phaser.Scene {
         if (this.movingId !== null) {
             if (OverseerVNextPreview.moveBuilding(this.model, this.movingId, index)) this.movingId = null;
         } else if (this.selectedType && !existing) {
-            OverseerVNextPreview.placeBuilding(this.model, this.selectedType, index);
-            this.selectedType = null;
+            const placed = OverseerVNextCards.play(this.model, this.selectedType, index);
+            if (placed !== null) {
+                this.selectedType = null;
+                this.buildUi();
+            }
         } else if (existing && !this.selectedType) {
             this.movingId = existing;
         }
@@ -279,7 +277,7 @@ class VNextScene extends Phaser.Scene {
             factory: 'Transforme les intrants en composants.',
             laboratory: 'Prépare des protocoles (à définir).'
         };
-        label(x + pad, y + 48, descriptions[type], 11, '#a6bfce');
+        label(x + pad, y + 48, descriptions[type] || info.description, 11, '#a6bfce');
         label(x + pad, y + 77, 'CONSTRUCTION : COÛT À DÉFINIR', 10, '#819eaf');
         if (!recipe) {
             label(x + pad, y + 105, 'PRODUCTION NON SIMULÉE', 11, '#819eaf');
@@ -316,6 +314,8 @@ class VNextScene extends Phaser.Scene {
             g.strokePoints(points, true);
         } else if (type === 'laboratory') {
             g.strokePoints([{ x, y: y - r }, { x: x + r, y }, { x, y: y + r }, { x: x - r, y }], true);
+        } else {
+            g.strokeRect(x - r * 0.7, y - r * 0.7, r * 1.4, r * 1.4);
         }
     }
 
@@ -425,7 +425,7 @@ class VNextScene extends Phaser.Scene {
     onDragEnd(pointer, object) {
         if (!object.getData('palette')) return;
         const index = this.gridIndex(pointer.x, pointer.y);
-        if (index !== -1) OverseerVNextPreview.placeBuilding(this.model, object.getData('palette'), index);
+        const placed = index !== -1 ? OverseerVNextCards.play(this.model, object.getData('palette'), index) : null;
         this.dragGhost?.destroy();
         this.dragGhost = null;
         this.dragType = null;
