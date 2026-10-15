@@ -673,6 +673,7 @@ class VNextScene extends Phaser.Scene {
             });
             events.forEach(e => { if (e.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - e.damage); });
         }
+        OverseerCombat.separateUnits(this.world, this.battleUnits);
         this.paintBattle();
     }
 }

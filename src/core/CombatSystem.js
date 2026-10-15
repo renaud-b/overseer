@@ -29,5 +29,28 @@ function stepUnit(world,id,delta,options={}){
  }
  return events;
 }
-const api={stepUnit};root.OverseerCombat=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+// Keep friendly units readable without changing attack decisions or combat stats.
+// A single pairwise pass is enough for the small VNext battle; positions live in ECS.
+function separateUnits(world, ids, minimumDistance = 22) {
+ if (!Number.isFinite(minimumDistance) || minimumDistance <= 0) return;
+ const units = ids.filter(id => world.has(id) && world.get(id,'Position') &&
+   world.get(id,'Faction') && world.get(id,'Health')?.hp > 0);
+ for (let i = 0; i < units.length; i++) {
+  const a = units[i], pa = world.get(a,'Position'), fa = world.get(a,'Faction').side;
+  for (let j = i + 1; j < units.length; j++) {
+   const b = units[j], pb = world.get(b,'Position');
+   if (fa !== world.get(b,'Faction').side) continue;
+   let dx = pb.x - pa.x, dy = pb.y - pa.y;
+   let d = Math.hypot(dx,dy);
+   if (d >= minimumDistance) continue;
+   // Stable fallback prevents NaN and resolves units spawning at identical coordinates.
+   if (d < 0.00001) { dx = (a < b ? 1 : -1); dy = 0; d = 1; }
+   const shift = (minimumDistance - d) / 2;
+   const nx = dx / d, ny = dy / d;
+   pa.x -= nx * shift; pa.y -= ny * shift;
+   pb.x += nx * shift; pb.y += ny * shift;
+  }
+ }
+}
+const api={stepUnit,separateUnits};root.OverseerCombat=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(globalThis);
