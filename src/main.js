@@ -7,8 +7,8 @@
     };
     const savedLang = localStorage.getItem("selectedLanguage");
     if (savedLang) {
-        console.log("set saved lang: ", savedLang);
-        config.scene = [ GameScene, MainMenuScene, OptionsScene, TalentScene];
+        window.selectedLanguage = savedLang;
+        config.scene = [ MainMenuScene, GameScene, OptionsScene, TalentScene ];
     } else {
         config.scene = [
             HomeScene,

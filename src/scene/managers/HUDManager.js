@@ -283,7 +283,7 @@ class HUDManager {
             this.scene.translate("units_label") + `:\n  ${unitLines}`
         );
 
-        this.scene.add.image('unit_frame', 200, 200).setOrigin(0, 0).setDepth(999).setDisplaySize(300, 400);
+        // Do not recreate sprites on every resource/HUD update.
     }
     createInfoPanel() {
         this.infoPanel = this.scene.add
