@@ -76,7 +76,7 @@ test('scene begins with exactly four unspent cards and empty base', () => {
     assert.equal(scene.world.query('Tile').length, 25);
     assert.equal(scene.world.query('Building').length, 0);
     assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks']);
-    assert.equal(scene.world.query('PreviewUnit').length, 7);
+    assert.equal(scene.world.query('PreviewUnit').length, 3);
     scene.selectedType = 'reactor';
     scene.clickTile(6);
     assert.ok(preview.buildingAt(scene.model, 6));
@@ -89,7 +89,7 @@ test('scene begins with exactly four unspent cards and empty base', () => {
     scene.scale.width = 800;
     scene.buildUi();
     scene.resetBattle();
-    assert.equal(scene.world.query('PreviewUnit').length, 7);
+    assert.equal(scene.world.query('PreviewUnit').length, 3);
 });
 
 test('observed empty tiles use a large bright marker and fine ring', () => {
@@ -179,7 +179,8 @@ test('hover tooltip uses real factory recipe and barracks placeholder', () => {
     const old = [...scene.tooltipObjects];
     scene.showBuildingTooltip(12);
     assert.ok(old.every(o => o.destroyed));
-    assert.ok(scene.tooltipObjects.some(o => o.value === 'PRODUCTION NON SIMULÉE'));
+    assert.ok(scene.tooltipObjects.some(o => o.value === 'COÛT PAR UNITÉ'));
+    assert.ok(scene.tooltipObjects.some(o => o.value === '1 UNITÉ DE BASE'));
     scene.hideBuildingTooltip();
     assert.equal(scene.tooltipObjects.length, 0);
 });

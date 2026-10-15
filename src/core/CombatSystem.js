@@ -44,9 +44,9 @@ function separateUnits(world, ids, minimumDistance = 22) {
    let d = Math.hypot(dx,dy);
    if (d >= minimumDistance) continue;
    // Stable fallback prevents NaN and resolves units spawning at identical coordinates.
-   if (d < 0.00001) { dx = (a < b ? 1 : -1); dy = 0; d = 1; }
+   if (d < 0.00001) { dx = (a < b ? 1 : -1); dy = 0; d = 0; }
+   const nx = d === 0 ? dx : dx / d, ny = d === 0 ? dy : dy / d;
    const shift = (minimumDistance - d) / 2;
-   const nx = dx / d, ny = dy / d;
    pa.x -= nx * shift; pa.y -= ny * shift;
    pb.x += nx * shift; pb.y += ny * shift;
   }
