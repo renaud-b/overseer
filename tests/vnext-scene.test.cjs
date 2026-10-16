@@ -37,6 +37,9 @@ class Display {
     setPosition(x, y) { this.x = x; this.y = y; return this; }
     setY(value) { this.y = value; return this; }
     setAlpha(value) { this.alpha = value; return this; }
+    setVisible(value) { this.visible = value; return this; }
+    setMask(mask) { this.mask = mask; return this; }
+    createGeometryMask() { return { source: this, destroy() { this.destroyed = true; } }; }
     setDepth(value) { this.depth = value; return this; }
     setData(name, value) { this.data[name] = value; return this; }
     getData(name) { return this.data[name]; }
@@ -90,6 +93,30 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
     OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextZones: zones, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
     localStorage: saveStorage, Vision, OverseerVNextBrand
+});
+
+test('AI core health moves above the rings, changes color, and battlefield graphics are clipped', () => {
+    const scene = new VNextScene();
+    scene.create();
+    assert.ok(scene.battleMask);
+    for (const layer of [scene.zoneGraphics, scene.battleGraphics,
+        scene.battleParticleGraphics, scene.battleActionGraphics]) {
+        assert.equal(layer.mask, scene.battleMask);
+    }
+    for (const [hp, color] of [[100, 0x48b8c4], [52, 0xf0ba60], [14, 0xff6674]]) {
+        scene.baseHp = hp;
+        scene.paintBattle();
+        const base = { x: scene.battleBounds.x + scene.battleBounds.w * 65 / 1000,
+            y: scene.battleBounds.y + scene.battleBounds.h / 2 };
+        assert.ok(scene.battleGraphics.drawCalls.some(call =>
+            call.type === 'strokeCircle' && call.color === color &&
+            Math.abs(call.x - base.x) < 0.01 && Math.abs(call.y - base.y) < 0.01));
+    }
+    assert.ok(!scene.battleStatus.value.includes('Base '));
+    const previousMask = scene.battleMask;
+    scene.buildUi();
+    assert.equal(previousMask.destroyed, true);
+    assert.notEqual(previousMask, scene.battleMask);
 });
 
 test('VNext vision upgrade spends ECS Data, exposes a disabled button and respects maximum', () => {
