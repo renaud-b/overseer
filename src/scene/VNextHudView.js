@@ -58,6 +58,9 @@
         legacy.on('pointerdown', () => {
             if (this.saveCurrentGame()) this.scene.start('GameScene');
         });
+        const settings = this.text(w - 223, 24, '⚙', 16, '#7b9aad');
+        settings.setPadding(5).setInteractive({ useHandCursor: true });
+        settings.on('pointerdown', () => this.openOptions());
         const menu = this.text(w - 59, 24, 'MENU', 12, '#7b9aad');
         menu.setPadding(5).setInteractive({ useHandCursor: true });
         menu.on('pointerdown', () => this.returnToMenu());

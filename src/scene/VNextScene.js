@@ -81,6 +81,7 @@ class VNextScene extends Phaser.Scene {
         this.lastSpeed = restored?.lastSpeed ?? 1;
         this.baseHp = restored?.baseHp ?? 100;
         this.runFinished = false;
+        this.optionsModal = null;
         this.autosaveElapsed = 0;
         this.ui = [];
         this.hitEffects = new OverseerHitEffects.HitEffects(); // Renderer-only state; never saved to ECS.
@@ -142,6 +143,8 @@ class VNextScene extends Phaser.Scene {
         this.onPageHide = () => this.saveCurrentGame();
         if (typeof window !== 'undefined') window.addEventListener?.('pagehide', this.onPageHide);
         this.events.once('shutdown', () => {
+            this.optionsModal?.close(true);
+            this.optionsModal = null;
             this.hitEffects.clear();
             this.actionEffects.clear();
             this.releaseBattleView();
@@ -235,8 +238,17 @@ class VNextScene extends Phaser.Scene {
         if (this.hoveredTile !== null) this.showBuildingTooltip(this.hoveredTile);
     }
 
+    openOptions() {
+        if (this.optionsModal || this.activeReward || this.runFinished) return;
+        this.optionsModal = new OverseerOptionsModal(this, () => {
+            this.optionsModal = null;
+            this.buildUi();
+        });
+        this.optionsModal.open();
+    }
+
     selectSpeed(speed) {
-        if (this.activeReward) return; // A choice cannot unpause the simulation.
+        if (this.optionsModal || this.activeReward) return; // A choice cannot unpause the simulation.
         if (speed === 0 && this.speed > 0) this.lastSpeed = this.speed;
         this.speed = speed;
         this.buildUi();
