@@ -111,7 +111,7 @@ test('barracks needs five observed seconds and spends resources only at completi
     assert.equal(events.length, 1);
     assert.equal(events[0].type, 'unit-produced');
     assert.equal(events[0].unitType, 'unit_guard');
-    assert.equal(model.world.get(id, 'Production').elapsedMs, 0);
+    assert.equal(model.world.get(id, 'Production').elapsedMs, 1, 'time after a blocked cycle counts toward the next');
     assert.deepEqual({ ...balance }, { energy: 0, matter: 0, components: 0 });
     assert.deepEqual(economy.step(model, 60), [], 'cannot instantly produce another soldier');
 });
