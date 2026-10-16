@@ -82,13 +82,13 @@ class VNextScene extends Phaser.Scene {
         this.actionEffects = new OverseerBattleActionEffects.BattleActionEffects();
         this.types = OverseerVNextBuildings.BUILDINGS;
         // The resource HUD borrows glyphs and colors from the corresponding buildings.
-        // Cooling and data are placeholders: they have no ECS balances or simulation yet.
+        // Cooling remains a placeholder; Data is produced by the compute node.
         this.resourceStyles = [
             { id: 'energy', label: 'Énergie', glyph: 'reactor', source: 'reactor', color: 0x35d8ef },
             { id: 'matter', label: 'Matière', glyph: 'extractor', source: 'extractor', color: 0x39dd92 },
             { id: 'cooling', label: 'Refroidissement', glyph: 'cooling', pending: true, color: 0x87b9e8 },
             { id: 'components', label: 'Composants', glyph: 'factory', source: 'factory', color: 0xf4ba58 },
-            { id: 'data', label: 'Données', glyph: 'laboratory', pending: true, color: 0xb58aff }
+            { id: 'data', label: 'Données', glyph: 'compute_node', source: 'compute_node', color: 0xb58aff }
         ];
         // Presentation-only throughput samples. Never persist or infer production from HUD state.
         this.resourceRateHistory = [];
@@ -108,6 +108,7 @@ class VNextScene extends Phaser.Scene {
         this.rewardSerial = 0;
 
         if (restored) {
+            OverseerVNextEconomy.initialize(this.model); // Backfill Data for old saves, preserve cycles.
             // No resetBattle(), production reset or re-grant: ECS is the restored truth.
             this.battleUnits = restored.battleUnits;
         } else {
@@ -481,6 +482,11 @@ class VNextScene extends Phaser.Scene {
                 y: y + Math.sin(Math.PI * i / 3) * r
             }));
             g.strokePoints(points, true);
+        } else if (type === 'compute_node') {
+            g.strokeRect(x - r * 0.65, y - r * 0.65, r * 1.3, r * 1.3);
+            g.strokeCircle(x, y, r * 0.28);
+            g.lineBetween(x - r, y, x - r * 0.65, y);
+            g.lineBetween(x + r * 0.65, y, x + r, y);
         } else if (type === 'laboratory') {
             g.strokePoints([{ x, y: y - r }, { x: x + r, y }, { x, y: y + r }, { x: x - r, y }], true);
         } else {
@@ -711,7 +717,9 @@ class VNextScene extends Phaser.Scene {
     }
 
     drawCompactResources() {
-        const l = this.layout, x = l.m + 17, startY = l.mainBottom - 156;
+        // Compact HUD lives under the grid, not on top of construction cards.
+        const l = this.layout, x = l.boardX + 16;
+        const startY = this.gridLayout.y + this.gridLayout.size + 12;
         const g = this.keep(this.add.graphics());
         this.compactResources = {};
         this.compactResourceDeltas = {};
@@ -720,8 +728,8 @@ class VNextScene extends Phaser.Scene {
             this.drawResourceIcon(g, style, x + 8, y + 7, 8);
             const color = `#${style.color.toString(16).padStart(6, '0')}`;
             this.compactResources[style.id] = this.text(x + 25, y - 2, '0', 14, color);
-            this.compactResourceDeltas[style.id] = this.text(l.m + l.leftW - 17, y, '—', 11, '#7898aa').setOrigin(1, 0);
-            this.resourceHoverZone(style, x, y - 3, l.leftW - 32, 22, x + 7, y - 30);
+            this.compactResourceDeltas[style.id] = this.text(l.boardX + l.boardW - 16, y, '—', 11, '#7898aa').setOrigin(1, 0);
+            this.resourceHoverZone(style, x, y - 3, l.boardW - 32, 22, x + 7, y - 30);
         });
     }
 
@@ -786,8 +794,8 @@ class VNextScene extends Phaser.Scene {
     // actual balance changes over simulation time, not projected recipe output.
     drawTechnologies() {
         const l=this.layout, right=Boolean(l.rightW);
-        const x=right?l.rightX+12:l.m+10;
-        const y=right?l.mainTop+223:l.mainBottom-158;
+        const x=right?l.rightX+12:l.boardX+16;
+        const y=right?l.mainTop+223:this.gridLayout.y+this.gridLayout.size+105;
         const items=OverseerVNextTechnologies.inventory(this.model).items;
         if(!right && l.leftW<165)return;
         this.text(x,y,'TECHNOLOGIES',12,'#b58aff');
@@ -825,7 +833,7 @@ class VNextScene extends Phaser.Scene {
         this.resourceRateClockMs += dt;
         const balance = this.world.get(this.model.game, 'Resources');
         const changes = {};
-        for (const id of ['energy', 'matter', 'components']) {
+        for (const id of ['energy', 'matter', 'components', 'data']) {
             const change = balance[id] - previous[id];
             if (change) changes[id] = change;
         }

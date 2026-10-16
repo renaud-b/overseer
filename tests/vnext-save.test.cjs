@@ -88,6 +88,21 @@ test('vision level is optional for old saves and rejects malformed levels', () =
     assert.equal(save.read(slot), null);
 });
 
+test('Data stock round-trips in saves and malformed Data is rejected', () => {
+    const scene = runningScene(), slot = storage();
+    scene.world.get(scene.model.game, 'Resources').data = 18;
+    assert.equal(save.write(scene, slot), true);
+    const raw = save.read(slot);
+    assert.equal(save.restore(raw, World).model.world.get(scene.model.game, 'Resources').data, 18);
+    const corrupt = JSON.parse(JSON.stringify(raw));
+    const game = corrupt.world.entities.find(entity => entity.id === scene.model.game);
+    const resources = game.components.find(([kind]) => kind === 'Resources')[1];
+    resources.data = -1;
+    assert.throws(() => save.restore(corrupt, World), /resources/);
+    delete resources.data; // Old saves with three resources remain accepted.
+    assert.equal(save.restore(corrupt, World).model.world.get(scene.model.game, 'Resources').data, undefined);
+});
+
 test('malformed, incompatible and incomplete saves never allow Continue', () => {
     const slot = storage();
     assert.equal(save.read(slot), null);

@@ -220,22 +220,82 @@ test('Continue restores upgraded vision and old save files still restore level z
     savedEntries.clear();
 });
 
-test('scene begins with exactly four unspent cards and empty base', () => {
+test('compute node shows Data stock, throughput, tooltip and floating production event', () => {
+    const scene = new VNextScene();
+    scene.create();
+    assert.equal(scene.resourceLabels.data.value, '0');
+    assert.equal(scene.resourceStatusLabels.data.value, '0.0/s');
+    scene.selectedType = 'compute_node';
+    scene.clickTile(6);
+    const id = preview.buildingAt(scene.model, 6);
+    assert.equal(scene.world.get(id, 'Building').type, 'compute_node');
+    scene.showBuildingTooltip(6);
+    const labels = scene.tooltipObjects.filter(o => typeof o.value === 'string').map(o => o.value);
+    for (const item of ['Nœud de calcul', 'CONSOMME / CYCLE', 'PRODUIT / CYCLE', '6s/cycle']) {
+        assert.ok(labels.includes(item), `missing ${item}`);
+    }
+    const resources = scene.world.get(scene.model.game, 'Resources');
+    resources.energy = 2; resources.components = 1; resources.matter = 1;
+    for (let i = 0; i < 100; i++) scene.update(0, 60);
+    assert.equal(resources.data, 2);
+    assert.equal(scene.resourceLabels.data.value, '2');
+    assert.equal(scene.resourceStatusLabels.data.value, '+0.3/s');
+    assert.equal(scene.resourceStatusLabels.data.color, '#69e5ac');
+    assert.ok(scene.productionPopups.some(effect =>
+        effect.label.value === '+2' && effect.label.color === '#b58aff'));
+    assert.equal(scene.visionUpgradeCostLabel.value, '2/10 DONNÉES');
+    scene.scale.width = 800;
+    scene.buildUi();
+    assert.equal(scene.compactResources.data.value, '2');
+    assert.equal(scene.compactResourceDeltas.data.value, '+0.3/s');
+    assert.ok(scene.compactResources.data.x > scene.layout.boardX);
+    assert.ok(scene.compactResources.data.y > scene.gridLayout.y + scene.gridLayout.size,
+        'compact resources must not overlap the base grid or construction cards');
+    const technologies = scene.ui.find(item => item.value === 'TECHNOLOGIES');
+    assert.ok(technologies.y > scene.compactResources.data.y,
+        'compact technology inventory appears below resource lines');
+});
+
+test('Data from compute-node cycles pays a vision upgrade and survives Continue', () => {
+    savedEntries.clear();
+    const running = new VNextScene();
+    running.create();
+    running.selectedType = 'compute_node';
+    running.clickTile(6);
+    const resources = running.world.get(running.model.game, 'Resources');
+    resources.energy = 10; resources.matter = 5; resources.components = 5;
+    // Speed up the ECS production only; the UI must still see its real Data balance.
+    economy.step(running.model, 24000);
+    for (let i = 0; i < 100; i++) running.update(0, 60);
+    assert.equal(resources.data, 10);
+    assert.equal(running.visionUpgradeButton.color, '#b58aff');
+    assert.equal(running.tryUpgradeVision(), true);
+    assert.equal(resources.data, 0);
+    assert.equal(running.visionRules.level, 1);
+    const resumed = new VNextScene();
+    resumed.init({ resume: true });
+    resumed.create();
+    assert.equal(resumed.visionRules.level, 1);
+    assert.equal(resumed.world.get(resumed.model.game, 'Resources').data, 0);
+    savedEntries.clear();
+});
+
+test('scene begins with six unspent cards and empty base', () => {
     const scene = new VNextScene();
     scene.create();
     assert.equal(scene.world.query('Tile').length, 25);
     assert.equal(scene.world.query('Building').length, 0);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
     assert.equal(scene.world.query('PreviewUnit').length, 3);
     scene.selectedType = 'reactor';
     scene.clickTile(6);
     assert.ok(preview.buildingAt(scene.model, 6));
-    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks', 'laboratory']);
+    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
     scene.clickTile(6);
     scene.clickTile(23);
     assert.equal(preview.buildingAt(scene.model, 6), null);
     assert.ok(preview.buildingAt(scene.model, 23));
-    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks', 'laboratory']);
+    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
     scene.scale.width = 800;
     scene.buildUi();
     scene.resetBattle();
@@ -356,10 +416,10 @@ test('drag and drop consumes a single card only on valid target', () => {
     scene.create();
     const dragged = { getData: () => 'barracks' };
     scene.onDragEnd({ x: -100, y: -100 }, dragged);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
     const { x, y, cell } = scene.gridLayout;
     scene.onDragEnd({ x: x + cell * 0.5, y: y + cell * 0.5 }, dragged);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'laboratory']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'laboratory', 'compute_node']);
     assert.ok(preview.buildingAt(scene.model, 0));
 });
 

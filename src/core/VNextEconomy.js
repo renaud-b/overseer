@@ -2,11 +2,13 @@
     'use strict';
 
     // Temporary playtest values, NOT decided Overseer economy rules.
-    // Construction is deliberately free in the preview; cooling/data are not simulated.
+    // Construction is deliberately free in the preview; cooling is not simulated.
     const PROTOTYPE_RECIPES = Object.freeze({
         reactor: Object.freeze({ cycleMs: 2000, produces: { energy: 2 }, consumes: {} }),
         extractor: Object.freeze({ cycleMs: 2000, produces: { matter: 2 }, consumes: {} }),
         factory: Object.freeze({ cycleMs: 3000, produces: { components: 1 }, consumes: { energy: 2, matter: 2 } }),
+        // Under attention only; completion pays all three inputs atomically.
+        compute_node: Object.freeze({ cycleMs: 6000, produces: { data: 2 }, consumes: { energy: 2, components: 1, matter: 1 } }),
         // One unit per completed observed cycle. Inputs are spent only when the unit exits.
         barracks: Object.freeze({ cycleMs: 5000, produces: { unit_guard: 1 }, consumes: { components: 25, energy: 15 } }),
         ballistics: Object.freeze({ cycleMs: 8000, produces: { unit_sniper: 1 }, consumes: { components: 35, energy: 20 } }),
@@ -56,10 +58,13 @@
 
     function initialize(model) {
         if (!model.world.hasComponent(model.game, 'Resources')) {
-            model.world.set(model.game, 'Resources', { energy: 0, matter: 0, components: 0 });
+            model.world.set(model.game, 'Resources', { energy: 0, matter: 0, components: 0, data: 0 });
         }
+        const resources = model.world.get(model.game, 'Resources');
+        // Old saves omit Data. Backfill once without resetting saved balances or cycles.
+        if (resources.data === undefined) resources.data = 0;
         ensureProduction(model);
-        return model.world.get(model.game, 'Resources');
+        return resources;
     }
 
     function step(model, deltaMs) {
