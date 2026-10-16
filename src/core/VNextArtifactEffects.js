@@ -39,7 +39,7 @@ function valid(s) {
   Array.isArray(s.observed)&&new Set(s.observed).size===s.observed.length&&
   s.observed.every(id=>Number.isSafeInteger(id)&&id>0)&&obj(s.grace)&&
   Object.entries(s.grace).every(([id,ms])=>/^[1-9]\d*$/.test(id)&&num(ms,0,GRACE_MS))&&
-  obj(s.waveHp)&&Object.entries(s.waveHp).every(([wave,hp])=>/^[1-9]\d*$/.test(wave)&&num(hp,0,100))&&
+  obj(s.waveHp)&&Object.entries(s.waveHp).every(([wave,hp])=>/^[1-9]\d*$/.test(wave)&&num(hp,0,120))&&
   Number.isSafeInteger(s.waveNumber)&&s.waveNumber>=0&&
   Number.isSafeInteger(s.shieldUsedWave)&&s.shieldUsedWave>=-1&&
   num(s.shieldPoints,0,SHIELD_HP)&&
@@ -265,7 +265,7 @@ function clearWave(model,number,baseHp) {
   }
  }
  const healed=owns(model,'recovery')&&startingHp!==undefined&&baseHp<startingHp&&baseHp>0?
-  Math.min(RECOVERY_HP,100-baseHp):0;
+  Math.min(RECOVERY_HP,(model.world.get(model.game,'DefenseTalents')?.reinforced?120:100)-baseHp):0;
  return evolved===null ? {hp:baseHp+healed,healed} : {hp:baseHp+healed,healed,evolved};
 }
 function laser(model,dt,perceptionRadius=LASER_RADIUS) {
