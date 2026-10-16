@@ -38,12 +38,13 @@ class MainMenuScene extends Phaser.Scene {
         this.drawMenu();
         this.scale.on('resize', this.drawMenu, this);
         this.events.once('shutdown', () => {
+            this.optionsModal?.close(true);
             this.scale.off('resize', this.drawMenu, this);
         });
     }
 
     drawMenu() {
-        if (this.transitioning) return;
+        if (this.transitioning || this.optionsModal) return;
         const wasConfirming = this.confirmingNewGame;
         this.confirmingNewGame = false;
         this.objects.forEach(object => object.destroy());
@@ -93,7 +94,7 @@ class MainMenuScene extends Phaser.Scene {
             ...(save ? [{ label: 'CONTINUER', target: 'VNextScene', data: { resume: true } }] : []),
             { label: save ? 'NOUVELLE PARTIE' : 'START A GAME', target: 'VNextScene', fresh: true },
             { label: 'TALENTS', target: 'TalentScene', data: { fromMenu: true } },
-            { label: 'OPTIONS', target: 'OptionsScene' }
+            { label: 'OPTIONS', modal: true }
         ];
         entries.forEach((entry, i) => {
             const y = top + i * spacing;
@@ -127,6 +128,7 @@ class MainMenuScene extends Phaser.Scene {
             }
             surface.on('pointerdown', () => {
                 if (entry.fresh) this.startNewGame();
+                else if (entry.modal) this.openOptions();
                 else this.navigateTo(entry.target, entry.data);
             });
         });
@@ -290,6 +292,15 @@ class MainMenuScene extends Phaser.Scene {
             }
         }
         this.drawCircuitSignals();
+    }
+
+    openOptions() {
+        if (this.transitioning || this.optionsModal) return;
+        this.optionsModal = new OverseerOptionsModal(this, () => {
+            this.optionsModal = null;
+            this.drawMenu();
+        });
+        this.optionsModal.open();
     }
 
     navigateTo(target, data) {

@@ -86,10 +86,16 @@ class FakeScene {
         };
     }
 }
+class StubOptionsModal {
+    constructor(scene, onClose) { this.scene = scene; this.onClose = onClose; }
+    open() { this.opened = true; }
+    close() { this.onClose(); }
+}
 const MainMenuScene = vm.runInNewContext(
     read('src/scene/MainMenuScene.js') + '\nMainMenuScene;',
     { Phaser: { Scene: FakeScene }, OverseerVNextBrand: brand,
-        OverseerVNextSave: save, OverseerVNextMemoryShards: shards, localStorage }
+        OverseerVNextSave: save, OverseerVNextMemoryShards: shards, localStorage,
+        OverseerOptionsModal: StubOptionsModal }
 );
 
 function buttonFor(scene, label) {
@@ -146,7 +152,7 @@ test('title matches VNext branding and hover highlights the button', () => {
 
 test('buttons go to VNext, talents and options and cannot double-transition', () => {
     for (const [label, target] of [
-        ['START A GAME', 'VNextScene'], ['TALENTS', 'TalentScene'], ['OPTIONS', 'OptionsScene']
+        ['START A GAME', 'VNextScene'], ['TALENTS', 'TalentScene']
     ]) {
         const scene = new MainMenuScene();
         scene.create();
@@ -156,6 +162,16 @@ test('buttons go to VNext, talents and options and cannot double-transition', ()
         buttonFor(scene, 'START A GAME').button.handlers.pointerdown();
         assert.equal(scene.started.key, target);
     }
+});
+
+test('options opens a shared modal without scene transition', () => {
+    const scene = new MainMenuScene();
+    scene.create();
+    buttonFor(scene, 'OPTIONS').button.handlers.pointerdown();
+    assert.ok(scene.optionsModal?.opened);
+    assert.equal(scene.started, undefined);
+    scene.optionsModal.close();
+    assert.equal(scene.optionsModal, null);
 });
 
 test('resize cleans old display objects without losing buttons', () => {

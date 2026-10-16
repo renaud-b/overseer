@@ -10,6 +10,11 @@
     },
 
     onKey(event) {
+        if (this.optionsModal) {
+            if (event.code === 'Escape') this.optionsModal.close();
+            if (event.code === 'Space') event.preventDefault();
+            return;
+        }
         if (this.activeReward) {
             if (event.code === 'Space') event.preventDefault();
             return;
@@ -30,7 +35,7 @@
     },
 
     onDragStart(pointer, object) {
-        if (this.activeReward) return;
+        if (this.optionsModal || this.activeReward) return;
         this.hideTechnologyTooltip();
         this.hideBattleUnitTooltip();
         const technology=object.getData('technology');
