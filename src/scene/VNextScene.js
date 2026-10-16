@@ -242,6 +242,7 @@ class VNextScene extends Phaser.Scene {
             hit.on('pointerover', () => this.showCardTooltip(typeId, x + cw, y + 10));
             hit.on('pointerout', () => this.hideBuildingTooltip());
             hit.on('pointerdown', () => {
+                if (this.activeReward) return;
                 this.selectedType = this.selectedType === typeId ? null : typeId;
                 this.movingId = null;
                 this.paintBoard();
@@ -310,6 +311,7 @@ class VNextScene extends Phaser.Scene {
     }
 
     clickTile(index) {
+        if (this.activeReward) return;
         let changed = false;
         const existing = OverseerVNextPreview.buildingAt(this.model, index);
         if (this.movingId !== null) {
@@ -482,6 +484,7 @@ class VNextScene extends Phaser.Scene {
     }
 
     changeAttention(dx, dy, rotate = false) {
+        if (this.activeReward) return false;
         const candidate = { x: this.attention.x + dx, y: this.attention.y + dy };
         const nextRotation = (this.visionRules.patternIndex + (rotate ? 1 : 0)) % 4;
         const pattern = this.visionRules.visionPatterns[nextRotation];
@@ -496,6 +499,10 @@ class VNextScene extends Phaser.Scene {
     }
 
     onKey(event) {
+        if (this.activeReward) {
+            if (event.code === 'Space') event.preventDefault();
+            return;
+        }
         if (event.code === 'Space') { event.preventDefault(); this.selectSpeed(this.speed === 0 ? (this.lastSpeed || 1) : 0); return; }
         if (['Digit1', 'Digit2', 'Digit3', 'Digit5'].includes(event.code)) {
             this.selectSpeed(Number(event.code.slice(-1))); return;
@@ -512,6 +519,7 @@ class VNextScene extends Phaser.Scene {
     }
 
     onDragStart(pointer, object) {
+        if (this.activeReward) return;
         const type = object.getData('palette');
         if (!type) return;
         this.dragType = type;
@@ -525,6 +533,12 @@ class VNextScene extends Phaser.Scene {
     }
 
     onDragEnd(pointer, object) {
+        if (this.activeReward) {
+            this.dragGhost?.destroy();
+            this.dragGhost = null;
+            this.dragType = null;
+            return;
+        }
         if (!object.getData('palette')) return;
         const index = this.gridIndex(pointer.x, pointer.y);
         const placed = index !== -1 ? OverseerVNextCards.play(this.model, object.getData('palette'), index) : null;
@@ -763,6 +777,26 @@ class VNextScene extends Phaser.Scene {
         if (changed) this.saveCurrentGame();
     }
 
+    // Reclaim dead ECS entities only after wave completion has been resolved.
+    // A living wave keeps exactly its living members; cleared waves are removed
+    // by checkWaveClears(), which grants their rewards before references vanish.
+    cleanupDeadUnits() {
+        const dead = new Set(this.battleUnits.filter(id =>
+            !this.world.has(id) || this.world.get(id, 'Health')?.hp <= 0));
+        if (!dead.size) return false;
+        this.battleUnits = this.battleUnits.filter(id => !dead.has(id));
+        for (const id of dead) {
+            if (this.world.has(id)) this.world.destroy(id);
+        }
+        for (const [number, members] of this.waveMembers) {
+            const alive = members.filter(id => !dead.has(id));
+            if (alive.length) this.waveMembers.set(number, alive);
+            else this.waveMembers.delete(number);
+        }
+        this.saveCurrentGame();
+        return true;
+    }
+
     chooseReward(type) {
         if (!this.activeReward || !this.activeReward.options.includes(type)) return false;
         if (!OverseerVNextCards.grant(this.model, type)) return false;
@@ -781,6 +815,10 @@ class VNextScene extends Phaser.Scene {
         g.fillStyle(0x08121c, 0.88).fillRect(0, 0, w, h);
         g.fillStyle(0x0b1d2b, 1).fillRoundedRect(x, y, width, 225, 8);
         g.lineStyle(1, 0x62e7e1, 0.7).strokeRoundedRect(x, y, width, 225, 8);
+        // Full-screen hit target above the HUD, below the reward choices.
+        // Phaser's default topOnly input dispatch keeps pointer events off the game.
+        this.keep(this.add.zone(w / 2, h / 2, w, h)
+            .setInteractive().setDepth(301)).setData('rewardBlocker', true);
         this.keep(this.add.text(x + 20, y + 19, `VAGUE ${reward.number} TERMINÉE`, {
             fontFamily:'monospace',fontSize:'17px',color:'#dfeaf0'
         }).setDepth(301));
@@ -1052,7 +1090,9 @@ class VNextScene extends Phaser.Scene {
         // Wall-clock duration makes impacts readable at x1/x3/x5. Pause freezes them.
         this.hitEffects.update(Math.min(60, Math.max(0, delta)));
         this.actionEffects.update(Math.min(60, Math.max(0, delta)));
-        this.paintBattle();
+        // Rewards must be computed before reclaiming dead ECS entities.
         this.checkWaveClears();
+        this.cleanupDeadUnits();
+        this.paintBattle();
     }
 }
