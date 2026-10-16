@@ -601,7 +601,7 @@ test('dead combat units are reclaimed without losing wave rewards or resumable s
     assert.equal(scene.world.has(enemies[0]), false);
     assert.equal(scene.world.has(ally), false);
     assert.equal(scene.battleUnits.length, originalUnitCount - 2);
-    assert.deepEqual(scene.waveMembers.get(1), enemies.slice(1));
+    assert.deepEqual([...scene.waveMembers.get(1)], enemies.slice(1));
     assert.equal(scene.activeReward, null, 'a partially defeated wave stays active');
 
     assert.equal(scene.saveCurrentGame(), true);
