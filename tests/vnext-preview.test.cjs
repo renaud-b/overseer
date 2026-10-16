@@ -49,11 +49,13 @@ test('main menu starts first, while VNext and legacy GameScene remain reachable'
     const bootstrap = fs.readFileSync(path.join(root, 'src/main.js'), 'utf8');
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     const scene = fs.readFileSync(path.join(root, 'src/scene/VNextScene.js'), 'utf8');
+    const hud = fs.readFileSync(path.join(root, 'src/scene/VNextHudView.js'), 'utf8');
     assert.match(bootstrap, /config\.scene\s*=\s*\[\s*MainMenuScene,\s*VNextScene/);
     assert.match(html, /src\/core\/VNextPreview\.js/);
     assert.match(html, /src\/scene\/VNextScene\.js/);
-    assert.match(scene, /this\.scene\.start\('GameScene'\)/);
-    assert.match(scene, /OverseerCombat\.stepUnit/);
+    assert.match(hud, /this\.scene\.start\('GameScene'\)/);
+    const simulation = fs.readFileSync(path.join(root, 'src/scene/VNextSimulation.js'), 'utf8');
+    assert.match(simulation, /OverseerCombat\.stepUnit/);
 });
 
 test('browser loads VNextVision before VNextScene references it', () => {

@@ -34,6 +34,15 @@ const saveStorage = {
 const ROOT = path.resolve(__dirname, '..');
 const brandSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBrand.js'), 'utf8');
 const visionSource = fs.readFileSync(path.join(ROOT, 'src/scene/entities/Vision.js'), 'utf8');
+const tooltipSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextTooltips.js'), 'utf8');
+const boardSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBoardView.js'), 'utf8');
+const battleViewSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBattleView.js'), 'utf8');
+const vNextHudViewSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextHudView.js'), 'utf8');
+const vNextWaveViewSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextWaveView.js'), 'utf8');
+const vNextRewardViewSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextRewardView.js'), 'utf8');
+const vNextInputSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextInput.js'), 'utf8');
+const vNextRunFlowSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextRunFlow.js'), 'utf8');
+const vNextSimulationSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextSimulation.js'), 'utf8');
 const sceneSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextScene.js'), 'utf8');
 
 class Display {
@@ -92,7 +101,7 @@ class FakeScene {
 }
 const OverseerVNextBrand = vm.runInNewContext(brandSource + '\nOverseerVNextBrand;', {});
 const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
-const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
+const VNextScene = vm.runInNewContext(tooltipSource + '\n' + boardSource + '\n' + battleViewSource + '\n' + vNextHudViewSource + '\n' + vNextWaveViewSource + '\n' + vNextRewardViewSource + '\n' + vNextInputSource + '\n' + vNextRunFlowSource + '\n' + vNextSimulationSource + '\n' + sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
     OverseerECS: { World }, OverseerCombat: combat, OverseerHitEffects: hitEffects,
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
@@ -2057,4 +2066,192 @@ test('memory shards persist across defeat and fresh games without touching talen
     assert.equal(fresh.shardLabel.value,'ÉCLATS DE MÉMOIRE  13');
     assert.equal(shards.balance(saveStorage),13);
     savedEntries.clear();
+});
+
+
+test('all six tooltip families are presentation-only and disposed on UI rebuild', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    scene.create();
+    const before = scene.world.serialize();
+
+    scene.showCardTooltip('reactor', 260, 180);
+    scene.showTechnologyTooltip('berserk', 330, 240);
+    scene.showResourceTooltip(scene.resourceStyles[0], 450, 300);
+    scene.showArtifactTooltip(null, 600, 100);
+    scene.showWaveTooltip(0, 650, 680);
+
+    const ally = scene.battleUnits.find(id =>
+        scene.world.get(id, 'Faction')?.side === 'player');
+    const position = scene.world.get(ally, 'Position');
+    const bounds = scene.battleBounds;
+    scene.onBattleUnitPointer({
+        x: bounds.x + position.x * bounds.w / 1000,
+        y: bounds.y + position.y * bounds.h / 600
+    });
+    const groups = [
+        scene.tooltipObjects, scene.technologyTooltipObjects,
+        scene.artifactTooltipObjects, scene.waveTooltipObjects,
+        scene.battleTooltipObjects
+    ].map(items => [...items]);
+    const resourceTooltip = scene.resourceTooltip;
+    assert.ok(groups.every(items => items.length), 'every graphics tooltip is visible');
+    assert.ok(resourceTooltip, 'resource tooltip is visible');
+    assert.deepEqual(scene.world.serialize(), before, 'hover must not alter ECS state');
+
+    scene.scale.width = 900;
+    scene.scale.height = 650;
+    const oldMask = scene.battleMask;
+    scene.buildUi();
+    assert.ok(oldMask.destroyed, 'previous battlefield mask is released');
+    assert.ok(groups.flat().every(object => object.destroyed), 'all tooltip displays are released');
+    assert.ok(resourceTooltip.destroyed, 'resource tooltip is released');
+    assert.deepEqual([
+        scene.tooltipObjects.length, scene.technologyTooltipObjects.length,
+        scene.artifactTooltipObjects.length, scene.waveTooltipObjects.length,
+        scene.battleTooltipObjects.length
+    ], [0, 0, 0, 0, 0]);
+    assert.equal(scene.resourceTooltip, null);
+    assert.equal(scene.battleHoverPointer, null);
+    assert.deepEqual(scene.world.serialize(), before, 'UI rebuild must not alter ECS state');
+    savedEntries.clear();
+});
+
+test('scene shutdown releases battle hover and rendering mask without touching the run', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    const registered = {};
+    scene.events.once = (name, callback) => { registered[name] = callback; };
+    scene.create();
+    assert.equal(typeof registered.shutdown, 'function');
+    const before = scene.world.serialize();
+    scene.showTechnologyTooltip('stasis_field', 500, 220);
+    const techDisplays = [...scene.technologyTooltipObjects];
+    const ally = scene.battleUnits.find(id =>
+        scene.world.get(id, 'Faction')?.side === 'player');
+    const position = scene.world.get(ally, 'Position');
+    const bounds = scene.battleBounds;
+    scene.onBattleUnitPointer({
+        x: bounds.x + position.x * bounds.w / 1000,
+        y: bounds.y + position.y * bounds.h / 600
+    });
+    const battleDisplays = [...scene.battleTooltipObjects];
+    const oldMask = scene.battleMask;
+    assert.ok(battleDisplays.length);
+
+    registered.shutdown();
+    assert.ok(oldMask.destroyed);
+    assert.equal(scene.battleMask, null);
+    assert.ok([...techDisplays, ...battleDisplays].every(object => object.destroyed));
+    assert.equal(scene.battleHoverPointer, null);
+    assert.deepEqual(scene.world.serialize(), before);
+    savedEntries.clear();
+});
+
+
+test('extracted board view reads ECS and disposes replaced graphics during rebuild', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const before = scene.world.serialize();
+    const oldBoard = scene.boardGraphics;
+    const oldPalette = scene.paletteGraphics;
+    scene.paintBoard();
+    scene.refreshPaletteSelection();
+    assert.deepEqual(scene.world.serialize(), before, 'board rendering must not change ECS');
+
+    scene.scale.width = 1024;
+    scene.scale.height = 720;
+    scene.buildUi();
+    assert.equal(oldBoard.destroyed, true);
+    assert.equal(oldPalette.destroyed, true);
+    assert.notStrictEqual(oldBoard, scene.boardGraphics);
+    assert.notStrictEqual(oldPalette, scene.paletteGraphics);
+    assert.ok(scene.gridLayout.size > 0);
+    assert.equal(scene.world.query('Tile').length, 25);
+    assert.deepEqual(scene.world.serialize(), before, 'rebuilding the board must not reset a run');
+});
+
+
+test('extracted battle view clips every layer and releases obsolete Phaser objects on resize', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const before = scene.world.serialize();
+    scene.paintBattle();
+    assert.deepEqual(scene.world.serialize(), before, 'painting must not mutate ECS');
+    const oldMask = scene.battleMask;
+    const oldLayers = [scene.zoneGraphics, scene.battleGraphics,
+        scene.battleParticleGraphics, scene.battleActionGraphics];
+    for (const layer of oldLayers) assert.strictEqual(layer.mask, oldMask);
+
+    scene.scale.width = 940;
+    scene.scale.height = 680;
+    scene.buildUi();
+    assert.ok(oldMask.destroyed, 'mask from previous viewport must be destroyed');
+    assert.ok(oldLayers.every(layer => layer.destroyed), 'old graphics must be destroyed');
+    assert.ok(scene.battleMask);
+    assert.notStrictEqual(scene.battleMask, oldMask);
+    for (const layer of [scene.zoneGraphics, scene.battleGraphics,
+        scene.battleParticleGraphics, scene.battleActionGraphics])
+        assert.strictEqual(layer.mask, scene.battleMask);
+    assert.deepEqual(scene.world.serialize(), before, 'resizing must not reset combat ECS');
+
+    const newMask = scene.battleMask;
+    scene.releaseBattleView();
+    assert.ok(newMask.destroyed);
+    assert.equal(scene.battleMask, null);
+    scene.releaseBattleView(); // Destruction is safe even when called twice.
+});
+
+
+test('extracted HUD and wave timeline repaint without rewriting the ECS world', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const before = scene.world.serialize();
+    const previousResourceObjects = Object.values(scene.resourceLabels);
+    scene.updateResourceHud();
+    scene.updateWaveTimeline();
+    scene.paintWaveTimeline();
+    assert.deepEqual(scene.world.serialize(), before, 'HUD and timeline must be projections only');
+    scene.scale.width = 1000;
+    scene.scale.height = 710;
+    scene.buildUi();
+    assert.ok(previousResourceObjects.every(o => o.destroyed), 'HUD labels are disposed on resize');
+    assert.deepEqual(scene.world.serialize(), before, 'HUD rebuild must not replace ECS state');
+});
+
+test('extracted reward view never chooses a reward while drawing choices', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.activeReward = scene.rewardForWave(1);
+    const original = JSON.stringify(scene.activeReward);
+    const before = scene.world.serialize();
+    scene.buildUi();
+    assert.equal(JSON.stringify(scene.activeReward), original);
+    assert.deepEqual(scene.world.serialize(), before);
+});
+
+
+test('extracted simulation entry point preserves ECS world when paused and gameplay during play', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const before = scene.world.serialize();
+    scene.selectSpeed(0);
+    scene.update(0, 4000);
+    assert.deepEqual(scene.world.serialize(), before, 'paused simulation must not advance ECS');
+    scene.selectSpeed(1);
+    scene.update(0, 40);
+    assert.ok(scene.waveClock.elapsedMs > 0, 'running simulation still advances wave clock');
+});
+
+test('scene can restart on same Phaser instance with extracted run and input handlers', () => {
+    const scene = new VNextScene();
+    scene.create();
+    assert.equal(typeof scene.onDragEnd, 'function');
+    assert.equal(typeof scene.triggerWave, 'function');
+    assert.equal(typeof scene.update, 'function');
+    const oldWorld = scene.world;
+    scene.finishRun();
+    scene.create();
+    assert.notStrictEqual(scene.world, oldWorld);
+    assert.equal(scene.runFinished, false);
 });
