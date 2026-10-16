@@ -35,6 +35,7 @@ const ROOT = path.resolve(__dirname, '..');
 const brandSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBrand.js'), 'utf8');
 const visionSource = fs.readFileSync(path.join(ROOT, 'src/scene/entities/Vision.js'), 'utf8');
 const tooltipSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextTooltips.js'), 'utf8');
+const boardSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBoardView.js'), 'utf8');
 const sceneSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextScene.js'), 'utf8');
 
 class Display {
@@ -93,7 +94,7 @@ class FakeScene {
 }
 const OverseerVNextBrand = vm.runInNewContext(brandSource + '\nOverseerVNextBrand;', {});
 const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
-const VNextScene = vm.runInNewContext(tooltipSource + '\n' + sceneSource + '\nVNextScene;', {
+const VNextScene = vm.runInNewContext(tooltipSource + '\n' + boardSource + '\n' + sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
     OverseerECS: { World }, OverseerCombat: combat, OverseerHitEffects: hitEffects,
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
@@ -2138,4 +2139,27 @@ test('scene shutdown releases battle hover and rendering mask without touching t
     assert.equal(scene.battleHoverPointer, null);
     assert.deepEqual(scene.world.serialize(), before);
     savedEntries.clear();
+});
+
+
+test('extracted board view reads ECS and disposes replaced graphics during rebuild', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const before = scene.world.serialize();
+    const oldBoard = scene.boardGraphics;
+    const oldPalette = scene.paletteGraphics;
+    scene.paintBoard();
+    scene.refreshPaletteSelection();
+    assert.deepEqual(scene.world.serialize(), before, 'board rendering must not change ECS');
+
+    scene.scale.width = 1024;
+    scene.scale.height = 720;
+    scene.buildUi();
+    assert.equal(oldBoard.destroyed, true);
+    assert.equal(oldPalette.destroyed, true);
+    assert.notStrictEqual(oldBoard, scene.boardGraphics);
+    assert.notStrictEqual(oldPalette, scene.paletteGraphics);
+    assert.ok(scene.gridLayout.size > 0);
+    assert.equal(scene.world.query('Tile').length, 25);
+    assert.deepEqual(scene.world.serialize(), before, 'rebuilding the board must not reset a run');
 });
