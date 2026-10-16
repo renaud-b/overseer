@@ -2570,3 +2570,22 @@ test('core sine-wave animation freezes in pause and resumes without an extra tim
         'the renderer reads the already persisted simulation clock');
     savedEntries.clear();
 });
+
+test('Intégrité préservée restores the core on real wave clear, plays healing effect and persists',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ assert.equal(artifacts.add(scene.model,'pristine_repair'),true);
+ scene.baseHp=91;scene.waveClock.number=1;
+ scene.triggerWave(waves.wave(1,scene.waveClock.seed));
+ const members=scene.waveMembers.get(1);
+ members.forEach(id=>{scene.world.get(id,'Health').hp=0;});
+ scene.checkWaveClears();
+ assert.equal(scene.baseHp,96);
+ assert.ok(scene.actionEffects.visuals().some(v=>v.kind==='heal'));
+ assert.equal(scene.checkWaveClears(),false,'wave completion is not paid twice');
+ assert.equal(scene.baseHp,96);
+ const snapshot=saves.restore(saves.capture(scene),World);
+ assert.equal(snapshot.baseHp,96);
+ assert.ok(artifacts.list(snapshot.model).includes('pristine_repair'));
+ savedEntries.clear();
+});

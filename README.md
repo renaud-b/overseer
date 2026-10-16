@@ -187,3 +187,7 @@ Les identifiants historiques `starter_economy`, `extra_scrap` et `extra_alloy` r
 ### Signal vital du noyau
 
 Le **cercle intérieur** du noyau reste fixe. Son ancien deuxième cercle est remplacé par une **onde sinusoïdale fermée**, qui tourne lentement autour du noyau et ajoute des harmoniques de plus en plus irrégulières lorsque ses PV diminuent. Couleur liée aux mêmes seuils de santé que le noyau ; aucune texture ni particule supplémentaire. L'animation est purement graphique : elle se base sur l'horloge de simulation existante (figée en pause et restaurée avec la sauvegarde), n'influence ni la vie, ni la détection radar, ni les attaques. La géométrie est limitée à 96 points et reste dans le masque du panneau de combat.
+
+### Artefact : Intégrité préservée
+
+**Intégrité préservée** est une récompense d'artefact normale (six emplacements maximum) : après une vague remportée sans perte effective de PV du noyau, elle rend **jusqu'à 5 PV** à la base, plafonnés à 100. Une blessure survenue pendant la vague reste comptabilisée même si des soins restaurent ensuite les PV. Les dégâts totalement absorbés par un bouclier ne blessent pas le noyau. L'effet ne se déclenche qu'une fois par vague et ne réserve aucun soin lorsque la base est déjà à 100 PV. Il complète **Protocole de récupération**, qui fonctionne au contraire après une vague blessante, ainsi qu’**Instinct d'évolution**, qui améliore une unité après une vague parfaite.

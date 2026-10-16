@@ -264,8 +264,13 @@ function clearWave(model,number,baseHp) {
    world.set(evolved,'Evolved',{stacks});
   }
  }
- const healed=owns(model,'recovery')&&startingHp!==undefined&&baseHp<startingHp&&baseHp>0?
+ // The old recovery refunds a damaged wave; pristine repair rewards the
+ // opposite outcome. A restored HP total never erases the waveDamaged flag.
+ const recovery=owns(model,'recovery')&&startingHp!==undefined&&baseHp<startingHp&&baseHp>0?
   Math.min(RECOVERY_HP,100-baseHp):0;
+ const pristineRepair=owns(model,'pristine_repair')&&pristine&&baseHp>0?
+  Math.min(RECOVERY_HP,100-baseHp-recovery):0;
+ const healed=recovery+pristineRepair;
  return evolved===null ? {hp:baseHp+healed,healed} : {hp:baseHp+healed,healed,evolved};
 }
 function laser(model,dt,perceptionRadius=LASER_RADIUS) {
