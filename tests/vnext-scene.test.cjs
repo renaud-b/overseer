@@ -1915,16 +1915,16 @@ test('battlefield hover shows live ally and enemy ECS stats without changing sim
     assert.equal(scene.battleTooltipId,ally);
     assert.match(scene.battleTooltipTitle.value,/DÉFENSEUR.*ALLIÉ/);
     assert.match(scene.battleTooltipBody.value,/Type : unit_guard/);
-    assert.match(scene.battleTooltipBody.value,/PV : 7 \/ 7/);
-    assert.match(scene.battleTooltipBody.value,/Dégâts : 2.*mêlée/);
-    assert.match(scene.battleTooltipBody.value,/Portée : 20/);
+    assert.match(scene.battleTooltipBody.value,/PV : 5 \/ 5/);
+    assert.match(scene.battleTooltipBody.value,/Dégâts : 1.*distance/);
+    assert.match(scene.battleTooltipBody.value,/Portée : 30/);
     assert.match(scene.battleTooltipBody.value,/Cadence : 1 s/);
-    assert.match(scene.battleTooltipBody.value,/Vitesse : 35/);
+    assert.match(scene.battleTooltipBody.value,/Vitesse : 40/);
     assert.deepEqual(scene.world.serialize(), before, 'hover must never write to ECS');
     const objects=[...scene.battleTooltipObjects];
     scene.world.get(ally,'Health').hp=3;
     scene.paintBattle();
-    assert.match(scene.battleTooltipBody.value,/PV : 3 \/ 7/, 'PV are updated while the unit remains hovered');
+    assert.match(scene.battleTooltipBody.value,/PV : 3 \/ 5/, 'PV are updated while the unit remains hovered');
     assert.deepEqual(scene.battleTooltipObjects,objects,'a frame should not reallocate tooltip objects');
 
     scene.spawnEnemyUnit('ranged_monster',0,1);
@@ -1953,7 +1953,7 @@ test('battle unit tooltip shows real buffs, reinforcement lifetime, healing and 
     scene.world.set(id,'TechnologyBuff',{type:'berserk',remainingMs:5000});
     zones.cast(scene.model,'overclock',{x:500,y:300});
     scene.battleHoverZone.handlers.pointermove(point);
-    assert.match(scene.battleTooltipBody.value,/Soin : 2 · soutien/);
+    assert.match(scene.battleTooltipBody.value,/Soin : 1 · soutien/);
     assert.match(scene.battleTooltipBody.value,/État : Berserk, Surcadencement/);
     assert.match(scene.battleTooltipBody.value,/Vitesse : 60/);
     const temporary=scene.spawnFriendlyUnit('unit_guard');
