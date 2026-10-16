@@ -692,6 +692,53 @@ test('timeline tooltip and spawner already accept multi-type wave descriptors', 
     assert.equal(scene.waveReport()[0].spawned, 5);
 });
 
+test('wave markers show one to five threat dots, elite in amber, and honest tooltip', () => {
+    const scene=new VNextScene();
+    scene.create();
+    scene.waveClock.elapsedMs=0;
+    const seed=scene.waveClock.seed;
+    scene.previewWaves=[waves.wave(1,seed),waves.wave(4,seed),waves.wave(7,seed),waves.wave(10,seed)];
+    scene.waveClock.elapsedMs=waves.wave(1,seed).dueAtMs-20000;
+    const due=[20000,50000,110000,180000];
+    scene.previewWaves=scene.previewWaves.map((wave,i)=>({...wave,dueAtMs:scene.waveClock.elapsedMs+due[i]}));
+    scene.waveMarkers=scene.waveMarkers.slice(0,4);
+    scene.paintWaveTimeline();
+    const visibleDots=scene.waveGraphics.drawCalls.filter(c=>c.type==='fillCircle');
+    assert.equal(visibleDots.length,1+2+3+5);
+    assert.equal(scene.waveGraphics.drawCalls.filter(c=>c.type==='strokeCircle').length,1,
+        'only the elite wave gets a special outline');
+    assert.deepEqual(scene.previewWaves.map(w=>waves.danger(w).level),[1,2,3,5]);
+    scene.showWaveTooltip(3,500,650);
+    const labels=scene.waveTooltipObjects.filter(o=>typeof o.value==='string').map(o=>o.value);
+    assert.ok(labels.includes('VAGUE 10 · ÉLITE'));
+    assert.ok(labels.some(s=>s.includes('MENACE ESTIMÉE')));
+    assert.ok(labels.some(s=>s.includes('RÉCOMPENSE : BÂTIMENT + TECHNO')));
+    assert.ok(labels.some(s=>s.includes('Percuteur')));
+});
+
+test('clearing tenth-wave elite guarantees two reward choices in existing journey', () => {
+    savedEntries.clear();
+    const scene=new VNextScene();scene.create();
+    scene.waveClock.number=10;
+    scene.waveClock.elapsedMs=waves.wave(10,scene.waveClock.seed).dueAtMs;
+    const wave=waves.wave(10,scene.waveClock.seed);
+    scene.triggerWave(wave);
+    for(const id of scene.waveMembers.get(10))scene.world.get(id,'Health').hp=0;
+    scene.checkWaveClears();
+    assert.deepEqual(scene.activeReward.stages.map(stage=>stage.kind),['building','technology']);
+    const cardBefore=cards.cards(scene.model).length;
+    assert.equal(scene.chooseReward(scene.activeReward.options[0]),true);
+    assert.equal(cards.cards(scene.model).length,cardBefore+1);
+    assert.equal(scene.activeReward.index,1);
+    const saved=saves.capture(scene);
+    assert.equal(saves.restore(saved,World).activeReward.index,1);
+    const techBefore=technologies.inventory(scene.model).items.length;
+    assert.equal(scene.chooseReward(scene.activeReward.options[0]),true);
+    assert.equal(technologies.inventory(scene.model).items.length,techBefore+1);
+    assert.equal(scene.activeReward,null);
+    savedEntries.clear();
+});
+
 test('wave timer spawns enemies at simulation interval and pauses', () => {
  const scene = new VNextScene();
  scene.create();
@@ -1274,8 +1321,12 @@ test('reward journey routes building then technology without resuming between st
 });
 test('reward distribution approximates 40/40/20 deterministically',()=>{
  const rewardSystem=require('../src/core/VNextRewards.js'),count={building:0,technology:0,both:0};
- for(let n=1;n<=1000;n++){const mode=rewardSystem.mode(n,137);count[mode.length===2?'both':mode[0]]++;}
- assert.ok(Math.abs(count.building-400)<80);
- assert.ok(Math.abs(count.technology-400)<80);
- assert.ok(Math.abs(count.both-200)<70);
+ for(let n=1;n<=1000;n++){if(n%10===0)continue;const mode=rewardSystem.mode(n,137);count[mode.length===2?'both':mode[0]]++;}
+ assert.ok(Math.abs(count.building-360)<80);
+ assert.ok(Math.abs(count.technology-360)<80);
+ assert.ok(Math.abs(count.both-180)<70);
+ for(const seed of [0,13,137,981,4294967295]) {
+  assert.deepEqual(rewardSystem.mode(10,seed),['building','technology']);
+  assert.deepEqual(rewardSystem.mode(20,seed),['building','technology']);
+ }
 });

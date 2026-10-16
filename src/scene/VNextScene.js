@@ -894,21 +894,28 @@ class VNextScene extends Phaser.Scene {
         const wave = this.previewWaves[index];
         if (!wave) return;
         const groups = wave.enemies.filter(group => group.count > 0);
-        const width = 232, height = 71 + groups.length * 20;
+        const threat = OverseerVNextWaves.danger(wave);
+        const elite = OverseerVNextWaves.elite(wave.number);
+        const width = 242, height = (elite ? 116 : 104) + groups.length * 20;
         const tx = Math.max(8, Math.min(this.scale.width - width - 8, x - width / 2));
         const ty = Math.max(72, y - height - 15);
         const g = this.add.graphics().setDepth(230);
         g.fillStyle(0x0b1d2b, 0.98).fillRoundedRect(tx, ty, width, height, 6);
-        g.lineStyle(1, 0xff6674, 0.7).strokeRoundedRect(tx, ty, width, height, 6);
+        g.lineStyle(1, elite ? 0xf4ba58 : 0xff6674, 0.7).strokeRoundedRect(tx, ty, width, height, 6);
         this.waveTooltipObjects.push(g);
         const text = (dx, dy, str, size = 12, color = '#dfeaf0') =>
             this.waveTooltipObjects.push(this.add.text(tx + dx, ty + dy, str, {
                 fontFamily: 'monospace', fontSize: `${size}px`, color
             }).setDepth(231));
-        text(13, 12, `VAGUE ${wave.number}`, 15);
-        text(13, 40, 'COMPOSITION PRÉVISIONNELLE', 10, '#819eaf');
+        text(13, 12, `VAGUE ${wave.number}${elite ? ' · ÉLITE' : ''}`, 15,
+            elite ? '#f4ba58' : '#dfeaf0');
+        text(13, 38, `MENACE ESTIMÉE  ${'●'.repeat(threat.level)}`, 11,
+            elite ? '#f4ba58' : '#e9b6bf');
+        if(elite) text(13, 57, 'RÉCOMPENSE : BÂTIMENT + TECHNO', 10, '#f4ba58');
+        text(13, elite ? 78 : 66, 'COMPOSITION PRÉVISIONNELLE', 10, '#819eaf');
         groups.forEach((group, i) => {
-            text(13, 59 + i * 20, `×${group.count} · ${OverseerBattleUnitStyles.enemyLabel(group.type)}`, 11, '#e9b6bf');
+            text(13, (elite ? 96 : 84) + i * 20,
+                `×${group.count} · ${OverseerBattleUnitStyles.enemyLabel(group.type)}`, 11, '#e9b6bf');
         });
     }
 
@@ -1096,8 +1103,13 @@ class VNextScene extends Phaser.Scene {
             marker.zone.setPosition(visible?x:-100,visible?y:-100);
             marker.label.setPosition(visible?x-4:-100,visible?y-16:-100);
             if(visible){
-                g.fillStyle(0xff6674,0.94).fillCircle(x,y,5);
-                g.lineStyle(1,0xff6674,0.55).strokeCircle(x,y,9);
+                const count=OverseerVNextWaves.danger(wave).level;
+                const special=OverseerVNextWaves.elite(wave.number);
+                const color=special?0xf4ba58:0xff6674;
+                g.fillStyle(color,0.94);
+                for(let n=0;n<count;n++)g.fillCircle(x+(n-(count-1)/2)*7,y,3);
+                if(special)g.lineStyle(1.2,color,0.65)
+                    .strokeCircle(x,y,19);
             }
         });
     }
@@ -1112,7 +1124,7 @@ class VNextScene extends Phaser.Scene {
         this.waveGraphics = this.keep(this.add.graphics());
         this.waveMarkers = this.previewWaves.map((wave, i) => {
             const label = this.text(-100, -100, String(wave.number), 10, '#e9b6bf');
-            const zone = this.keep(this.add.zone(-100, -100, 25, 35).setInteractive({ useHandCursor: true }));
+            const zone = this.keep(this.add.zone(-100, -100, 44, 36).setInteractive({ useHandCursor: true }));
             zone.setData('wave', i);
             zone.on('pointerover', () => this.showWaveTooltip(i, zone.x, y));
             zone.on('pointerout', () => this.hideWaveTooltip());
