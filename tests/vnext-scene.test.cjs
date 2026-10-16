@@ -1654,7 +1654,7 @@ test('manufactured soldiers record costs; Recyclage refunds exactly once while s
  for(let i=0;i<84;i++)scene.update(0,60);
  const paid=scene.battleUnits.find(id=>scene.world.hasComponent(id,'ManufacturedCost'));
  assert.ok(paid,'real military production must retain its paid provenance');
- assert.deepEqual(scene.world.get(paid,'ManufacturedCost').resources,{components:25,energy:15});
+ assert.deepEqual({...scene.world.get(paid,'ManufacturedCost').resources},{components:25,energy:15});
  assert.equal(stock.components,0);
  assert.equal(artifacts.add(scene.model,'recycle'),true);
  scene.world.get(paid,'Health').hp=0;
