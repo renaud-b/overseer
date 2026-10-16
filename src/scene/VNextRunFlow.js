@@ -91,6 +91,10 @@
             this.waveMembers.delete(number);
             const recovered = OverseerVNextArtifactEffects.clearWave(this.model, number, this.baseHp);
             this.baseHp = recovered.hp;
+            if (recovered.evolved && this.world.has(recovered.evolved)) {
+                const pos=this.world.get(recovered.evolved,'Position');
+                if(pos)this.actionEffects.heal(pos,pos,0x69d9a0);
+            }
             if (recovered.healed) this.actionEffects.heal(
                 {x:65,y:300}, {x:65,y:300}, 0x69d9a0);
             const payout=OverseerVNextMemoryShards.grant(this.model,number,this.saveStorage());

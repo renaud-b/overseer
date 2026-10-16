@@ -8,7 +8,8 @@ const RULES=Object.freeze({
 });
 function buildings(model){return model.world.query('Building','GridSlot');}
 function slot(model,id){return model.world.get(id,'GridSlot').index;}
-function observed(model,id){return model.world.get(model.tiles[slot(model,id)],'Watched').active;}
+function observed(model,id){return model.world.get(model.tiles[slot(model,id)],'Watched').active||
+ root.OverseerVNextArtifactEffects?.relayActive(model,id)===true;}
 function near(a,b){
  return Math.max(Math.abs(a%5-b%5),Math.abs(Math.floor(a/5)-Math.floor(b/5)))<=RULES.neighborRange;
 }

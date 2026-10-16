@@ -2290,3 +2290,36 @@ test('corrosion from enemy death renders a clipped battlefield zone and pauses w
  assert.equal(artifactEffects.state(scene.model).corrosionZones[0].remainingMs,4000);
  savedEntries.clear();
 });
+
+test('Distributed relay draws an unobtrusive violet connection, persists on Continue and pauses',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ preview.placeBuilding(scene.model,'reactor',7);
+ preview.setObserved(scene.model,[6]);artifacts.add(scene.model,'distributed');
+ scene.update(0,60);
+ const relay=artifactEffects.state(scene.model);
+ assert.ok(relay.relayTarget!==null);
+ assert.ok(scene.boardGraphics.drawCalls.some(c=>c.type==='lineBetween'&&c.color===0xb58aff));
+ const before=relay.relayRemainingMs;
+ scene.selectSpeed(0);scene.update(0,5000);
+ assert.equal(relay.relayRemainingMs,before);
+ assert.equal(scene.saveCurrentGame(),true);
+ const resumed=new VNextScene();resumed.init({resume:true});resumed.create();
+ assert.equal(artifactEffects.state(resumed.model).relayTarget,relay.relayTarget);
+ assert.equal(artifactEffects.state(resumed.model).relayRemainingMs,before);
+ savedEntries.clear();
+});
+test('Instinct evolution emits a heal visual after a perfect wave and survives Continue',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ artifacts.add(scene.model,'evolution');
+ const unit=scene.battleUnits[0],hp=scene.world.get(unit,'Health').maxHp;
+ artifactEffects.startWave(scene.model,1,42,scene.baseHp,economy);
+ const result=artifactEffects.clearWave(scene.model,1,scene.baseHp);
+ assert.equal(result.evolved,unit);
+ assert.equal(scene.world.get(unit,'Health').maxHp,hp+1);
+ assert.equal(scene.saveCurrentGame(),true);
+ const resumed=new VNextScene();resumed.init({resume:true});resumed.create();
+ assert.equal(resumed.world.get(unit,'Health').maxHp,hp+1);
+ savedEntries.clear();
+});

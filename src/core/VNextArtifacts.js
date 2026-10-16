@@ -36,7 +36,13 @@
         { id: 'defective', label: 'Production défectueuse', symbol: 'triangle', color: 0xf4ba58,
           description: 'Une unité militaire fabriquée sur cinq inflige 50 % de dégâts supplémentaires, mais perd 25 % de PV max.' },
         { id: 'corrosion', label: 'Contamination synthétique', symbol: 'orbit', color: 0x91bb70,
-          description: 'La mort d’un ennemi laisse pendant 4 s une zone corrosive (rayon 65), infligeant 1 dégât par seconde.' }
+          description: 'La mort d’un ennemi laisse pendant 4 s une zone corrosive (rayon 65), infligeant 1 dégât par seconde.' },
+        { id: 'anticipation', label: 'Anticipation algorithmique', symbol: 'triangle', color: 0xf4ba58,
+          description: 'Pendant les 5 premières secondes d’une vague, les bâtiments militaires observés fabriquent 2× plus vite.' },
+        { id: 'distributed', label: 'Système distribué', symbol: 'orbit', color: 0xb58aff,
+          description: 'Active un bâtiment immédiatement à la périphérie de la vision pendant 20 s, puis en choisit un autre au hasard.' },
+        { id: 'evolution', label: 'Instinct d’évolution', symbol: 'diamond', color: 0x69d9a0,
+          description: 'Après une vague sans dégâts au noyau, une unité alliée gagne +1 PV max (maximum +5 par unité).' }
     ].map(entry => Object.freeze(entry)));
     const IDS = Object.freeze(CATALOG.map(entry => entry.id));
     function get(id) { return CATALOG.find(artifact => artifact.id === id) || null; }

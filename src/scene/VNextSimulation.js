@@ -16,11 +16,12 @@
         for (const wave of OverseerVNextWaves.advance(scene.waveClock, dt)) scene.triggerWave(wave);
         scene.updateWaveTimeline();
         const previousResources = { ...scene.world.get(scene.model.game, 'Resources') };
+        const relayMs=OverseerVNextArtifactEffects.relay(scene.model,dt,OverseerVNextEconomy);
         OverseerVNextCooling.step(scene.model,dt);
         const coolingBonuses=OverseerVNextCooling.bonuses(scene.model);
-        const economyEvents = OverseerVNextArtifactEffects.production(scene.model, dt, OverseerVNextEconomy,coolingBonuses);
+        const economyEvents = OverseerVNextArtifactEffects.production(scene.model, dt, OverseerVNextEconomy,coolingBonuses,relayMs);
         const researchEvents=OverseerVNextTechnologies.step(scene.model,dt,
-            OverseerVNextArtifactEffects.focusedBuilding(scene.model,OverseerVNextEconomy),coolingBonuses);
+            OverseerVNextArtifactEffects.focusedBuilding(scene.model,OverseerVNextEconomy),coolingBonuses,relayMs);
         if(researchEvents.length)scene.buildUi();
         for (const event of economyEvents) {
             if (event.type === 'unit-produced') scene.spawnFriendlyUnit(event.unitType, event);

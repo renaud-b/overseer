@@ -484,3 +484,105 @@ test('Corrosion zones survive save restore and stop growing at twelve zones',()=
  corrupted.corrosionZones[0].remainingMs=-1;
  assert.equal(effects.valid(corrupted),false);
 });
+
+test('Système distribué selects only orthogonally peripheral buildings and avoids an immediate repeat',()=>{
+ const m=model(),a=preview.placeBuilding(m,'reactor',8),b=preview.placeBuilding(m,'extractor',11);
+ const diagonal=preview.placeBuilding(m,'factory',13);
+ artifacts.add(m,'distributed');preview.setObserved(m,[6,7]);
+ const first=effects.relay(m,1000,economy),target=effects.state(m).relayTarget;
+ assert.ok([a,b].includes(target));
+ assert.ok(!Object.hasOwn(first,diagonal));
+ assert.equal(first[target],1000);
+ const second=effects.relay(m,19000,economy);
+ assert.equal(second[target],19000);
+ assert.notEqual(effects.state(m).relayTarget,target);
+ assert.equal(effects.state(m).relayRemainingMs,20000);
+ assert.equal(effects.relayActive(m,target),false);
+ const clone=World.restore(m.world.serialize());
+ assert.equal(clone.get(m.game,'ArtifactEffects').relayTarget,effects.state(m).relayTarget);
+ assert.equal(effects.valid(clone.get(m.game,'ArtifactEffects')),true);
+});
+test('Distributed selection reacts to moving vision without restarting its twenty-second timer',()=>{
+ const m=model(),a=preview.placeBuilding(m,'reactor',8),b=preview.placeBuilding(m,'extractor',11);
+ artifacts.add(m,'distributed');preview.setObserved(m,[7]); // a is the only candidate.
+ effects.relay(m,7000,economy);
+ assert.equal(effects.state(m).relayTarget,a);
+ preview.setObserved(m,[12]); // b is now the only candidate.
+ const active=effects.relay(m,3000,economy);
+ assert.equal(effects.state(m).relayTarget,b);
+ assert.equal(active[b],3000);
+ assert.equal(effects.state(m).relayRemainingMs,10000);
+ assert.equal(effects.relayActive(m,a),false);
+});
+test('Distributed relay produces real resource cycles outside vision without changing Watched',()=>{
+ const m=model();preview.placeBuilding(m,'reactor',7);
+ artifacts.add(m,'distributed');preview.setObserved(m,[6]);
+ const extra=effects.relay(m,2000,economy);
+ const result=effects.production(m,2000,economy,{},extra);
+ assert.equal(result.filter(e=>e.type==='production').length,1);
+ assert.equal(resources(m).energy,2);
+ assert.equal(m.world.get(m.tiles[7],'Watched').active,false);
+});
+test('Distributed relay activates laboratory, cryopump and perception building without extending vision',()=>{
+ const tech=require('../src/core/VNextTechnologies.js');
+ const cooling=require('../src/core/VNextCooling.js');
+ const threats=require('../src/core/VNextThreats.js');
+ for(const type of ['laboratory','cryopump','perception_amplifier']){
+  const m=model(),id=preview.placeBuilding(m,type,7);
+  artifacts.add(m,'distributed');preview.setObserved(m,[6]);
+  const extra=effects.relay(m,1000,economy);
+  assert.equal(effects.state(m).relayTarget,id);
+  assert.equal(extra[id],1000);
+  assert.equal(m.world.get(m.tiles[7],'Watched').active,false);
+  if(type==='laboratory'){
+   tech.step(m,1000,null,{},extra);
+   assert.equal(m.world.get(id,'Research').elapsedMs,1000);
+  }
+  if(type==='cryopump')assert.ok(cooling.pumps(m).includes(id));
+  if(type==='perception_amplifier')assert.equal(threats.active(m),true);
+ }
+});
+test('Anticipation doubles only observed military progress for the first five seconds of a wave',()=>{
+ const m=model(),id=preview.placeBuilding(m,'barracks',6);
+ preview.setObserved(m,[6]);artifacts.add(m,'anticipation');
+ resources(m).energy=50;resources(m).components=100;
+ effects.startWave(m,1,2,100,economy);
+ assert.equal(effects.state(m).anticipationMs,5000);
+ const first=effects.production(m,2500,economy);
+ assert.equal(first.filter(e=>e.type==='unit-produced').length,1);
+ assert.equal(m.world.get(id,'Production').elapsedMs,0);
+ effects.production(m,2500,economy);
+ assert.equal(effects.state(m).anticipationMs,0);
+ const second=effects.production(m,1000,economy);
+ assert.equal(second.filter(e=>e.type==='unit-produced').length,0);
+ preview.setObserved(m,[]);
+ const before=m.world.get(id,'Production').elapsedMs;
+ effects.startWave(m,2,2,100,economy);
+ effects.production(m,2000,economy);
+ assert.equal(m.world.get(id,'Production').elapsedMs,before);
+});
+test('Instinct d’évolution rewards only undamaged waves and caps a survivor at five HP',()=>{
+ const m=model(),ally=unit(m,'player',200,200,10);
+ artifacts.add(m,'evolution');
+ for(let n=1;n<=8;n++){
+  effects.startWave(m,n,77,100,economy);
+  const result=effects.clearWave(m,n,100);
+  if(n<=5)assert.equal(result.evolved,ally);
+ }
+ assert.equal(m.world.get(ally,'Health').maxHp,15);
+ assert.equal(m.world.get(ally,'Evolved').stacks,5);
+ effects.startWave(m,9,77,100,economy);
+ effects.baseHit(m,100,1);
+ const defeated=effects.clearWave(m,9,99);
+ assert.equal(defeated.evolved,undefined);
+ assert.equal(m.world.get(ally,'Health').maxHp,15);
+});
+test('Evolution excludes a wave which damaged the core even after healing restored its life',()=>{
+ const m=model(),ally=unit(m,'player',120,100,10);
+ artifacts.add(m,'evolution');artifacts.add(m,'recovery');
+ effects.startWave(m,4,5,95,economy);
+ effects.baseHit(m,95,4);
+ const outcome=effects.clearWave(m,4,95); // Simulates healing to initial HP.
+ assert.equal(outcome.evolved,undefined);
+ assert.equal(m.world.get(ally,'Health').maxHp,10);
+});
