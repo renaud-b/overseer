@@ -107,3 +107,19 @@ test('VNext board presentation loads before VNextScene', () => {
     vm.runInNewContext(fs.readFileSync(path.join(ROOT, board), 'utf8'), context);
     assert.equal(typeof context.OverseerVNextBoardView?.install, 'function');
 });
+
+
+test('VNext battle presentation loads after board view and before VNextScene', () => {
+    const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    const scripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)].map(match => match[1]);
+    const board = 'src/scene/VNextBoardView.js';
+    const battle = 'src/scene/VNextBattleView.js';
+    const scene = 'src/scene/VNextScene.js';
+    assert.ok(scripts.includes(battle), 'Missing battlefield presentation module');
+    assert.ok(scripts.indexOf(board) < scripts.indexOf(battle));
+    assert.ok(scripts.indexOf(battle) < scripts.indexOf(scene));
+    const vm = require('node:vm');
+    const context = {};
+    vm.runInNewContext(fs.readFileSync(path.join(ROOT, battle), 'utf8'), context);
+    assert.equal(typeof context.OverseerVNextBattleView?.install, 'function');
+});
