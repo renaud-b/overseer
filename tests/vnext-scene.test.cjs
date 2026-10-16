@@ -198,6 +198,7 @@ test('building tooltip distinguishes free placement from per-unit production cos
     assert.ok(old.every(o => o.destroyed));
     assert.ok(!scene.tooltipObjects.some(o => typeof o.value === 'string' && /COÛT DE CONSTRUCTION|COÛT DE POSE|POSE :/.test(o.value)));
     assert.ok(scene.tooltipObjects.some(o => o.value === 'COÛT PAR UNITÉ'));
+    assert.ok(scene.tooltipObjects.some(o => o.value === 'CYCLE : 5s / UNITÉ'));
     assert.ok(scene.tooltipObjects.some(o => o.value === '25'));
     assert.ok(scene.tooltipObjects.some(o => o.value === '15'));
     assert.ok(scene.tooltipObjects.some(o => /^UNITÉS \d+\/\d+$/.test(o.value)));
@@ -525,6 +526,41 @@ test('Continue restores exact ECS identities, battle entities and waves in progr
     assert.equal(JSON.stringify([...resumed.waveMembers]), JSON.stringify([...running.waveMembers]));
     assert.equal(resumed.previewWaves[0].number, 2);
     assert.equal(resumed.world.nextId, running.world.nextId);
+    savedEntries.clear();
+});
+
+test('Continue preserves a military unit cycle without early resource debit', () => {
+    savedEntries.clear();
+    const running = new VNextScene();
+    running.create();
+    running.selectedType = 'barracks';
+    running.clickTile(6);
+    assert.equal(running.world.get(running.model.tiles[6], 'Watched').active, true);
+    const barracks = preview.buildingAt(running.model, 6);
+    const resources = running.world.get(running.model.game, 'Resources');
+    resources.components = 25;
+    resources.energy = 15;
+    assert.deepEqual(economy.step(running.model, 2750), []);
+    assert.equal(running.world.get(barracks, 'Production').elapsedMs, 2750);
+    assert.equal(resources.components, 25);
+    assert.equal(running.saveCurrentGame(), true);
+
+    const resumed = new VNextScene();
+    resumed.init({ resume: true });
+    resumed.create();
+    const restored = resumed.world.get(barracks, 'Production');
+    assert.equal(restored.elapsedMs, 2750);
+    assert.equal(restored.cooldownMs, 5000);
+    const balance = resumed.world.get(resumed.model.game, 'Resources');
+    assert.equal(balance.components, 25);
+    assert.deepEqual(economy.step(resumed.model, 2249), []);
+    assert.equal(balance.components, 25);
+    const events = economy.step(resumed.model, 1);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].unitType, 'unit_guard');
+    assert.equal(balance.components, 0);
+    assert.equal(balance.energy, 0);
+    assert.equal(restored.elapsedMs, 0);
     savedEntries.clear();
 });
 
