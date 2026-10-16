@@ -1925,7 +1925,9 @@ test('battlefield hover shows live ally and enemy ECS stats without changing sim
     scene.world.get(ally,'Health').hp=3;
     scene.paintBattle();
     assert.match(scene.battleTooltipBody.value,/PV : 3 \/ 5/, 'PV are updated while the unit remains hovered');
-    assert.deepEqual(scene.battleTooltipObjects,objects,'a frame should not reallocate tooltip objects');
+    assert.equal(scene.battleTooltipObjects.length,objects.length);
+    objects.forEach((object,i) => assert.strictEqual(scene.battleTooltipObjects[i],object,
+        'a frame must reuse the existing tooltip display objects'));
 
     scene.spawnEnemyUnit('ranged_monster',0,1);
     const enemy=scene.battleUnits.at(-1);
