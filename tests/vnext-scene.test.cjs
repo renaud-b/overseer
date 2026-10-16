@@ -161,13 +161,12 @@ test('resource HUD updates when starter reactor is placed and observed', () => {
     assert.equal(scene.resourceLabels.energy.value, '2');
     assert.equal(scene.resourceStatusLabels.energy.value, '+1.0/s');
     scene.changeAttention(1, 0);
-    scene.lastResourceChanges.energy.remainingMs = 0;
-    scene.updateResourceHud();
+    for (let i = 0; i < 110; i++) scene.update(0, 60); // Rate window expires out of vision.
     assert.equal(scene.resourceStatusLabels.energy.value, '0.0/s');
     scene.scale.width = 800;
     scene.buildUi();
     assert.equal(scene.compactResources.energy.value, '2');
-    assert.equal(scene.compactResourceDeltas.energy.value, '—');
+    assert.equal(scene.compactResourceDeltas.energy.value, '0.0/s');
 });
 
 test('starter factory displays waiting state without unearned resources', () => {
