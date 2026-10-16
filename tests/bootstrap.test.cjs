@@ -76,3 +76,18 @@ test('bad GameStats fails validation instead of partially starting a game', () =
     stats.units = [{ id: 'duplicate' }, { id: 'duplicate' }];
     assert.equal(validate(stats).ok, false);
 });
+
+
+test('VNext tooltip presentation loads before the scene in the browser', () => {
+    const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    const scripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)].map(match => match[1]);
+    const tooltip = 'src/scene/VNextTooltips.js';
+    const scene = 'src/scene/VNextScene.js';
+    assert.ok(scripts.includes(tooltip), 'Missing tooltip presentation script');
+    assert.ok(scripts.indexOf(tooltip) < scripts.indexOf(scene),
+        'Tooltip presentation must load before the scene installs its methods');
+    const vm = require('node:vm');
+    const context = {};
+    vm.runInNewContext(fs.readFileSync(path.join(ROOT, tooltip), 'utf8'), context);
+    assert.equal(typeof context.OverseerVNextTooltips?.install, 'function');
+});
