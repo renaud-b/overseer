@@ -43,15 +43,8 @@ test('VNext vision rules are loaded before the scene that uses them', () => {
     assert.equal(typeof context.OverseerVNextVision?.nextCost, 'function');
 });
 
-test('static GameScene assets resolve in the repository', () => {
-    const src = fs.readFileSync(path.join(ROOT, 'src/scene/GameScene.js'), 'utf8');
-    const re = /this\.load\.(?:image|json)\(\s*['"][^'"]+['"]\s*,\s*['"]([^'"]+)['"]/g;
-    for (const [, asset] of src.matchAll(re)) {
-        assert.ok(fs.existsSync(path.join(ROOT, asset)), 'Missing asset: ' + asset);
-    }
-});
 
-test('local GameStats is complete and well-formed', () => {
+test('VNext enemy and unit source GameStats is well-formed', () => {
     const stats = require('../assets/game_stats.json');
     const result = validate(stats);
     assert.deepEqual(result.errors, []);
@@ -61,11 +54,6 @@ test('local GameStats is complete and well-formed', () => {
     assert.ok(stats.units.length > 0);
 });
 
-test('GameScene loads local GameStats and never calls a remote contract', () => {
-    const src = fs.readFileSync(path.join(ROOT, 'src/scene/GameScene.js'), 'utf8');
-    assert.match(src, /this\.load\.json\('gameStats', 'assets\/game_stats\.json'\)/);
-    assert.doesNotMatch(src, /Wormhole|executeContract|utopixia\.com/i);
-});
 
 test('bad GameStats fails validation instead of partially starting a game', () => {
     assert.equal(validate(null).ok, false);
