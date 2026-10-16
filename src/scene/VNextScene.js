@@ -66,7 +66,7 @@ class VNextScene extends Phaser.Scene {
         this.model = restored ? restored.model : OverseerVNextPreview.createModel(OverseerECS.World);
         this.world = this.model.world;
         this.visionRules = Object.create(Vision.prototype);
-        this.visionRules.level = 0;
+        this.visionRules.level = restored?.visionLevel ?? 0;
         this.visionRules.createPatterns(); // Same L shape and rotations as the playable prototype.
         this.visionRules.patternIndex = restored?.patternIndex ?? this.visionRules.patternIndex;
         this.attention = restored?.attention ?? { x: 1, y: 1 };
@@ -278,6 +278,7 @@ class VNextScene extends Phaser.Scene {
     drawBoard() {
         const l = this.layout;
         this.text(l.boardX + 16, l.mainTop + 17, 'BASE  5 × 5', 15);
+        this.drawVisionUpgrade();
         const usableH = l.mainBottom - l.mainTop;
         const gridSize = Math.max(110, Math.min(l.boardW - 26, usableH - 119));
         const cell = gridSize / 5;
@@ -305,6 +306,52 @@ class VNextScene extends Phaser.Scene {
         }
         this.boardHint = this.text(l.boardX + 15, l.mainBottom - 42, '', 11, '#98b5c7');
         this.updateBoardHint();
+    }
+
+    drawVisionUpgrade() {
+        const l = this.layout;
+        // Keep it inside the base panel; the top HUD remains usable at 800px.
+        const x = l.boardX + l.boardW - 15;
+        this.visionUpgradeButton = this.text(x, l.mainTop + 16, '▲ VISION', 11)
+            .setOrigin(1, 0).setInteractive({ useHandCursor: true });
+        this.visionUpgradeButton.on('pointerdown', () => this.tryUpgradeVision());
+        this.visionUpgradeCostLabel = this.text(x, l.mainTop + 35, '', 10)
+            .setOrigin(1, 0);
+        this.updateVisionUpgradeButton();
+    }
+
+    updateVisionUpgradeButton() {
+        if (!this.visionUpgradeButton || !this.model) return;
+        const level = this.visionRules.level;
+        const cost = OverseerVNextVision.nextCost(level);
+        if (cost === null) {
+            this.visionUpgradeButton.setText('VISION MAX').setColor('#62e7e1');
+            this.visionUpgradeCostLabel.setText('6 CASES').setColor('#819eaf');
+            return;
+        }
+        const data = this.world.get(this.model.game, 'Resources')?.data ?? 0;
+        const affordable = data >= cost && !this.activeReward && !this.runFinished;
+        this.visionUpgradeButton.setText('▲ VISION').setColor(affordable ? '#b58aff' : '#7893a7');
+        this.visionUpgradeCostLabel
+            .setText(`${data}/${cost} DONNÉES`)
+            .setColor(affordable ? '#b58aff' : '#7893a7');
+    }
+
+    tryUpgradeVision() {
+        if (!this.model || this.runFinished || this.activeReward) return false;
+        const level = this.visionRules.level;
+        const nextPattern = this.visionRules.levelPatterns[level + 1]?.[this.visionRules.patternIndex];
+        const resources = this.world.get(this.model.game, 'Resources');
+        const result = OverseerVNextVision.purchase(level, resources, this.attention, nextPattern);
+        if (!result) return false;
+        this.visionRules.level = result.level;
+        // Keep rotation even if the anchor must move to keep the new shape on the board.
+        this.visionRules.visionPatterns = this.visionRules.levelPatterns[result.level];
+        this.attention = result.attention;
+        this.applyAttention();
+        this.buildUi();
+        this.saveCurrentGame();
+        return true;
     }
 
     gridIndex(x, y) {
@@ -742,6 +789,7 @@ class VNextScene extends Phaser.Scene {
     updateResourceHud() {
         if (!this.model || !this.world.hasComponent(this.model.game, 'Resources')) return;
         const balance = this.world.get(this.model.game, 'Resources');
+        this.updateVisionUpgradeButton();
         for (const style of this.resourceStyles) {
             if (style.pending) continue;
             this.resourceLabels[style.id]?.setText(String(balance[style.id]));
