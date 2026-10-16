@@ -1330,3 +1330,59 @@ test('reward distribution approximates 40/40/20 deterministically',()=>{
   assert.deepEqual(rewardSystem.mode(20,seed),['building','technology']);
  }
 });
+
+
+test('technology inventory hover explains each effect and cleans up on drag and resize', () => {
+    const scene = new VNextScene();
+    scene.create();
+    technologies.inventory(scene.model).items.push('healing_field', 'berserk', 'stasis_field');
+    scene.buildUi();
+    for (const [type, expected] of [
+        ['healing_field', '+1 PV toutes les 2 s'],
+        ['berserk', "Cadence d'attaque : +50 %"],
+        ['stasis_field', 'Vitesse : -50 %']
+    ]) {
+        const card = scene.ui.find(o => o.getData?.('technology') === type);
+        assert.ok(card, type + ' appears in inventory');
+        card.handlers.pointerover();
+        assert.ok(scene.technologyTooltipObjects.some(o => o.value === expected), expected);
+        const previous = [...scene.technologyTooltipObjects];
+        card.handlers.pointerout();
+        assert.equal(scene.technologyTooltipObjects.length, 0);
+        assert.ok(previous.every(o => o.destroyed));
+    }
+    const card = scene.ui.find(o => o.getData?.('technology') === 'berserk');
+    card.handlers.pointerover();
+    scene.onDragStart({ x: 15, y: 15 }, card);
+    assert.equal(scene.technologyTooltipObjects.length, 0);
+    scene.dragGhost.destroy(); scene.dragGhost = null;
+    scene.showTechnologyTooltip('stasis_field', 900, 200);
+    const old = [...scene.technologyTooltipObjects];
+    scene.scale.width = 800;
+    scene.buildUi();
+    assert.ok(old.every(o => o.destroyed));
+});
+
+test('technology reward hover displays effect details above the reward overlay', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.activeReward = { number: 1, options: ['tech:healing_field', 'tech:berserk', 'tech:stasis_field'] };
+    scene.buildUi();
+    for (const [type, expected] of [
+        ['tech:healing_field', 'RÉGÉNÉRATION'],
+        ['tech:berserk', 'BERSERK'],
+        ['tech:stasis_field', 'STASE']
+    ]) {
+        const card = scene.ui.find(o => o.getData?.('reward') === type);
+        assert.ok(card);
+        card.handlers.pointerover();
+        assert.ok(scene.technologyTooltipObjects.some(o => o.value === expected && o.depth === 311));
+        const old = [...scene.technologyTooltipObjects];
+        card.handlers.pointerout();
+        assert.ok(old.every(o => o.destroyed));
+    }
+    scene.ui.find(o => o.getData?.('reward') === 'tech:berserk').handlers.pointerover();
+    const old = [...scene.technologyTooltipObjects];
+    scene.chooseReward('tech:berserk');
+    assert.ok(old.every(o => o.destroyed));
+});
