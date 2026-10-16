@@ -8,7 +8,7 @@ function read(storage){
  try {const n=Number(storage?.getItem(CURRENCY)||0);if(Number.isSafeInteger(n)&&n>=0)shards=n;}catch(_){}
  return {unlocked:[...new Set(['root',...unlocked])],shards};
 }
-function canUnlock(state,talent){return !!talent&&!talent.planned&&!talent.legacy&&talent.id!=='root'&&!state.unlocked.includes(talent.id)&&(!talent.parent||state.unlocked.includes(talent.parent))&&(!talent.prerequisites||talent.prerequisites.every(id=>state.unlocked.includes(id)))&&Number.isSafeInteger(talent.cost)&&talent.cost>=0&&state.shards>=talent.cost;}
+function canUnlock(state,talent){return !!talent&&!talent.planned&&!talent.legacy&&talent.id!=='root'&&!state.unlocked.includes(talent.id)&&(!talent.parent||state.unlocked.includes(talent.parent))&&(!talent.prerequisites||talent.prerequisites.every(id=>state.unlocked.includes(id)))&&(!talent.anyPrerequisites||talent.anyPrerequisites.some(id=>state.unlocked.includes(id)))&&(!talent.excludes||talent.excludes.every(id=>!state.unlocked.includes(id)))&&Number.isSafeInteger(talent.cost)&&talent.cost>=0&&state.shards>=talent.cost;}
 function persist(storage,state){
  if(!storage)return false;
  try {const oldIds=storage.getItem(KEY),oldBalance=storage.getItem(CURRENCY);
