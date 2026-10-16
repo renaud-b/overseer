@@ -1430,3 +1430,57 @@ test('new technologies show accurate tooltips in inventory and reward choice', (
     reward.handlers.pointerover();
     assert.ok(scene.technologyTooltipObjects.some(o=>o.value==='SURCHARGE'));
 });
+
+test('EMP and Renforts show tooltips, cast through the battlefield and are saved',()=>{
+    const scene=new VNextScene();scene.create();
+    technologies.inventory(scene.model).items.push('emp_field','reinforcements');
+    scene.buildUi();
+    for(const [type,title] of [['emp_field','IMPULSION ÉLECTROMAGNÉTIQUE'],['reinforcements','RENFORTS']]){
+        const label=scene.ui.find(o=>o.getData?.('technology')===type);
+        assert.ok(label,type+' available');
+        label.handlers.pointerover();
+        assert.ok(scene.technologyTooltipObjects.some(o=>o.value===title));
+        label.handlers.pointerout();
+    }
+    const b=scene.battleBounds;
+    const p={x:b.x+b.w/2,y:b.y+b.h/2};
+    const emp=scene.ui.find(o=>o.getData?.('technology')==='emp_field');
+    scene.onDragEnd({x:-1,y:-1},emp);
+    assert.equal(technologies.inventory(scene.model).items.length,2);
+    scene.onDragEnd(p,emp);
+    const zonesBefore=scene.world.query('TechnologyZone');
+    assert.ok(zonesBefore.some(id=>scene.world.get(id,'TechnologyZone').type==='emp_field'));
+    const reinforcements=scene.ui.find(o=>o.getData?.('technology')==='reinforcements');
+    const before=scene.battleUnits.length;
+    scene.onDragEnd(p,reinforcements);
+    assert.equal(scene.battleUnits.length,before+1);
+    const summoned=scene.battleUnits.find(id=>scene.world.hasComponent(id,'TemporaryAlly'));
+    assert.ok(summoned);
+    assert.equal(scene.world.get(summoned,'TemporaryAlly').remainingMs,25000);
+    const saved=saves.restore(saves.capture(scene),World);
+    assert.equal(saved.model.world.get(summoned,'TemporaryAlly').remainingMs,25000);
+    // One simulated frame before expiry; no separate wall-clock life counter.
+    scene.world.get(summoned,'TemporaryAlly').remainingMs=60;
+    scene.update(0,60);
+    assert.equal(scene.world.has(summoned),false);
+    assert.ok(!scene.battleUnits.includes(summoned));
+    assert.doesNotThrow(()=>saves.restore(saves.capture(scene),World));
+});
+
+test('seven technology types are eligible for laboratory research and wave rewards',()=>{
+    assert.equal(technologies.TYPES.length,7);
+    const scene=new VNextScene();scene.create();
+    const collected=new Set();
+    for(let n=1;n<=180;n++)
+        for(const type of scene.rewardOptions(n,'technology'))collected.add(type);
+    for(const type of technologies.TYPES)assert.ok(collected.has('tech:'+type),type+' is offered');
+    scene.activeReward={number:1,options:['tech:emp_field','tech:reinforcements','tech:overclock']};
+    scene.buildUi();
+    for(const type of scene.activeReward.options){
+        const card=scene.ui.find(o=>o.getData?.('reward')===type);
+        assert.ok(card);
+        card.handlers.pointerover();
+        assert.ok(scene.technologyTooltipObjects.length>0);
+        card.handlers.pointerout();
+    }
+});

@@ -426,7 +426,7 @@ class VNextScene extends Phaser.Scene {
     showTechnologyTooltip(type, anchorX, anchorY, depth = 220) {
         this.hideTechnologyTooltip();
         // Keep displayed numbers in sync with the simulation, not HUD estimates.
-        const { HEAL, BERSERK, STASIS, OVERCLOCK, OVERLOAD } = OverseerVNextZones;
+        const { HEAL, BERSERK, STASIS, OVERCLOCK, OVERLOAD, EMP, REINFORCEMENTS } = OverseerVNextZones;
         const descriptions = {
             healing_field: {
                 title: 'RÉGÉNÉRATION', color: 0x69d9a0,
@@ -471,6 +471,24 @@ class VNextScene extends Phaser.Scene {
                     `Production : ×${OVERLOAD.productionMultiplier}`,
                     `Durée : ${OVERLOAD.durationMs / 1000} s`,
                     'Laboratoire exclu'
+                ]
+            },
+            emp_field: {
+                title: 'IMPULSION ÉLECTROMAGNÉTIQUE', color: 0xb5a7ff,
+                lines: [
+                    'Immobilise les ennemis dans la zone',
+                    `Rayon : ${EMP.radius}`,
+                    `Durée : ${EMP.durationMs / 1000} s`,
+                    'Les ennemis peuvent toujours attaquer'
+                ]
+            },
+            reinforcements: {
+                title: 'RENFORTS', color: 0x44dc91,
+                lines: [
+                    'Invoque 1 soldat allié sur la zone',
+                    `Durée : ${REINFORCEMENTS.durationMs / 1000} s`,
+                    'Sans coût en ressources',
+                    'Sans occuper une place de Caserne'
                 ]
             }
         };
@@ -833,6 +851,12 @@ class VNextScene extends Phaser.Scene {
     }
 
     castTechnology(type,target) {
+        if(type==='reinforcements') {
+            const config=this.cache.json.get('vnextLegacyStats')?.units?.find(unit=>unit.id==='unit_guard');
+            const summoned=OverseerVNextZones.cast(this.model,type,target,{unitConfig:config});
+            if(summoned!==null)this.battleUnits.push(summoned);
+            return summoned;
+        }
         return OverseerVNextZones.cast(this.model,type,target);
     }
 
@@ -890,7 +914,7 @@ class VNextScene extends Phaser.Scene {
         const items=OverseerVNextTechnologies.inventory(this.model).items;
         if(!right && l.leftW<165)return;
         this.text(x,y,'TECHNOLOGIES',12,'#b58aff');
-        const styles=[['healing_field','✚ SOIN',0x69d9a0],['berserk','⚡ BERSERK',0xf4a261],['stasis_field','◌ STASE',0x87b9e8],['overclock','» SURCAD.',0x62e7e1],['overload','↑ SURCHARGE',0xf5b94f]];
+        const styles=[['healing_field','✚ SOIN',0x69d9a0],['berserk','⚡ BERSERK',0xf4a261],['stasis_field','◌ STASE',0x87b9e8],['overclock','» SURCAD.',0x62e7e1],['overload','↑ SURCHARGE',0xf5b94f],['emp_field','◇ EMP',0xb5a7ff],['reinforcements','+ RENFORTS',0x44dc91]];
         let row=0;
         for(const [type,name,color] of styles){
             const count=items.filter(item=>item===type).length;
@@ -1157,7 +1181,9 @@ class VNextScene extends Phaser.Scene {
                 'tech:berserk':{color:0xf4a261,label:'Berserk'},
                 'tech:stasis_field':{color:0x87b9e8,label:'Stase'},
                 'tech:overclock':{color:0x62e7e1,label:'Surcadencement'},
-                'tech:overload':{color:0xf5b94f,label:'Surcharge'}
+                'tech:overload':{color:0xf5b94f,label:'Surcharge'},
+                'tech:emp_field':{color:0xb5a7ff,label:'Impulsion EMP'},
+                'tech:reinforcements':{color:0x44dc91,label:'Renforts'}
             };
             const building = techStyles[type] || OverseerVNextBuildings.getBuilding(type);
             const cardW = (width - 56) / 3, cx = x + 14 + i * (cardW + 14), cy = y + 113;
@@ -1329,10 +1355,12 @@ class VNextScene extends Phaser.Scene {
         for(const id of this.world.query('TechnologyZone')) {
             const zone=this.world.get(id,'TechnologyZone'),p=toScreen(zone.x,zone.y);
             const r=zone.radius*b.w/1000;
-            const stasis=zone.type==='stasis_field',color=stasis?0x87b9e8:0x69d9a0;
+            const stasis=zone.type==='stasis_field',emp=zone.type==='emp_field';
+            const color=emp?0xb5a7ff:stasis?0x87b9e8:0x69d9a0;
             g.fillStyle(color,0.09).fillCircle(p.x,p.y,r);
             g.lineStyle(1.5,color,0.75).strokeCircle(p.x,p.y,r);
-            if(stasis)continue;
+            if(emp){g.lineStyle(1,color,0.45).strokeCircle(p.x,p.y,r*0.72);}
+            if(stasis||emp)continue;
             // Decorative plus particles are renderer-only, independent of healing ticks.
             if(dt>0 && this.zoneParticles.length<36) {
                 const angle=Math.random()*Math.PI*2,rad=Math.sqrt(Math.random())*r;
@@ -1395,6 +1423,9 @@ class VNextScene extends Phaser.Scene {
             }
             if(berserk){g.lineStyle(1,0xf4a261,0.8).strokeCircle(q.x,q.y,r*1.5);}
             this.drawBattleUnit(g, style, q.x, q.y, (berserk ? r * 1.16 : r) * (style.size || 1), color);
+            if(this.world.hasComponent(id,'TemporaryAlly')) {
+                g.lineStyle(1,0x44dc91,0.7).strokeCircle(q.x,q.y,r*1.65);
+            }
             if (side === 'enemy' && this.world.get(id, 'ThreatMark')) {
                 g.lineStyle(1.5, 0xff6674, 0.92).strokeRect(
                     q.x - r - 4, q.y - r - 4, (r + 4) * 2, (r + 4) * 2);
@@ -1532,7 +1563,11 @@ class VNextScene extends Phaser.Scene {
         // Wall-clock duration makes impacts readable at x1/x3/x5. Pause freezes them.
         this.hitEffects.update(Math.min(60, Math.max(0, delta)));
         this.actionEffects.update(Math.min(60, Math.max(0, delta)));
-        OverseerVNextZones.stepBuffs(this.model,dt);
+        const expiredSummons=OverseerVNextZones.stepBuffs(this.model,dt);
+        if(expiredSummons.length) {
+            const removed=new Set(expiredSummons);
+            this.battleUnits=this.battleUnits.filter(id=>!removed.has(id));
+        }
         // Rewards must be computed before reclaiming dead ECS entities.
         this.checkWaveClears();
         this.cleanupDeadUnits();

@@ -59,6 +59,22 @@ Dans la scène **VNext**, **aucune ressource n'est dépensée pour placer un bâ
 
 **Cadences militaires :** Caserne **5 s**, Centre balistique **8 s**, Forge blindée **12 s**, Centre médical **10 s** (temps de simulation, à vitesse ×1). Chaque bâtiment progresse uniquement lorsqu'il est observé ; sortir de la vision fige le cycle en cours, qui reprend à sa réactivation. Les ressources sont débitées **seulement lorsque l'unité est produite**. Un cycle achevé attend sans nouvelle dépense lorsque les ressources ou la capacité manquent ; la capacité est de **trois unités vivantes par bâtiment militaire**. Les sauvegardes conservent l'avancement du cycle.
 
+### Technologies temporaires VNext
+
+Le Laboratoire observé recherche une technologie à usage unique toutes les **30 s simulées** ; le tirage peut également apparaître dans les récompenses de vague. Le survol d'une carte (inventaire ou récompense) décrit son effet. Le joueur la glisse sur le champ de bataille, sauf **Surcharge**, lancée en la glissant sur la base.
+
+| Technologie | Effet |
+|---|---|
+| Régénération | Zone de soin pendant 10 s : +1 PV toutes les 2 s pour les alliés dans un rayon de 105 unités |
+| Berserk | +50 % cadence d'attaque de deux alliés aléatoires pendant 8 s |
+| Stase | Zone de ralentissement de 50 %, rayon 110, durée 10 s |
+| Surcadencement | Déplacement des alliés ×1,5 pendant 10 s ; aucune accélération de tir |
+| Surcharge | Production des bâtiments **observés** ×2 pendant 8 s, hors Laboratoire |
+| Impulsion EMP | Ennemis immobilisés dans un rayon de 110 pendant 3 s, attaques à portée conservées |
+| Renforts | Un soldat invoqué au point ciblé, autonome pendant 25 s, sans coût de ressources ni capacité de Caserne |
+
+Les durées utilisent le temps de simulation : pause et écran de récompense figent les effets. Surcharge et Surcadencement renouvelés ne s'empilent pas avec eux-mêmes. Les effets et invocations sont stockés dans l'ECS et survivent à une sauvegarde. Valeurs provisoires de prototype.
+
 Le jeu comprend également un système de talents et une progression entre les parties. **Ne pas présumer que l'ensemble de ces mécaniques est déjà migré dans le noyau ECS.**
 
 ### Améliorations de vision dans VNext
