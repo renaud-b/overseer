@@ -18,6 +18,24 @@ test('all runtime scripts are served locally and exist after npm install', () =>
     }
 });
 
+test('VNext vision rules are loaded before the scene that uses them', () => {
+    const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    const scripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)].map(match => match[1]);
+    const rules = 'src/core/VNextVision.js';
+    const scene = 'src/scene/VNextScene.js';
+    assert.ok(scripts.includes(rules), 'Missing VNextVision browser dependency');
+    assert.ok(scripts.indexOf(rules) < scripts.indexOf(scene),
+        'VNextVision must load before VNextScene');
+
+    // The browser script must expose the global consumed by VNextScene,
+    // not just exist on disk (scene unit tests inject this global themselves).
+    const vm = require('node:vm');
+    const context = {};
+    vm.runInNewContext(fs.readFileSync(path.join(ROOT, rules), 'utf8'), context);
+    assert.equal(typeof context.OverseerVNextVision?.purchase, 'function');
+    assert.equal(typeof context.OverseerVNextVision?.nextCost, 'function');
+});
+
 test('static GameScene assets resolve in the repository', () => {
     const src = fs.readFileSync(path.join(ROOT, 'src/scene/GameScene.js'), 'utf8');
     const re = /this\.load\.(?:image|json)\(\s*['"][^'"]+['"]\s*,\s*['"]([^'"]+)['"]/g;
