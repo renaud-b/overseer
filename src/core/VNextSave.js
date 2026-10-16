@@ -28,7 +28,8 @@
             model: { game: scene.model.game, grid: scene.model.grid, tiles: [...scene.model.tiles] },
             attention: {
                 x: scene.attention.x, y: scene.attention.y,
-                patternIndex: scene.visionRules.patternIndex
+                patternIndex: scene.visionRules.patternIndex,
+                level: scene.visionRules.level ?? 0
             },
             waveClock: { ...scene.waveClock },
             waveMembers: [...scene.waveMembers].map(([number, ids]) => [number, [...ids]]),
@@ -133,6 +134,7 @@
             model: { world, game, grid, tiles: [...tiles] },
             attention: { x: attention.x, y: attention.y },
             patternIndex: attention.patternIndex,
+            visionLevel: attention.level ?? 0,
             waveClock: { number: waveClock.number, elapsedMs: waveClock.elapsedMs, seed: waveClock.seed },
             waveMembers,
             rewardQueue,
