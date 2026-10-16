@@ -1,50 +1,7 @@
 class TalentScene extends Phaser.Scene {
     constructor() {
         super('TalentScene');
-        this.talentTrees = {
-            foundation: [
-                { id: 'root', x: 700, y: 100, cost: 0, unlocked: true },
-
-                // Branche Défense
-                { id: 'starter_base_hp', parent: 'root', x: 250, y: 300, cost: 5 },
-                { id: 'starter_drone', parent: 'starter_base_hp', x: 250, y: 480, cost: 8 },
-                { id: 'starter_guard', parent: 'starter_drone', x: 250, y: 660, cost: 12 },
-
-                // Branche Vision
-                { id: 'vision_boost', parent: 'root', x: 550, y: 300, cost: 5 },
-                { id: 'resource_node_scanner', parent: 'vision_boost', x: 550, y: 480, cost: 10 },
-                { id: 'artifact_scanner', parent: 'resource_node_scanner', x: 550, y: 660, cost: 12 },
-
-                // Branche Economie
-                { id: 'starter_economy', parent: 'root', x: 850, y: 300, cost: 5 },
-                { id: 'extra_scrap', parent: 'starter_economy', x: 850, y: 480, cost: 8 },
-                { id: 'extra_alloy', parent: 'extra_scrap', x: 850, y: 660, cost: 12 },
-
-                // Branche Technologie
-                { id: 'starter_tech', parent: 'root', x: 1150, y: 300, cost: 8 },
-                { id: 'starter_spell_building', parent: 'starter_tech', x: 1150, y: 480, cost: 10 },
-                { id: 'spell_charge_boost', parent: 'starter_spell_building', x: 1150, y: 660, cost: 15 }
-            ],   // Ton arbre actuel (root -> starter_drone etc.)
-            architecture: [
-                { id: 'root', x: 700, y: 100, cost: 0, unlocked: false },
-                { id: 'adjacency_bonus_scrap', parent: 'root', x: 550, y: 300, cost: 6 },
-                { id: 'resource_chain_hydronium_alloy', parent: 'adjacency_bonus_scrap', x: 400, y: 500, cost: 8 },
-                { id: 'fusion_node_reactor', parent: 'root', x: 850, y: 300, cost: 6 },
-                { id: 'bio_cuve_growth', parent: 'fusion_node_reactor', x: 1000, y: 500, cost: 8 },
-                { id: 'defense_network_bonus', parent: 'root', x: 700, y: 500, cost: 8 },
-                { id: 'xeno_synergy', parent: 'bio_cuve_growth', x: 1200, y: 700, cost: 10 },
-                { id: 'temporal_link', parent: 'defense_network_bonus', x: 700, y: 700, cost: 10 },
-                { id: 'unit_cap_increase', parent: 'resource_chain_hydronium_alloy', x: 300, y: 700, cost: 10 },
-            ],
-            evolution: [
-                { id: 'root', x: 700, y: 100, cost: 0, unlocked: false },
-                { id: 'blood_adaptation', parent: 'root', x: 600, y: 300, cost: 6 },
-                { id: 'spiritual_salvage', parent: 'blood_adaptation', x: 600, y: 480, cost: 10 }
-            ],
-            ascension: [
-                { id: 'wave_reward_boost', parent: 'root', x: 800, y: 300, cost: 8 }
-            ]
-        };
+        this.talentTrees = OverseerTalentCatalog.trees
     }
 
 
