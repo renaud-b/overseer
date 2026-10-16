@@ -180,7 +180,7 @@ test('starter factory displays waiting state without unearned resources', () => 
     assert.equal(scene.resourceStatusLabels.components.value, '—');
 });
 
-test('hover tooltip uses real factory recipe and barracks placeholder', () => {
+test('building tooltip distinguishes free placement from per-unit production costs', () => {
     const scene = new VNextScene();
     scene.create();
     scene.selectedType = 'factory';
@@ -190,12 +190,16 @@ test('hover tooltip uses real factory recipe and barracks placeholder', () => {
     scene.showBuildingTooltip(11);
     const labels = scene.tooltipObjects.filter(o => typeof o.value === 'string').map(o => o.value);
     assert.ok(labels.includes('Fabrique'));
-    assert.ok(labels.includes('CONSTRUCTION : COÛT À DÉFINIR'));
+    assert.ok(labels.includes('POSE : 1 CARTE · 0 RESSOURCE'));
     assert.ok(labels.includes('3s/cycle'));
+    assert.ok(scene.ui.some(o => o.value === 'Pose : 1 carte, 0 ressource'));
     const old = [...scene.tooltipObjects];
     scene.showBuildingTooltip(12);
     assert.ok(old.every(o => o.destroyed));
+    assert.ok(scene.tooltipObjects.some(o => o.value === 'POSE : 1 CARTE · 0 RESSOURCE'));
     assert.ok(scene.tooltipObjects.some(o => o.value === 'COÛT PAR UNITÉ'));
+    assert.ok(scene.tooltipObjects.some(o => o.value === '25'));
+    assert.ok(scene.tooltipObjects.some(o => o.value === '15'));
     assert.ok(scene.tooltipObjects.some(o => /^UNITÉS \d+\/\d+$/.test(o.value)));
     scene.hideBuildingTooltip();
     assert.equal(scene.tooltipObjects.length, 0);
