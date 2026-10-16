@@ -193,12 +193,14 @@
         this.actionEffects.clear();
         (this.battleUnits || []).forEach(id => { if (this.world.has(id)) this.world.destroy(id); });
         this.battleUnits = [];
-        this.baseHp = 100;
+        const defense = this.world.get(this.model.game, 'DefenseTalents');
+        this.baseHp = defense?.reinforced ? 120 : 100;
         const stats = this.cache.json.get('vnextLegacyStats');
         const lineup = [
             ['player', 'unit_guard', 200, 185], ['player', 'unit_sniper', 260, 305],
             ['player', 'unit_dronoid', 230, 425]
         ];
+        if (defense?.extraGuard) lineup.push(['player', 'unit_guard', 220, 245]);
         lineup.forEach(([side, type, x, y]) => {
             const config = (side === 'player' ? stats.units : stats.enemies).find(d => d.id === type);
             if (!config) return;
