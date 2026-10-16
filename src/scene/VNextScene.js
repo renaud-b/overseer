@@ -244,7 +244,7 @@ class VNextScene extends Phaser.Scene {
             const cw = l.leftW - 24;
             this.text(x + 53, y + 19, type.label, 12);
             const recipe = OverseerVNextEconomy.PROTOTYPE_RECIPES[typeId];
-            this.text(x + 53, y + 38, typeId === 'laboratory' ? 'RECHERCHE : 12 S / TECHNO' : recipe ? 'PRODUCTION EXPÉRIMENTALE' : 'À IMPLÉMENTER', 10, '#7393a8');
+            this.text(x + 53, y + 38, typeId === 'laboratory' ? 'RECHERCHE : 30 S / TECHNO' : recipe ? 'PRODUCTION EXPÉRIMENTALE' : 'À IMPLÉMENTER', 10, '#7393a8');
             const hit = this.keep(this.add.zone(x + cw / 2, y + 32, cw, 65).setInteractive({ useHandCursor: true }));
             hit.setData('palette', typeId);
             hit.on('pointerover', () => this.showCardTooltip(typeId, x + cw, y + 10));
@@ -391,7 +391,7 @@ class VNextScene extends Phaser.Scene {
         if (!recipe) {
             if (type === 'laboratory') {
                 label(x + pad, y + 105, 'PRODUIT : TECHNOLOGIE DE SOIN', 10, '#69d9a0');
-                label(x + pad, y + 128, '1 TECHNOLOGIE / 12 S SOUS VISION', 10, '#b58aff');
+                label(x + pad, y + 128, '1 TECHNOLOGIE / 30 S SOUS VISION', 10, '#b58aff');
                 label(x + pad, y + 151, 'INVENTAIRE : PANNEAU DE DROITE', 9, '#819eaf');
             } else label(x + pad, y + 105, 'PRODUCTION NON SIMULÉE', 11, '#819eaf');
             return;
@@ -872,7 +872,7 @@ class VNextScene extends Phaser.Scene {
     // Reward choices stay in the small, already-playable building catalog.
     // Generate once per cleared wave, never on each render.
     rewardOptions(number) {
-        const pool = OverseerVNextCards.REWARD_CARDS.slice();
+        const pool = [...OverseerVNextCards.REWARD_CARDS, ...OverseerVNextTechnologies.TYPES.map(type => `tech:${type}`)];
         let state = (this.waveClock.seed ^ Math.imul(number, 0x9e3779b1)) >>> 0;
         for (let i = pool.length - 1; i > 0; i--) {
             state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
@@ -921,7 +921,11 @@ class VNextScene extends Phaser.Scene {
 
     chooseReward(type) {
         if (!this.activeReward || !this.activeReward.options.includes(type)) return false;
-        if (!OverseerVNextCards.grant(this.model, type)) return false;
+        if (type.startsWith('tech:')) {
+            const technology = type.slice(5);
+            if (!OverseerVNextTechnologies.TYPES.includes(technology)) return false;
+            OverseerVNextTechnologies.inventory(this.model).items.push(technology);
+        } else if (!OverseerVNextCards.grant(this.model, type)) return false;
         this.activeReward = this.rewardQueue.shift() || null;
         this.buildUi();
         this.saveCurrentGame();
@@ -948,12 +952,17 @@ class VNextScene extends Phaser.Scene {
             fontFamily:'monospace',fontSize:'11px',color:'#8daabb'
         }).setDepth(301));
         reward.options.forEach((type, i) => {
-            const building = OverseerVNextBuildings.getBuilding(type);
+            const building = type === 'tech:healing_field'
+                ? { color: 0x69d9a0, label: 'Régénération', description: 'Technologie consommable' }
+                : OverseerVNextBuildings.getBuilding(type);
             const cardW = (width - 56) / 3, cx = x + 14 + i * (cardW + 14), cy = y + 94;
             g.fillStyle(0x123047).fillRoundedRect(cx, cy, cardW, 108, 5);
             g.lineStyle(1, building.color, 0.7).strokeRoundedRect(cx, cy, cardW, 108, 5);
             const iconG = this.keep(this.add.graphics().setDepth(301));
-            this.drawGlyph(iconG, type, cx + cardW / 2, cy + 27, building.color, 13);
+            if (type === 'tech:healing_field') {
+                iconG.lineStyle(2, building.color, 1).lineBetween(cx + cardW / 2 - 7, cy + 27, cx + cardW / 2 + 7, cy + 27);
+                iconG.lineBetween(cx + cardW / 2, cy + 20, cx + cardW / 2, cy + 34);
+            } else this.drawGlyph(iconG, type, cx + cardW / 2, cy + 27, building.color, 13);
             this.keep(this.add.text(cx + cardW / 2, cy + 53, building.label, {
                 fontFamily:'monospace',fontSize:'12px',color:'#dfeaf0'
             }).setOrigin(0.5, 0).setDepth(301));
@@ -961,6 +970,7 @@ class VNextScene extends Phaser.Scene {
                 .setInteractive({useHandCursor:true}).setDepth(302));
             zone.setData('reward', type);
             zone.on('pointerover', () => {
+                if (type.startsWith('tech:')) return;
                 this.showCardTooltip(type, cx + cardW / 2, cy - 205);
                 // Reward selection overlay is above the game HUD (depth 300).
                 // Reuse the same building popup, but draw it over the overlay.

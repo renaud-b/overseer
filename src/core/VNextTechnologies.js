@@ -1,7 +1,7 @@
 (function(root) {
 'use strict';
 const TYPES=Object.freeze(['healing_field']); // Add more spells without changing inventory rules.
-const RESEARCH_MS=12000; // Provisional, observed time.
+const RESEARCH_MS=30000; // Provisional, observed time.
 function inventory(model) {
  if(!model.world.hasComponent(model.game,'Technologies')) model.world.set(model.game,'Technologies',{items:[],seed:137});
  return model.world.get(model.game,'Technologies');

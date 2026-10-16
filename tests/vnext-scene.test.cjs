@@ -939,3 +939,15 @@ test('observed laboratory displays live research progress and a technology after
     assert.ok(scene.ui.some(o => o.getData?.('technology') === 'healing_field'));
 });
 
+
+test('wave rewards mix one-shot technology and buildings, preserve save/restore',()=>{
+ const scene=new VNextScene();scene.create();
+ const choices=new Set();for(let n=1;n<=80;n++)for(const type of scene.rewardOptions(n))choices.add(type);
+ assert.ok(choices.has('tech:healing_field'));
+ scene.waveClock.number=1;scene.activeReward={number:1,options:['reactor','factory','tech:healing_field']};
+ assert.doesNotThrow(()=>saves.restore(saves.capture(scene),World));
+ const before=technologies.inventory(scene.model).items.length;
+ assert.equal(scene.chooseReward('tech:healing_field'),true);
+ assert.equal(technologies.inventory(scene.model).items.length,before+1);
+ assert.equal(scene.chooseReward('tech:healing_field'),false);
+});

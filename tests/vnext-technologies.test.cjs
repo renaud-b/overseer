@@ -12,3 +12,11 @@ test('laboratory creates one-shot researched technologies only under vision, wit
  assert.deepEqual(tech.inventory(m).items,[]);
  assert.throws(()=>tech.step(m,-1),/Invalid technology delta/);
 });
+
+test('laboratory requires 30 simulated seconds of observation per technology',()=>{
+ const m=preview.createModel(World);preview.placeBuilding(m,'laboratory',6);preview.setObserved(m,[6]);
+ assert.equal(tech.RESEARCH_MS,30000);
+ assert.equal(tech.step(m,29999).length,0);
+ assert.equal(tech.step(m,1).length,1);
+ assert.equal(tech.inventory(m).items.length,1);
+});
