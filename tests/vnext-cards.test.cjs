@@ -42,7 +42,9 @@ test('placing the barracks spends only its card; 25 components and 15 energy fun
     assert.deepEqual({ ...resources }, { energy: 15, matter: 0, components: 25 });
 
     preview.setObserved(model, [6]);
-    const events = economy.step(model, 60);
+    assert.deepEqual(economy.step(model, 4999), [], 'a placed barracks must finish its full cycle');
+    assert.deepEqual({ ...resources }, { energy: 15, matter: 0, components: 25 });
+    const events = economy.step(model, 1);
     assert.equal(events.length, 1);
     assert.equal(events[0].type, 'unit-produced');
     assert.equal(events[0].unitType, 'unit_guard');
