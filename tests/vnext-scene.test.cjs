@@ -14,6 +14,7 @@ const battleStyles = require('../src/scene/effects/BattleUnitStyles.js');
 const battleActions = require('../src/scene/effects/BattleActionEffects.js');
 const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
+const technologies = require('../src/core/VNextTechnologies.js');
 const saves = require('../src/core/VNextSave.js');
 const savedEntries = new Map();
 const saveStorage = {
@@ -83,7 +84,7 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextSave: saves, localStorage: saveStorage, Vision, OverseerVNextBrand
+    OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextSave: saves, localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
 test('scene begins with exactly four unspent cards and empty base', () => {
@@ -840,4 +841,20 @@ test('a produced repair drone emits a healing beam and target halo, without hit 
         call.type === 'strokeCircle' && call.color === healing.color));
     assert.deepEqual(scene.hitEffects.view(guard), { x: 0, y: 0, flash: 0 });
     assert.equal(scene.hitEffects.fragments().length, 0);
+});
+
+test('laboratory research appears as draggable one-shot card and invalid drop preserves inventory',()=>{
+ const scene=new VNextScene();scene.create();
+ const id=preview.placeBuilding(scene.model,'laboratory',6);
+ preview.setObserved(scene.model,[6]);
+ technologies.step(scene.model,technologies.RESEARCH_MS);
+ scene.buildUi();
+ const card=scene.ui.find(o=>o.getData?.('technology')==='healing_field');
+ assert.ok(card,'researched card in technology panel');
+ scene.onDragEnd({x:-4,y:-4},card);
+ assert.equal(technologies.inventory(scene.model).items.length,1);
+ const b=scene.battleBounds;
+ scene.onDragEnd({x:b.x+b.w/2,y:b.y+b.h/2},card);
+ assert.equal(technologies.inventory(scene.model).items.length,0);
+ assert.equal(scene.lastTechnologyCast.type,'healing_field');
 });
