@@ -9,6 +9,9 @@ const preview = require('../src/core/VNextPreview.js');
 const catalog = require('../src/core/VNextBuildings.js');
 const cards = require('../src/core/VNextCards.js');
 const combat = require('../src/core/CombatSystem.js');
+const hitEffects = require('../src/scene/effects/HitEffects.js');
+const battleStyles = require('../src/scene/effects/BattleUnitStyles.js');
+const battleActions = require('../src/scene/effects/BattleActionEffects.js');
 const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
 const saves = require('../src/core/VNextSave.js');
@@ -76,7 +79,9 @@ const OverseerVNextBrand = vm.runInNewContext(brandSource + '\nOverseerVNextBran
 const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
 const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
-    OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview,
+    OverseerECS: { World }, OverseerCombat: combat, OverseerHitEffects: hitEffects,
+    OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
+    OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
     OverseerVNextWaves: waves, OverseerVNextSave: saves, localStorage: saveStorage, Vision, OverseerVNextBrand
 });
@@ -444,58 +449,6 @@ test('reward cards show and clean up existing building detail popup above overla
     assert.equal(scene.tooltipObjects.length, 0);
 });
 
-test('reward overlay shields the whole game and rejects input until a reward is chosen', () => {
-    const scene = new VNextScene();
-    scene.create();
-    const paletteBefore = scene.ui.find(o => o.getData?.('palette') === 'reactor');
-    scene.onDragStart({ x: 20, y: 20 }, paletteBefore);
-    assert.ok(scene.dragGhost, 'drag can begin before the reward appears');
-
-    scene.activeReward = { number: 1, options: ['factory', 'barracks', 'extractor'] };
-    scene.selectedType = 'reactor';
-    scene.buildUi();
-    const blocker = scene.ui.find(o => o.getData?.('rewardBlocker') === true);
-    assert.ok(blocker, 'an interactive screen-sized zone shields the UI');
-    assert.equal(blocker.interactive, true);
-    assert.equal(blocker.depth, 301);
-    assert.equal(blocker.width, scene.scale.width);
-    assert.equal(blocker.height, scene.scale.height);
-    const rewardZone = scene.ui.find(o => o.getData?.('reward') === 'barracks');
-    assert.ok(rewardZone);
-    assert.ok(rewardZone.depth > blocker.depth, 'reward cards remain clickable above the shield');
-
-    const handBefore = cards.cards(scene.model);
-    const attentionBefore = { ...scene.attention };
-    const patternBefore = scene.visionRules.patternIndex;
-    const speedBefore = scene.speed;
-    const backgroundPalette = scene.ui.find(o => o.getData?.('palette') === 'reactor');
-    scene.clickTile(6);
-    backgroundPalette.handlers.pointerdown();
-    scene.onKey({ code: 'KeyD', key: 'd' });
-    scene.onKey({ code: 'KeyE', key: 'e' });
-    scene.onKey({ code: 'Digit5', key: '5' });
-    scene.onDragStart({ x: 20, y: 20 }, backgroundPalette);
-    scene.onDragEnd({
-        x: scene.gridLayout.x + scene.gridLayout.cell * 1.5,
-        y: scene.gridLayout.y + scene.gridLayout.cell * 1.5
-    }, backgroundPalette);
-    assert.equal(preview.buildingAt(scene.model, 6), null);
-    assert.deepEqual(cards.cards(scene.model), handBefore);
-    assert.deepEqual({ ...scene.attention }, attentionBefore);
-    assert.equal(scene.visionRules.patternIndex, patternBefore);
-    assert.equal(scene.speed, speedBefore);
-    assert.equal(scene.dragGhost, null, 'the pending drag must be cancelled');
-    assert.equal(scene.activeReward.number, 1);
-
-    rewardZone.handlers.pointerdown();
-    assert.equal(scene.activeReward, null);
-    assert.equal(cards.cards(scene.model).length, handBefore.length + 1);
-    assert.equal(scene.ui.some(o => o.getData?.('rewardBlocker') === true), false);
-    scene.selectedType = 'reactor';
-    scene.clickTile(6);
-    assert.ok(preview.buildingAt(scene.model, 6), 'construction works again after choosing');
-});
-
 test('military specialty rewards include all three new production cards', () => {
     const scene = new VNextScene();
     scene.create();
@@ -637,6 +590,147 @@ test('invalid Continue returns to menu instead of silently starting a fresh game
     savedEntries.clear();
 });
 
+test('base destruction clears only the run and prevents another autosave', () => {
+    savedEntries.clear();
+    saveStorage.setItem('unlockedTalents', '["root"]');
+    saveStorage.setItem('memoryShards', '8');
+    const scene = new VNextScene();
+    scene.create();
+    assert.ok(saves.read(saveStorage));
+    scene.baseHp = 0;
+    scene.update(0, 16);
+    assert.equal(scene.runFinished, true);
+    assert.equal(saves.read(saveStorage), null);
+    assert.equal(saveStorage.getItem('unlockedTalents'), '["root"]');
+    assert.equal(saveStorage.getItem('memoryShards'), '8');
+    assert.ok(scene.ui.some(object => object.value === 'BASE DÉTRUITE'));
+    scene.update(16, saves.AUTOSAVE_MS);
+    assert.equal(saves.read(saveStorage), null);
+    savedEntries.clear();
+});
+
+test('combat hits drive a renderer-only recoil/flash and pause freezes the animation', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const defender = scene.battleUnits[0];
+    scene.spawnEnemyUnit('basic_monster', 0, 1);
+    const attacker = scene.battleUnits.at(-1);
+    const defenderPos = scene.world.get(defender, 'Position');
+    const attackerPos = scene.world.get(attacker, 'Position');
+    attackerPos.x = defenderPos.x + 10;
+    attackerPos.y = defenderPos.y;
+    scene.world.get(attacker, 'Combat').elapsedMs = 1000;
+
+    scene.update(0, 16);
+    assert.ok(scene.world.get(defender, 'Health').hp < scene.world.get(defender, 'Health').maxHp);
+    // Separation is an existing combat rule and may legitimately move ECS coordinates.
+    // Only the presentation offset is held outside ECS.
+    const reaction = scene.hitEffects.view(defender);
+    assert.ok(reaction.x < 0, 'the defender recoils away from the attacker');
+    assert.ok(reaction.flash > 0);
+
+    scene.selectSpeed(0); // Rebuilds the Phaser Graphics panel, not transient FX state.
+    scene.update(0, 200);
+    assert.deepEqual(scene.hitEffects.view(defender), reaction);
+    assert.ok(Number.isFinite(scene.world.get(defender, 'Position').x));
+});
+
+test('all allied unit types render distinctive colors and silhouettes, including spawned units', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.spawnFriendlyUnit('unit_mecha');
+    scene.paintBattle();
+    const types = ['unit_guard', 'unit_sniper', 'unit_mecha', 'unit_dronoid'];
+    const observed = types.map(type => {
+        const id = scene.battleUnits.find(id => scene.world.get(id, 'PreviewUnit')?.type === type);
+        assert.ok(id, `Missing ${type}`);
+        return scene.battleUnitStyle(id);
+    });
+    assert.equal(new Set(observed.map(x => x.color)).size, 4);
+    assert.equal(new Set(observed.map(x => x.shape)).size, 4);
+    for (const style of observed) {
+        assert.ok(scene.battleGraphics.drawCalls.some(call => call.color === style.color),
+            `No rendered stroke for ${style.shape}`);
+    }
+});
+
+test('ranged attack emits a laser and HitEffects from one confirmed hit, without delayed damage', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.spawnEnemyUnit('basic_monster', 0, 1);
+    const enemy = scene.battleUnits.at(-1);
+    const sniper = scene.battleUnits.find(id =>
+        scene.world.get(id, 'PreviewUnit')?.type === 'unit_sniper');
+    const sniperPosition = scene.world.get(sniper, 'Position');
+    Object.assign(scene.world.get(enemy, 'Position'), { x: sniperPosition.x + 20, y: sniperPosition.y });
+    scene.world.get(sniper, 'Combat').elapsedMs = 5000;
+    const before = scene.world.get(enemy, 'Health').hp;
+    scene.update(0, 16);
+
+    assert.ok(scene.world.get(enemy, 'Health').hp < before);
+    const beam = scene.actionEffects.visuals().find(effect => effect.kind === 'laser');
+    assert.ok(beam, 'the renderer receives a laser on a ranged attack');
+    assert.equal(beam.color, battleStyles.styleFor('unit_sniper', 'player').color);
+    assert.equal(scene.hitEffects.fragments()[0].color, battleStyles.styleFor('basic_monster', 'enemy').color);
+    assert.ok(scene.battleActionGraphics.drawCalls.some(call => call.type === 'lineBetween'));
+    const paused = scene.actionEffects.visuals();
+    scene.selectSpeed(0);
+    scene.update(0, 250);
+    assert.deepEqual(scene.actionEffects.visuals(), paused);
+});
+
+test('reward overlay shields the whole game and rejects input until a reward is chosen', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const paletteBefore = scene.ui.find(o => o.getData?.('palette') === 'reactor');
+    scene.onDragStart({ x: 20, y: 20 }, paletteBefore);
+    assert.ok(scene.dragGhost, 'drag can begin before the reward appears');
+
+    scene.activeReward = { number: 1, options: ['factory', 'barracks', 'extractor'] };
+    scene.selectedType = 'reactor';
+    scene.buildUi();
+    const blocker = scene.ui.find(o => o.getData?.('rewardBlocker') === true);
+    assert.ok(blocker, 'an interactive screen-sized zone shields the UI');
+    assert.equal(blocker.interactive, true);
+    assert.equal(blocker.depth, 301);
+    assert.equal(blocker.width, scene.scale.width);
+    assert.equal(blocker.height, scene.scale.height);
+    const rewardZone = scene.ui.find(o => o.getData?.('reward') === 'barracks');
+    assert.ok(rewardZone);
+    assert.ok(rewardZone.depth > blocker.depth, 'reward cards remain clickable above the shield');
+
+    const handBefore = cards.cards(scene.model);
+    const attentionBefore = { ...scene.attention };
+    const patternBefore = scene.visionRules.patternIndex;
+    const speedBefore = scene.speed;
+    const backgroundPalette = scene.ui.find(o => o.getData?.('palette') === 'reactor');
+    scene.clickTile(6);
+    backgroundPalette.handlers.pointerdown();
+    scene.onKey({ code: 'KeyD', key: 'd' });
+    scene.onKey({ code: 'KeyE', key: 'e' });
+    scene.onKey({ code: 'Digit5', key: '5' });
+    scene.onDragStart({ x: 20, y: 20 }, backgroundPalette);
+    scene.onDragEnd({
+        x: scene.gridLayout.x + scene.gridLayout.cell * 1.5,
+        y: scene.gridLayout.y + scene.gridLayout.cell * 1.5
+    }, backgroundPalette);
+    assert.equal(preview.buildingAt(scene.model, 6), null);
+    assert.deepEqual(cards.cards(scene.model), handBefore);
+    assert.deepEqual({ ...scene.attention }, attentionBefore);
+    assert.equal(scene.visionRules.patternIndex, patternBefore);
+    assert.equal(scene.speed, speedBefore);
+    assert.equal(scene.dragGhost, null, 'the pending drag must be cancelled');
+    assert.equal(scene.activeReward.number, 1);
+
+    rewardZone.handlers.pointerdown();
+    assert.equal(scene.activeReward, null);
+    assert.equal(cards.cards(scene.model).length, handBefore.length + 1);
+    assert.equal(scene.ui.some(o => o.getData?.('rewardBlocker') === true), false);
+    scene.selectedType = 'reactor';
+    scene.clickTile(6);
+    assert.ok(preview.buildingAt(scene.model, 6), 'construction works again after choosing');
+});
+
 test('dead combat units are reclaimed without losing wave rewards or resumable saves', () => {
     savedEntries.clear();
     const scene = new VNextScene();
@@ -677,21 +771,28 @@ test('dead combat units are reclaimed without losing wave rewards or resumable s
     savedEntries.clear();
 });
 
-test('base destruction clears only the run and prevents another autosave', () => {
-    savedEntries.clear();
-    saveStorage.setItem('unlockedTalents', '["root"]');
-    saveStorage.setItem('memoryShards', '8');
+test('a produced repair drone emits a healing beam and target halo, without hit recoil', () => {
     const scene = new VNextScene();
     scene.create();
-    assert.ok(saves.read(saveStorage));
-    scene.baseHp = 0;
+    scene.spawnFriendlyUnit('unit_dronoid');
+    const healer = scene.battleUnits.at(-1);
+    assert.equal(scene.world.get(healer, 'Combat').behavior, 'healer');
+    const guard = scene.battleUnits.find(id =>
+        scene.world.get(id, 'PreviewUnit')?.type === 'unit_guard');
+    scene.world.get(guard, 'Health').hp = 2;
+    const healerPos = scene.world.get(healer, 'Position');
+    Object.assign(scene.world.get(guard, 'Position'),
+        { x: healerPos.x + 10, y: healerPos.y });
+    scene.world.get(healer, 'Combat').elapsedMs = 5000;
+    const before = scene.world.get(guard, 'Health').hp;
     scene.update(0, 16);
-    assert.equal(scene.runFinished, true);
-    assert.equal(saves.read(saveStorage), null);
-    assert.equal(saveStorage.getItem('unlockedTalents'), '["root"]');
-    assert.equal(saveStorage.getItem('memoryShards'), '8');
-    assert.ok(scene.ui.some(object => object.value === 'BASE DÉTRUITE'));
-    scene.update(16, saves.AUTOSAVE_MS);
-    assert.equal(saves.read(saveStorage), null);
-    savedEntries.clear();
+
+    assert.ok(scene.world.get(guard, 'Health').hp > before);
+    const healing = scene.actionEffects.visuals().find(visual => visual.kind === 'heal');
+    assert.ok(healing, 'the actual ECS heal event emits a visible effect');
+    assert.equal(healing.color, battleStyles.styleFor('unit_dronoid', 'player').color);
+    assert.ok(scene.battleActionGraphics.drawCalls.some(call =>
+        call.type === 'strokeCircle' && call.color === healing.color));
+    assert.deepEqual(scene.hitEffects.view(guard), { x: 0, y: 0, flash: 0 });
+    assert.equal(scene.hitEffects.fragments().length, 0);
 });

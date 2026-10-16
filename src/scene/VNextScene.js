@@ -78,6 +78,8 @@ class VNextScene extends Phaser.Scene {
         this.runFinished = false;
         this.autosaveElapsed = 0;
         this.ui = [];
+        this.hitEffects = new OverseerHitEffects.HitEffects(); // Renderer-only state; never saved to ECS.
+        this.actionEffects = new OverseerBattleActionEffects.BattleActionEffects();
         this.types = OverseerVNextBuildings.BUILDINGS;
         // The resource HUD borrows glyphs and colors from the corresponding buildings.
         // Cooling and data are placeholders: they have no ECS balances or simulation yet.
@@ -118,6 +120,8 @@ class VNextScene extends Phaser.Scene {
         this.onPageHide = () => this.saveCurrentGame();
         if (typeof window !== 'undefined') window.addEventListener?.('pagehide', this.onPageHide);
         this.events.once('shutdown', () => {
+            this.hitEffects.clear();
+            this.actionEffects.clear();
             this.scale.off('resize', this.buildUi, this);
             if (typeof window !== 'undefined') window.removeEventListener?.('pagehide', this.onPageHide);
             this.input.keyboard.off('keydown', this.onKey, this);
@@ -530,7 +534,6 @@ class VNextScene extends Phaser.Scene {
 
     onDragEnd(pointer, object) {
         if (this.activeReward) {
-            // Phaser may still deliver dragend for a drag started before the modal.
             this.dragGhost?.destroy();
             this.dragGhost = null;
             this.dragType = null;
@@ -609,6 +612,8 @@ class VNextScene extends Phaser.Scene {
         const b = this.battleBounds;
         g.lineStyle(1, 0x1c3949, 0.5).lineBetween(b.x + b.w * 0.52, b.y, b.x + b.w * 0.52, b.y + b.h);
         this.battleGraphics = this.keep(this.add.graphics());
+        this.battleParticleGraphics = this.keep(this.add.graphics());
+        this.battleActionGraphics = this.keep(this.add.graphics());
         this.battleStatus = this.text(l.battleX + 15, mainBottom - 38, '', 11, '#8eabbc');
     }
 
@@ -882,6 +887,8 @@ class VNextScene extends Phaser.Scene {
     }
 
     resetBattle() {
+        this.hitEffects.clear();
+        this.actionEffects.clear();
         (this.battleUnits || []).forEach(id => { if (this.world.has(id)) this.world.destroy(id); });
         this.battleUnits = [];
         this.baseHp = 100;
@@ -928,6 +935,44 @@ class VNextScene extends Phaser.Scene {
         this.battleUnits.push(id);
     }
 
+    battleUnitStyle(id) {
+        const type = this.world.get(id, 'PreviewUnit')?.type;
+        const side = this.world.get(id, 'Faction')?.side;
+        return OverseerBattleUnitStyles.styleFor(type, side);
+    }
+
+    drawBattleUnit(g, style, x, y, r, color) {
+        g.lineStyle(2, color, 0.98);
+        if (style.shape === 'shield') {
+            g.strokePoints([
+                { x, y: y - r }, { x: x + r * 0.78, y: y - r * 0.52 },
+                { x: x + r * 0.63, y: y + r * 0.4 }, { x, y: y + r },
+                { x: x - r * 0.63, y: y + r * 0.4 }, { x: x - r * 0.78, y: y - r * 0.52 }
+            ], true);
+        } else if (style.shape === 'diamond') {
+            g.strokePoints([
+                { x, y: y - r }, { x: x + r * 0.65, y },
+                { x, y: y + r }, { x: x - r * 0.65, y }
+            ], true);
+            g.lineStyle(1, color, 0.9).lineBetween(x - r, y, x + r, y);
+        } else if (style.shape === 'hexagon') {
+            g.strokePoints(Array.from({ length: 6 }, (_, i) => {
+                const a = (i * Math.PI / 3) + Math.PI / 6;
+                return { x: x + Math.cos(a) * r, y: y + Math.sin(a) * r };
+            }), true);
+            g.fillStyle(color, 0.62).fillRect(x - r * 0.32, y - r * 0.32, r * 0.64, r * 0.64);
+        } else if (style.shape === 'drone') {
+            g.strokeCircle(x, y, r * 0.75);
+            g.lineStyle(1, color, 0.85).lineBetween(x - r * 0.34, y, x + r * 0.34, y);
+            g.lineBetween(x, y - r * 0.34, x, y + r * 0.34);
+        } else if (style.shape === 'triangle') {
+            g.strokeTriangle(x, y - r, x + r, y + r, x - r, y + r);
+        } else {
+            g.strokeCircle(x, y, r * 0.8);
+            g.fillStyle(color, 0.5).fillCircle(x, y, r * 0.26);
+        }
+    }
+
     paintBattle() {
         if (!this.battleGraphics || !this.battleBounds) return;
         const g = this.battleGraphics, b = this.battleBounds;
@@ -943,18 +988,65 @@ class VNextScene extends Phaser.Scene {
             const pos = this.world.get(id, 'Position');
             const side = this.world.get(id, 'Faction').side;
             const q = p(pos.x, pos.y);
-            const color = side === 'player' ? 0x38d9f1 : 0xff5c79;
-            g.lineStyle(2, color, 0.98);
             const r = Math.min(12, Math.max(6, b.w * 0.024));
-            if (side === 'player') {
-                g.strokeTriangle(q.x, q.y - r, q.x + r, q.y + r, q.x - r, q.y + r);
-            } else {
-                g.strokeCircle(q.x, q.y, r * 0.8);
-                g.fillStyle(color, 0.5).fillCircle(q.x, q.y, r * 0.26);
-            }
+            // One shared, dimensionless reaction can move a 2D glyph or a future 3D model.
+            const visual = this.hitEffects.view(id);
+            q.x += visual.x * r;
+            q.y += visual.y * r;
+            const style = this.battleUnitStyle(id);
+            const color = OverseerHitEffects.tintColor(style.color, visual.flash);
+            this.drawBattleUnit(g, style, q.x, q.y, r, color);
             g.fillStyle(0x23404e, 0.8).fillRect(q.x - 11, q.y - r - 9, 22, 3);
             g.fillStyle(side === 'player' ? 0x44dc91 : 0xff5e79, 1)
                 .fillRect(q.x - 11, q.y - r - 9, 22 * Math.max(0, hp.hp / hp.maxHp), 3);
+        }
+        // Draw fragments separately from the unit loop so a killing hit can outlive its target.
+        const fragments = this.battleParticleGraphics;
+        if (fragments) {
+            fragments.clear();
+            for (const bit of this.hitEffects.fragments()) {
+                const q = p(bit.x, bit.y);
+                if (q.x < b.x || q.x > b.x + b.w || q.y < b.y || q.y > b.y + b.h) continue;
+                fragments.fillStyle(bit.color, bit.alpha);
+                fragments.fillRect(q.x - bit.size / 2, q.y - bit.size / 2, bit.size, bit.size);
+            }
+        }
+        const actions = this.battleActionGraphics;
+        if (actions) {
+            actions.clear();
+            const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+            const within = point => ({
+                x: clamp(point.x, b.x, b.x + b.w),
+                y: clamp(point.y, b.y, b.y + b.h)
+            });
+            for (const effect of this.actionEffects.visuals()) {
+                const start = within(p(effect.from.x, effect.from.y));
+                const end = within(p(effect.to.x, effect.to.y));
+                if (effect.kind === 'laser') {
+                    actions.lineStyle(3, effect.color, effect.alpha * 0.27)
+                        .lineBetween(start.x, start.y, end.x, end.y);
+                    actions.lineStyle(1, 0xffffff, effect.alpha * 0.92)
+                        .lineBetween(start.x, start.y, end.x, end.y);
+                    actions.lineStyle(1, effect.color, effect.alpha)
+                        .strokeCircle(end.x, end.y, 2.5);
+                } else if (effect.kind === 'heal') {
+                    // A repair is legible as support, never mistaken for damage recoil.
+                    actions.lineStyle(2, effect.color, effect.alpha * 0.22)
+                        .lineBetween(start.x, start.y, end.x, end.y);
+                    actions.lineStyle(1, effect.color, effect.alpha * 0.9)
+                        .lineBetween(start.x, start.y, end.x, end.y);
+                    const radius = 5 + 9 * effect.progress;
+                    actions.lineStyle(1, effect.color, effect.alpha * 0.9)
+                        .strokeCircle(end.x, end.y, radius);
+                    for (let i = 0; i < 3; i++) {
+                        const angle = (i * Math.PI * 2 / 3) + effect.progress * 1.4;
+                        const orbit = 15 * (1 - effect.progress) + 2;
+                        actions.fillStyle(effect.color, effect.alpha * 0.8).fillCircle(
+                            end.x + Math.cos(angle) * orbit,
+                            end.y + Math.sin(angle) * orbit, 1.6);
+                    }
+                }
+            }
         }
         if (this.battleStatus) {
             const alive = side => this.battleUnits.filter(id => this.world.has(id) &&
@@ -995,10 +1087,33 @@ class VNextScene extends Phaser.Scene {
                 patrol: side === 'player' ? { x: 280, y: 300 } : null,
                 allies: side === 'player' ? players : []
             });
-            events.forEach(e => { if (e.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - e.damage); });
+            for (const event of events) {
+                if (event.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - event.damage);
+                if (event.type === 'attack' && this.world.has(event.attacker) && this.world.has(event.target)) {
+                    // Snapshot directions at impact time; simulation positions never receive recoil.
+                    const attackerPosition = this.world.get(event.attacker, 'Position');
+                    const targetPosition = this.world.get(event.target, 'Position');
+                    const targetStyle = this.battleUnitStyle(event.target);
+                    if (event.ranged) this.actionEffects.laser(
+                        attackerPosition, targetPosition, this.battleUnitStyle(event.attacker).color);
+                    this.hitEffects.hit(event.target,
+                        attackerPosition, targetPosition, targetStyle.color);
+                }
+                if (event.type === 'heal' && event.amount > 0 &&
+                    this.world.has(event.healer) && this.world.has(event.target)) {
+                    this.actionEffects.heal(
+                        this.world.get(event.healer, 'Position'),
+                        this.world.get(event.target, 'Position'),
+                        this.battleUnitStyle(event.healer).color);
+                }
+            }
         }
         if (this.baseHp <= 0) { this.finishRun(); return; }
         OverseerCombat.separateUnits(this.world, this.battleUnits);
+        // Wall-clock duration makes impacts readable at x1/x3/x5. Pause freezes them.
+        this.hitEffects.update(Math.min(60, Math.max(0, delta)));
+        this.actionEffects.update(Math.min(60, Math.max(0, delta)));
+        // Rewards must be computed before reclaiming dead ECS entities.
         this.checkWaveClears();
         this.cleanupDeadUnits();
         this.paintBattle();
