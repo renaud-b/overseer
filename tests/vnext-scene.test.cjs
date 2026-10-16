@@ -17,6 +17,7 @@ const waves = require('../src/core/VNextWaves.js');
 const technologies = require('../src/core/VNextTechnologies.js');
 const zones = require('../src/core/VNextZones.js');
 const saves = require('../src/core/VNextSave.js');
+const visionUpgrades = require('../src/core/VNextVision.js');
 const savedEntries = new Map();
 const saveStorage = {
     getItem: key => savedEntries.get(key) ?? null,
@@ -87,7 +88,107 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextZones: zones, OverseerVNextSave: saves, localStorage: saveStorage, Vision, OverseerVNextBrand
+    OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextZones: zones, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
+    localStorage: saveStorage, Vision, OverseerVNextBrand
+});
+
+test('VNext vision upgrade spends ECS Data, exposes a disabled button and respects maximum', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    scene.create();
+    const resources = scene.world.get(scene.model.game, 'Resources');
+    assert.equal(scene.visionRules.level, 0);
+    assert.equal(scene.visionUpgradeButton.value, '▲ VISION');
+    assert.equal(scene.visionUpgradeCostLabel.value, '0/10 DONNÉES');
+    assert.equal(scene.tryUpgradeVision(), false);
+    assert.equal(scene.visionRules.level, 0);
+    assert.equal(scene.model.tiles.filter(id => scene.world.get(id, 'Watched').active).length, 3);
+
+    resources.data = 85; // Test injection until a Data-producing building exists.
+    for (const [level, remaining] of [[1, 75], [2, 50], [3, 0]]) {
+        const button = scene.visionUpgradeButton;
+        scene.updateVisionUpgradeButton();
+        assert.equal(button.color, '#b58aff');
+        button.handlers.pointerdown();
+        assert.equal(scene.visionRules.level, level);
+        assert.equal(resources.data, remaining);
+        assert.equal(scene.model.tiles.filter(id => scene.world.get(id, 'Watched').active).length, level + 3);
+        assert.equal(saves.read(saveStorage).attention.level, level);
+    }
+    assert.equal(scene.visionUpgradeButton.value, 'VISION MAX');
+    assert.equal(scene.visionUpgradeCostLabel.value, '6 CASES');
+    assert.equal(scene.tryUpgradeVision(), false);
+    assert.equal(resources.data, 0);
+    savedEntries.clear();
+});
+
+test('vision upgrade keeps rotation and clamps attention when the larger shape reaches an edge', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    scene.create();
+    const resources = scene.world.get(scene.model.game, 'Resources');
+    resources.data = 85;
+    assert.equal(scene.changeAttention(2, 2), true);
+    assert.equal(scene.changeAttention(0, 0, true), true);
+    assert.equal(scene.visionRules.patternIndex, 1);
+    assert.equal(scene.tryUpgradeVision(), true); // 2x2 still fits at 3,3.
+    assert.equal(scene.attention.x, 3);
+    assert.equal(scene.attention.y, 3);
+    assert.equal(scene.tryUpgradeVision(), true); // Rotated 5-tile footprint needs y <= 2.
+    assert.equal(scene.attention.y, 2);
+    assert.equal(scene.visionRules.patternIndex, 1);
+    assert.equal(scene.tryUpgradeVision(), true);
+    const observed = scene.model.tiles
+        .map((id, i) => scene.world.get(id, 'Watched').active ? i : -1).filter(i => i >= 0);
+    assert.equal(observed.length, 6);
+    assert.ok(observed.every(i => i >= 0 && i < 25));
+    const position = { ...scene.attention };
+    const rotation = scene.visionRules.patternIndex;
+    assert.equal(scene.changeAttention(0, -4), false);
+    assert.deepEqual({ ...scene.attention }, position);
+    assert.equal(scene.visionRules.patternIndex, rotation);
+    savedEntries.clear();
+});
+
+test('Continue restores upgraded vision and old save files still restore level zero', () => {
+    savedEntries.clear();
+    const running = new VNextScene();
+    running.create();
+    running.world.get(running.model.game, 'Resources').data = 85;
+    assert.equal(running.tryUpgradeVision(), true);
+    assert.equal(running.tryUpgradeVision(), true);
+    assert.equal(running.changeAttention(0, 0, true), true);
+    assert.equal(running.saveCurrentGame(), true);
+    const previouslyWatched = running.model.tiles.map(id =>
+        running.world.get(id, 'Watched').active);
+    const resumed = new VNextScene();
+    resumed.init({ resume: true });
+    resumed.create();
+    assert.equal(resumed.visionRules.level, 2);
+    assert.equal(resumed.visionRules.patternIndex, running.visionRules.patternIndex);
+    assert.deepEqual(resumed.model.tiles.map(id => resumed.world.get(id, 'Watched').active), previouslyWatched);
+    assert.equal(resumed.world.get(resumed.model.game, 'Resources').data, 50);
+
+    const oldSave = saves.capture(running, 1720000000000);
+    delete oldSave.attention.level;
+    // The legacy format always had a 3-cell footprint.
+    const legacy = new VNextScene();
+    legacy.create();
+    oldSave.world = legacy.world.serialize();
+    oldSave.attention = { x: 1, y: 1, patternIndex: 0 };
+    oldSave.model = { game: legacy.model.game, grid: legacy.model.grid, tiles: [...legacy.model.tiles] };
+    oldSave.battleUnits = [...legacy.battleUnits];
+    oldSave.waveClock = { ...legacy.waveClock };
+    oldSave.waveMembers = [...legacy.waveMembers];
+    oldSave.rewardQueue = [...legacy.rewardQueue];
+    oldSave.activeReward = legacy.activeReward;
+    savedEntries.set(saves.KEY, JSON.stringify(oldSave));
+    const older = new VNextScene();
+    older.init({ resume: true });
+    older.create();
+    assert.equal(older.visionRules.level, 0);
+    assert.equal(older.visionRules.visionPatterns[0].length, 3);
+    savedEntries.clear();
 });
 
 test('scene begins with exactly four unspent cards and empty base', () => {
