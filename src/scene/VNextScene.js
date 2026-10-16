@@ -254,7 +254,7 @@ class VNextScene extends Phaser.Scene {
         this.paletteGraphics = g;
         this.refreshPaletteSelection();
         this.note = this.text(l.m + 13, l.mainBottom - 75, 'Économie ECS : test actif', 11, '#a5b8c6');
-        this.text(l.m + 13, l.mainBottom - 53, 'Coûts de pose non définis', 10, '#7292a6');
+        this.text(l.m + 13, l.mainBottom - 53, 'Pose : 1 carte, 0 ressource', 10, '#7292a6');
     }
 
     refreshPaletteSelection() {
@@ -381,7 +381,7 @@ class VNextScene extends Phaser.Scene {
             keepTip(this.add.text(tx, ty, content, { fontFamily: 'monospace', fontSize: `${size}px`, color }).setDepth(211));
         label(x + 41, y + 14, info.label, 15, '#e3f0f5');
         label(x + pad, y + 48, info.description, 11, '#a6bfce');
-        label(x + pad, y + 77, 'CONSTRUCTION : COÛT À DÉFINIR', 10, '#819eaf');
+        label(x + pad, y + 77, 'POSE : 1 CARTE · 0 RESSOURCE', 10, '#819eaf');
         if (!recipe) {
             label(x + pad, y + 105, 'PRODUCTION NON SIMULÉE', 11, '#819eaf');
             return;
