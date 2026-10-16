@@ -106,6 +106,9 @@ class VNextScene extends Phaser.Scene {
         this.artifactTooltipObjects = [];
         this.technologyTooltipObjects = [];
         this.waveTooltipObjects = [];
+        this.battleHoverPointer = null;
+        this.battleTooltipObjects = [];
+        this.battleTooltipId = null;
         this.waveClock = restored?.waveClock ??
             { number: 0, elapsedMs: 0, seed: Math.floor(Math.random() * 0x100000000) };
         this.previewWaves = OverseerVNextWaves.preview(8, this.waveClock.seed, this.waveClock.number);
@@ -144,6 +147,7 @@ class VNextScene extends Phaser.Scene {
             this.battleMask?.destroy();
             this.battleMask = null;
             this.hideTechnologyTooltip();
+            this.hideBattleUnitTooltip();
             this.scale.off('resize', this.buildUi, this);
             if (typeof window !== 'undefined') window.removeEventListener?.('pagehide', this.onPageHide);
             this.input.keyboard.off('keydown', this.onKey, this);
@@ -175,6 +179,7 @@ class VNextScene extends Phaser.Scene {
         this.hideResourceTooltip();
         this.hideWaveTooltip();
         this.hideArtifactTooltip();
+        this.hideBattleUnitTooltip();
         this.battleMask?.destroy();
         this.battleMask = null;
         this.ui.forEach(object => object.destroy());
@@ -806,6 +811,7 @@ class VNextScene extends Phaser.Scene {
     onDragStart(pointer, object) {
         if (this.activeReward) return;
         this.hideTechnologyTooltip();
+        this.hideBattleUnitTooltip();
         const technology=object.getData('technology');
         if(OverseerVNextTechnologies.TYPES.includes(technology)){this.techDrag=technology;this.dragGhost=this.add.graphics();this.dragGhost.lineStyle(2,0x69d9a0,1).strokeCircle(0,0,16);this.dragGhost.setPosition(pointer.x,pointer.y).setDepth(300);return;}
         const type = object.getData('palette');
@@ -1011,6 +1017,12 @@ class VNextScene extends Phaser.Scene {
             this.battleParticleGraphics, this.battleActionGraphics]) {
             graphics.setMask(this.battleMask);
         }
+        // One interactive input surface, not one Phaser hit area per moving ECS unit.
+        this.battleHoverZone = this.keep(this.add.zone(b.x + b.w / 2, b.y + b.h / 2, b.w, b.h)
+            .setInteractive().setDepth(100));
+        this.battleHoverZone.on('pointerover', pointer => this.onBattleUnitPointer(pointer));
+        this.battleHoverZone.on('pointermove', pointer => this.onBattleUnitPointer(pointer));
+        this.battleHoverZone.on('pointerout', () => this.hideBattleUnitTooltip());
         this.battleStatus = this.text(l.battleX + 15, mainBottom - 38, '', 11, '#8eabbc');
     }
 
@@ -1332,6 +1344,7 @@ class VNextScene extends Phaser.Scene {
     }
 
     drawRewardOverlay() {
+        this.hideBattleUnitTooltip();
         const reward = this.activeReward;
         if (!reward) return;
         const w = this.scale.width, h = this.scale.height;
@@ -1509,6 +1522,121 @@ class VNextScene extends Phaser.Scene {
         return id;
     }
 
+    hideBattleUnitTooltip(clearPointer = true) {
+        for (const object of this.battleTooltipObjects || []) object.destroy();
+        this.battleTooltipObjects = [];
+        this.battleTooltipId = null;
+        this.battleTooltipTitle = null;
+        this.battleTooltipBody = null;
+        this.battleTooltipGraphics = null;
+        if (clearPointer) this.battleHoverPointer = null;
+    }
+
+    onBattleUnitPointer(pointer) {
+        this.battleHoverPointer = { x: pointer.x, y: pointer.y };
+        this.refreshBattleUnitTooltip();
+    }
+
+    battleUnitAt(screenX, screenY) {
+        const b = this.battleBounds;
+        if (!b || screenX < b.x || screenX > b.x + b.w ||
+            screenY < b.y || screenY > b.y + b.h) return null;
+        let chosen = null, closest = Infinity;
+        for (const id of this.battleUnits || []) {
+            if (!this.world.has(id) || this.world.get(id, 'Health')?.hp <= 0) continue;
+            const position = this.world.get(id, 'Position');
+            if (!position) continue;
+            const reaction = this.hitEffects.view(id);
+            const baseRadius = Math.min(12, Math.max(6, b.w * 0.024));
+            const style = this.battleUnitStyle(id);
+            const radius = Math.max(11, baseRadius * (style.size || 1) * 1.35);
+            const x = b.x + position.x * b.w / 1000 + reaction.x * baseRadius;
+            const y = b.y + position.y * b.h / 600 + reaction.y * baseRadius;
+            const distance = Math.hypot(screenX - x, screenY - y);
+            if (distance <= radius && distance <= closest) {
+                closest = distance;
+                chosen = id; // Last painted wins on an exact overlap.
+            }
+        }
+        return chosen;
+    }
+
+    battleUnitDescription(id) {
+        const type = this.world.get(id, 'PreviewUnit')?.type || 'inconnu';
+        const side = this.world.get(id, 'Faction')?.side;
+        const hp = this.world.get(id, 'Health');
+        const combat = this.world.get(id, 'Combat');
+        const movement = this.world.get(id, 'Movement');
+        const allyLabels = {
+            unit_guard: 'Défenseur', unit_sniper: 'Tireur allié',
+            unit_mecha: 'Unité blindée', unit_dronoid: 'Drone de soutien'
+        };
+        const name = side === 'player' ? (allyLabels[type] || type) :
+            OverseerBattleUnitStyles.enemyLabel(type);
+        const healing = combat.behavior === 'healer';
+        const berserk = this.world.get(id, 'TechnologyBuff')?.type === 'berserk';
+        const overclock = side === 'player' ? OverseerVNextZones.speedMultiplier(this.model) : 1;
+        const interval = combat.cooldownMs / (berserk ? 1.5 : 1) / 1000;
+        const states = [];
+        if (berserk) states.push('Berserk');
+        if (overclock > 1) states.push('Surcadencement');
+        if (this.world.get(id, 'ThreatMark')) states.push('Ciblé');
+        const temporary = this.world.get(id, 'TemporaryAlly');
+        if (temporary) states.push('Renfort ' + Math.ceil(temporary.remainingMs / 1000) + ' s');
+        const lines = [
+            'Type : ' + type,
+            'PV : ' + Math.max(0, hp.hp) + ' / ' + hp.maxHp,
+            (healing ? 'Soin' : 'Dégâts') + ' : ' + combat.damage + ' · ' +
+                (healing ? 'soutien' : combat.attackType === 'ranged' ? 'distance' : 'mêlée'),
+            'Portée : ' + combat.range,
+            'Cadence : ' + interval.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) + ' s',
+            'Vitesse : ' + movement.speed * overclock,
+            ...(states.length ? ['État : ' + states.join(', ')] : [])
+        ];
+        return { name, side, body: lines.join('\n') };
+    }
+
+    refreshBattleUnitTooltip() {
+        const pointer = this.battleHoverPointer, b = this.battleBounds;
+        if (!pointer || !b || this.activeReward || this.runFinished || this.dragGhost) {
+            this.hideBattleUnitTooltip(false);
+            return;
+        }
+        const id = this.battleUnitAt(pointer.x, pointer.y);
+        if (id === null) { this.hideBattleUnitTooltip(false); return; }
+        const info = this.battleUnitDescription(id);
+        const width = Math.min(238, b.w - 12), height = Math.min(162, b.h - 12);
+        if (width < 145 || height < 120) { this.hideBattleUnitTooltip(false); return; }
+        if (this.battleTooltipId !== id) {
+            this.hideBattleUnitTooltip(false);
+            const keep = object => { this.battleTooltipObjects.push(object); return object; };
+            const color = info.side === 'player' ? 0x62e7e1 : 0xff6674;
+            const g = keep(this.add.graphics().setDepth(220));
+            g.fillStyle(0x0b1d2b, 0.97).fillRoundedRect(0, 0, width, height, 6);
+            g.lineStyle(1, color, 0.85).strokeRoundedRect(0, 0, width, height, 6);
+            this.battleTooltipGraphics = g;
+            this.battleTooltipTitle = keep(this.add.text(0, 0, '', {
+                fontFamily: 'monospace', fontSize: '12px',
+                color: info.side === 'player' ? '#62e7e1' : '#ff6674'
+            }).setDepth(221));
+            this.battleTooltipBody = keep(this.add.text(0, 0, '', {
+                fontFamily: 'monospace', fontSize: '10px', color: '#c7dce6', lineSpacing: 5
+            }).setDepth(221));
+            this.battleTooltipId = id;
+        }
+        const title = info.name.toUpperCase() + ' · ' + (info.side === 'player' ? 'ALLIÉ' : 'ENNEMI');
+        if (this.battleTooltipTitle.text !== title && this.battleTooltipTitle.value !== title)
+            this.battleTooltipTitle.setText(title);
+        if (this.battleTooltipBody.text !== info.body && this.battleTooltipBody.value !== info.body)
+            this.battleTooltipBody.setText(info.body);
+        const x = Math.max(b.x + 6, Math.min(b.x + b.w - width - 6,
+            pointer.x + 16 + width <= b.x + b.w ? pointer.x + 16 : pointer.x - width - 16));
+        const y = Math.max(b.y + 6, Math.min(b.y + b.h - height - 6,
+            pointer.y - height - 16 >= b.y ? pointer.y - height - 16 : pointer.y + 16));
+        this.battleTooltipGraphics.setPosition(x, y);
+        this.battleTooltipTitle.setPosition(x + 11, y + 9);
+        this.battleTooltipBody.setPosition(x + 11, y + 31);
+    }
     battleUnitStyle(id) {
         const type = this.world.get(id, 'PreviewUnit')?.type;
         const side = this.world.get(id, 'Faction')?.side;
@@ -1691,6 +1819,7 @@ class VNextScene extends Phaser.Scene {
                 this.world.get(id, 'Faction').side === side && this.world.get(id, 'Health').hp > 0).length;
             this.battleStatus.setText(`Alliés ${alive('player')}   Menaces ${alive('enemy')}`);
         }
+        this.refreshBattleUnitTooltip();
     }
 
     update(time, delta) {

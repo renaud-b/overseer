@@ -1898,3 +1898,113 @@ test('Cryopump makes observed perception pulse faster without changing baseline 
  assert.equal(scene.world.has(pump),true);
  assert.equal(scene.world.has(amp),true);
 });
+
+test('battlefield hover shows live ally and enemy ECS stats without changing simulation', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const ally = scene.battleUnits.find(id => scene.world.get(id,'PreviewUnit')?.type === 'unit_guard');
+    const b = scene.battleBounds;
+    const point = id => {
+        const pos = scene.world.get(id,'Position');
+        return {x:b.x + pos.x*b.w/1000, y:b.y + pos.y*b.h/600};
+    };
+    const before=scene.world.serialize();
+    const zone=scene.battleHoverZone;
+    assert.ok(zone.interactive);
+    zone.handlers.pointerover(point(ally));
+    assert.equal(scene.battleTooltipId,ally);
+    assert.match(scene.battleTooltipTitle.value,/DÉFENSEUR.*ALLIÉ/);
+    assert.match(scene.battleTooltipBody.value,/Type : unit_guard/);
+    assert.match(scene.battleTooltipBody.value,/PV : 5 \/ 5/);
+    assert.match(scene.battleTooltipBody.value,/Dégâts : 1.*distance/);
+    assert.match(scene.battleTooltipBody.value,/Portée : 30/);
+    assert.match(scene.battleTooltipBody.value,/Cadence : 1 s/);
+    assert.match(scene.battleTooltipBody.value,/Vitesse : 40/);
+    assert.deepEqual(scene.world.serialize(), before, 'hover must never write to ECS');
+    const objects=[...scene.battleTooltipObjects];
+    scene.world.get(ally,'Health').hp=3;
+    scene.paintBattle();
+    assert.match(scene.battleTooltipBody.value,/PV : 3 \/ 5/, 'PV are updated while the unit remains hovered');
+    assert.equal(scene.battleTooltipObjects.length,objects.length);
+    objects.forEach((object,i) => assert.strictEqual(scene.battleTooltipObjects[i],object,
+        'a frame must reuse the existing tooltip display objects'));
+
+    scene.spawnEnemyUnit('ranged_monster',0,1);
+    const enemy=scene.battleUnits.at(-1);
+    // The test fixture gives all enemies melee attacks; use ranged ECS values here.
+    scene.world.get(enemy,'Combat').attackType='ranged';
+    scene.world.get(enemy,'Combat').cooldownMs=2000;
+    zone.handlers.pointermove(point(enemy));
+    assert.equal(scene.battleTooltipId,enemy);
+    assert.match(scene.battleTooltipTitle.value,/TIREUR DISTANT.*ENNEMI/);
+    assert.match(scene.battleTooltipBody.value,/Type : ranged_monster/);
+    assert.match(scene.battleTooltipBody.value,/distance/);
+    assert.match(scene.battleTooltipBody.value,/Cadence : 2 s/);
+    assert.ok(objects.every(o=>o.destroyed),'old tooltip destroyed when target changes');
+    zone.handlers.pointerout();
+    assert.equal(scene.battleTooltipId,null);
+    assert.equal(scene.battleHoverPointer,null);
+    assert.equal(scene.battleTooltipObjects.length,0);
+});
+
+test('battle unit tooltip shows real buffs, reinforcement lifetime, healing and death cleanup', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const id=scene.battleUnits.find(id => scene.world.get(id,'PreviewUnit')?.type==='unit_dronoid');
+    const b=scene.battleBounds;
+    const p=scene.world.get(id,'Position');
+    const point={x:b.x+p.x*b.w/1000,y:b.y+p.y*b.h/600};
+    scene.world.get(id,'Combat').behavior='healer';
+    scene.world.set(id,'TechnologyBuff',{type:'berserk',remainingMs:5000});
+    zones.cast(scene.model,'overclock',{x:500,y:300});
+    scene.battleHoverZone.handlers.pointermove(point);
+    assert.match(scene.battleTooltipBody.value,/Soin : 1 · soutien/);
+    assert.match(scene.battleTooltipBody.value,/État : Berserk, Surcadencement/);
+    assert.match(scene.battleTooltipBody.value,/Vitesse : 60/);
+    const temporary=scene.spawnFriendlyUnit('unit_guard');
+    scene.world.set(temporary,'TemporaryAlly',{remainingMs:11300});
+    const details=scene.battleUnitDescription(temporary);
+    assert.match(details.body,/Renfort 12 s/);
+    const old=[...scene.battleTooltipObjects];
+    scene.world.get(id,'Health').hp=0;
+    scene.paintBattle();
+    assert.equal(scene.battleTooltipId,null);
+    assert.ok(old.every(o=>o.destroyed));
+    assert.doesNotThrow(()=>scene.cleanupDeadUnits());
+});
+
+test('unit hit testing respects clipping, nearest glyph, overlays and scene rebuilds',()=>{
+    const scene=new VNextScene();scene.create();
+    const b=scene.battleBounds;
+    assert.equal(scene.battleUnitAt(b.x-1,b.y+b.h/2),null);
+    const first=scene.battleUnits[0],second=scene.battleUnits[1];
+    const p=scene.world.get(first,'Position');
+    Object.assign(scene.world.get(second,'Position'),p);
+    const pointer={x:b.x+p.x*b.w/1000,y:b.y+p.y*b.h/600};
+    assert.equal(scene.battleUnitAt(pointer.x,pointer.y),second,'topmost glyph on exact overlap');
+    scene.battleHoverZone.handlers.pointermove(pointer);
+    assert.equal(scene.battleTooltipId,second);
+    const old=[...scene.battleTooltipObjects];
+    scene.activeReward={number:1,options:['reactor']};
+    scene.refreshBattleUnitTooltip();
+    assert.equal(scene.battleTooltipId,null);
+    assert.ok(old.every(o=>o.destroyed));
+    scene.activeReward=null;
+    scene.battleHoverZone.handlers.pointermove(pointer);
+    assert.equal(scene.battleTooltipId,second);
+    const before=[...scene.battleTooltipObjects],zone=scene.battleHoverZone;
+    scene.buildUi();
+    assert.ok(before.every(o=>o.destroyed));
+    assert.equal(zone.destroyed,true);
+    assert.equal(scene.battleHoverPointer,null);
+    assert.notEqual(scene.battleHoverZone,zone);
+    const rebuilt=scene.battleBounds;
+    const rp={x:rebuilt.x+p.x*rebuilt.w/1000,y:rebuilt.y+p.y*rebuilt.h/600};
+    scene.battleHoverZone.handlers.pointermove(rp);
+    assert.equal(scene.battleTooltipId,second);
+    const graphics=scene.battleTooltipGraphics;
+    assert.ok(graphics.x>=rebuilt.x && graphics.x<rebuilt.x+rebuilt.w);
+    assert.ok(graphics.y>=rebuilt.y && graphics.y<rebuilt.y+rebuilt.h);
+    scene.battleHoverZone.handlers.pointermove({x:rebuilt.x+rebuilt.w-2,y:rebuilt.y+rebuilt.h-2});
+    assert.equal(scene.battleTooltipId,null,'moving to empty field hides tooltip');
+});

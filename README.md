@@ -42,6 +42,7 @@ Le menu propose **Continuer** lorsqu'une sauvegarde VNext valide existe. **Nouve
 2. Déplacer et orienter la vision de l'IA : les bâtiments observés sont actifs.
 3. Produire des ressources, des unités ou des sorts selon les bâtiments.
 4. Défendre la base sur un champ de bataille contre des vagues d'ennemis.
+   Survoler une unité alliée ou ennemie affiche un panneau compact avec son type, ses PV actuels, ses dégâts ou soins, sa portée, sa cadence, sa vitesse et ses effets temporaires. Les valeurs viennent de l'ECS, sans modifier la simulation ; le panneau est masqué pendant les récompenses et le drag-and-drop.
 5. Choisir des récompenses et améliorer sa stratégie.
 
 ### Construction et fabrication dans VNext (état actuel)
