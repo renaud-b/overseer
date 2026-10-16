@@ -24,7 +24,13 @@
         { id: 'recycle', label: 'Recyclage neuronal', symbol: 'diamond', color: 0x69d9a0,
           description: 'À la mort d’une unité fabriquée, récupère 25 % des ressources réellement dépensées.' },
         { id: 'mark_chain', label: 'Propagation de conscience', symbol: 'cross', color: 0xff6674,
-          description: 'À la mort d’un ennemi marqué, transfère la marque à l’ennemi vivant le plus proche pour 2 s.' }
+          description: 'À la mort d’un ennemi marqué, transfère la marque à l’ennemi vivant le plus proche pour 2 s.' },
+        { id: 'terminal_overload', label: 'Surcharge terminale', symbol: 'cross', color: 0x62e7e1,
+          description: 'Nécessite Jugement du noyau : si son laser tue un ennemi, il touche jusqu’à 2 voisins proches (2 dégâts, rayon 110).' },
+        { id: 'parasite_network', label: 'Réseau parasitaire', symbol: 'orbit', color: 0xb58aff,
+          description: 'À chaque production observée, un bâtiment voisin hors vision gagne 20 % d’avancement sur son cycle.' },
+        { id: 'vital_transfer', label: 'Transfert vital', symbol: 'diamond', color: 0x69d9a0,
+          description: 'À la mort d’un allié, l’allié vivant blessé le plus proche récupère 30 % de ses PV maximaux.' }
     ].map(entry => Object.freeze(entry)));
     const IDS = Object.freeze(CATALOG.map(entry => entry.id));
     function get(id) { return CATALOG.find(artifact => artifact.id === id) || null; }
@@ -37,8 +43,10 @@
     }
     function list(model) { return [...collection(model).ids]; }
     function available(model) {
+        if (!hasCapacity(model)) return [];
         const owned = new Set(list(model));
-        return IDS.filter(id => !owned.has(id));
+        return IDS.filter(id => !owned.has(id) &&
+            (id !== 'terminal_overload' || owned.has('core_laser')));
     }
     function hasCapacity(model) { return collection(model).ids.length < CAPACITY; }
     function add(model, id) {

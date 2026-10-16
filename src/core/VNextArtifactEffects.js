@@ -6,6 +6,7 @@ const ECHO_MS=20000, GRACE_MS=3000, LASER_MS=15000, DUPLICATE_MS=30000;
 const CORE={x:65,y:300}, LASER_RADIUS=350, LASER_DAMAGE=3;
 const BURST_RADIUS=80, BURST_DAMAGE=2, SHIELD_HP=15, RECOVERY_HP=5;
 const FOCUS_BONUS=0.4, RECYCLE_RATE=0.25, MARK_MS=2000;
+const TERMINAL_DAMAGE=2, TERMINAL_RADIUS=110, NETWORK_RATE=0.2, VITAL_RATE=0.3;
 function owns(model,id){return model.world.get(model.game,'ArtifactCollection')?.ids.includes(id)===true;}
 function observed(model) {
  return model.world.query('Building','GridSlot').filter(id=>{
@@ -56,6 +57,36 @@ function focusedBuilding(model,economy) {
  });
  return watched.length===1?watched[0]:null;
 }
+// A successful observed production can fill (but never complete) one neighbouring
+// inactive cycle. No resource is spent, no free unit is spawned and no chain fires.
+function network(model,events,economy) {
+ if(!owns(model,'parasite_network'))return [];
+ const world=model.world,activated=[];
+ for(const event of events) {
+  if((event.type!=='production'&&event.type!=='unit-produced')||
+    event.artifact||!world.has(event.building))continue;
+  const donor=world.get(event.building,'GridSlot');
+  if(!donor||!world.get(model.tiles[donor.index],'Watched').active)continue;
+  const neighbors=world.query('Building','GridSlot','Production').filter(id=>{
+   if(id===event.building)return false;
+   const slot=world.get(id,'GridSlot').index;
+   if(Math.abs(slot%5-donor.index%5)+Math.abs(Math.floor(slot/5)-Math.floor(donor.index/5))!==1)
+    return false;
+   if(world.get(model.tiles[slot],'Watched').active)return false;
+   const recipe=economy.PROTOTYPE_RECIPES[world.get(id,'Building').type];
+   const progress=world.get(id,'Production');
+   return recipe && progress.elapsedMs<recipe.cycleMs;
+  }).sort((a,b)=>world.get(a,'GridSlot').index-world.get(b,'GridSlot').index);
+  const target=neighbors[0];
+  if(target===undefined)continue;
+  const progress=world.get(target,'Production');
+  const cycleMs=economy.PROTOTYPE_RECIPES[world.get(target,'Building').type].cycleMs;
+  const gained=Math.min(cycleMs-progress.elapsedMs,cycleMs*NETWORK_RATE);
+  progress.elapsedMs+=gained;
+  activated.push({type:'artifact-network',from:event.building,building:target,gainedMs:gained});
+ }
+ return activated;
+}
 function production(model,dt,economy) {
  if(!Number.isFinite(dt)||dt<0)throw new Error('Invalid artifact delta');
  const s=state(model);
@@ -68,6 +99,8 @@ function production(model,dt,economy) {
   if(s.grace[id]===0)delete s.grace[id];
  }
  const events=economy.step(model,dt,extra,focusedBuilding(model,economy));
+ // Only genuine observed completions propagate, never echoes or duplicate outputs.
+ const pulses=network(model,events,economy);
  if(owns(model,'echo')) {
   s.echoMs+=dt;
   const pulses=Math.floor(s.echoMs/ECHO_MS);
@@ -101,7 +134,7 @@ function production(model,dt,economy) {
    }
   }
  }
- return events;
+ return [...events,...pulses];
 }
 function hash(n,seed,salt){
  let x=(Math.imul(n,0x9e3779b1)^seed^salt)>>>0;
@@ -159,7 +192,23 @@ function laser(model,dt) {
  const pos={...world.get(target,'Position')};
  world.get(target,'Health').hp-=LASER_DAMAGE;
  s.laserMs=0;
- return {type:'artifact-laser',target,from:CORE,to:pos,damage:LASER_DAMAGE};
+ const chains=[];
+ if(owns(model,'terminal_overload')&&world.get(target,'Health').hp<=0) {
+  const next=world.query('Faction','Position','Health').filter(id=>{
+   if(id===target||world.get(id,'Faction').side!=='enemy'||world.get(id,'Health').hp<=0)return false;
+   const p=world.get(id,'Position');
+   return Math.hypot(p.x-pos.x,p.y-pos.y)<=TERMINAL_RADIUS;
+  }).sort((a,b)=>{
+   const p=world.get(a,'Position'),q=world.get(b,'Position');
+   return Math.hypot(p.x-pos.x,p.y-pos.y)-Math.hypot(q.x-pos.x,q.y-pos.y)||a-b;
+  }).slice(0,2);
+  for(const id of next) {
+   const to={...world.get(id,'Position')};
+   world.get(id,'Health').hp-=TERMINAL_DAMAGE;
+   chains.push({type:'artifact-terminal-chain',target:id,from:pos,to,damage:TERMINAL_DAMAGE});
+  }
+ }
+ return {type:'artifact-laser',target,from:CORE,to:pos,damage:LASER_DAMAGE,chains};
 }
 function deaths(model,deadIds) {
  if(!owns(model,'death_burst'))return [];
@@ -175,6 +224,33 @@ function deaths(model,deadIds) {
    world.get(enemy,'Health').hp-=BURST_DAMAGE;
    events.push({type:'artifact-burst',target:enemy,from:{...origin},to:{...pos},damage:BURST_DAMAGE});
   }
+ }
+ return events;
+}
+// Transfer health only to living injured allies. A corpse is consumed exactly once.
+function vital(model,deadIds) {
+ if(!owns(model,'vital_transfer'))return [];
+ const world=model.world,events=[];
+ for(const id of deadIds) {
+  if(!world.has(id)||world.get(id,'Faction')?.side!=='player'||
+   world.get(id,'Health')?.hp>0||world.hasComponent(id,'VitalTransferred'))continue;
+  world.set(id,'VitalTransferred',{done:true});
+  const at=world.get(id,'Position');
+  if(!at)continue;
+  const closest=world.query('Faction','Position','Health').filter(other=>{
+   if(other===id||world.get(other,'Faction').side!=='player')return false;
+   const hp=world.get(other,'Health');
+   return hp.hp>0&&hp.hp<hp.maxHp;
+  }).sort((a,b)=>{
+   const p=world.get(a,'Position'),q=world.get(b,'Position');
+   return Math.hypot(p.x-at.x,p.y-at.y)-Math.hypot(q.x-at.x,q.y-at.y)||a-b;
+  })[0];
+  if(closest===undefined)continue;
+  const hp=world.get(closest,'Health');
+  const amount=Math.min(hp.maxHp-hp.hp,hp.maxHp*VITAL_RATE);
+  hp.hp+=amount;
+  events.push({type:'artifact-vital',from:{...at},to:{...world.get(closest,'Position')},
+   unit:id,target:closest,amount});
  }
  return events;
 }
@@ -224,8 +300,8 @@ function propagate(model,deadIds) {
  }
  return events;
 }
-const api={state,valid,syncAttention,focusedBuilding,production,startWave,baseHit,clearWave,laser,deaths,
- recycle,propagate,FOCUS_BONUS,RECYCLE_RATE,MARK_MS,
+const api={state,valid,syncAttention,focusedBuilding,network,production,startWave,baseHit,clearWave,laser,deaths,
+ recycle,propagate,vital,FOCUS_BONUS,RECYCLE_RATE,MARK_MS,TERMINAL_DAMAGE,TERMINAL_RADIUS,NETWORK_RATE,VITAL_RATE,
  ECHO_MS,GRACE_MS,LASER_MS,DUPLICATE_MS,SHIELD_HP,LASER_RADIUS};
 root.OverseerVNextArtifactEffects=api;
 if(typeof module!=='undefined'&&module.exports)module.exports=api;

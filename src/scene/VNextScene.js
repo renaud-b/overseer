@@ -855,6 +855,26 @@ class VNextScene extends Phaser.Scene {
         }
     }
 
+    showNetworkPopup(event) {
+        if(!this.gridLayout||!this.world.has(event.building))return;
+        const slot=this.world.get(event.building,'GridSlot')?.index;
+        if(!Number.isInteger(slot))return;
+        const {x,y,cell}=this.gridLayout;
+        const cx=x+(slot%5+0.5)*cell,cy=y+(Math.floor(slot/5)+0.5)*cell;
+        const icon=this.add.graphics().setDepth(100);
+        icon.lineStyle(1.5,0xb58aff,0.85).strokeCircle(cx-15,cy-cell*0.29,6);
+        const recipe=OverseerVNextEconomy.PROTOTYPE_RECIPES[this.world.get(event.building,'Building')?.type];
+        const pct=recipe?Math.round(event.gainedMs/recipe.cycleMs*100):0;
+        const label=this.add.text(cx-4,cy-cell*0.29-8,`+${pct}%`,{
+            fontFamily:'monospace',fontSize:'12px',color:'#b58aff'
+        }).setDepth(100);
+        this.productionPopups.push({icon,label,elapsedMs:0,startY:cy-cell*0.29});
+        while(this.productionPopups.length>24) {
+            const oldest=this.productionPopups.shift();
+            oldest.icon.destroy();oldest.label.destroy();
+        }
+    }
+
     updateProductionPopups(delta) {
         if (delta <= 0) return;
         for (const popup of this.productionPopups) {
@@ -1168,7 +1188,7 @@ class VNextScene extends Phaser.Scene {
     rewardForWave(number) {
         return OverseerVNextRewards.create(number,this.waveClock.seed,
             OverseerVNextCards.REWARD_CARDS,OverseerVNextTechnologies.TYPES,
-            OverseerVNextArtifacts.IDS,OverseerVNextArtifacts.list(this.model));
+            OverseerVNextArtifacts.available(this.model),OverseerVNextArtifacts.list(this.model));
     }
 
     reconcileArtifactRewards() {
@@ -1232,6 +1252,9 @@ class VNextScene extends Phaser.Scene {
         if (!dead.size) return false;
         OverseerVNextArtifactEffects.recycle(this.model, [...dead]);
         OverseerVNextArtifactEffects.propagate(this.model, [...dead]);
+        for(const transfer of OverseerVNextArtifactEffects.vital(this.model,[...dead])) {
+            this.actionEffects.heal(transfer.from,transfer.to,0x69d9a0);
+        }
         this.battleUnits = this.battleUnits.filter(id => !dead.has(id));
         for (const id of dead) {
             if (this.world.has(id)) this.world.destroy(id);
@@ -1646,6 +1669,7 @@ class VNextScene extends Phaser.Scene {
         for (const event of economyEvents) {
             if (event.type === 'unit-produced') this.spawnFriendlyUnit(event.unitType, event);
             if (event.type === 'production') this.showProductionPopup(event);
+            if (event.type === 'artifact-network') this.showNetworkPopup(event);
         }
         const zoneEvents=OverseerVNextZones.step(this.model,dt);
         for(const event of zoneEvents) this.actionEffects.heal({x:event.x,y:event.y},{x:event.x,y:event.y},0x69d9a0);
@@ -1701,6 +1725,10 @@ class VNextScene extends Phaser.Scene {
         if (ray) {
             this.actionEffects.laser(ray.from, ray.to, 0x62e7e1);
             this.hitEffects.hit(ray.target, ray.from, ray.to, 0x62e7e1);
+            for(const arc of ray.chains||[]) {
+                this.actionEffects.laser(arc.from,arc.to,0x62e7e1);
+                this.hitEffects.hit(arc.target,arc.from,arc.to,0x62e7e1);
+            }
         }
         const deadAllies = this.battleUnits.filter(id => this.world.has(id) &&
             this.world.get(id, 'Faction').side === 'player' &&
