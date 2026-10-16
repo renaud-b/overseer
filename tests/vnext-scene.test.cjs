@@ -1837,3 +1837,63 @@ test('amplifier can be chosen in wave building rewards and describes the pulse',
     assert.equal(scene.chooseReward('perception_amplifier'),true);
     assert.ok(cards.cards(scene.model).includes('perception_amplifier'));
 });
+
+test('Cryopump shows active proximity coverage, non-punitive heat and a cooling tooltip',()=>{
+ const scene=new VNextScene();scene.create();
+ const pump=preview.placeBuilding(scene.model,'cryopump',7);
+ const reactor=preview.placeBuilding(scene.model,'reactor',6);
+ preview.setObserved(scene.model,[6,7]);
+ scene.buildUi();
+ const coverage=cooling.coverage(scene.model);
+ assert.deepEqual(coverage,{pumps:1,buildings:1});
+ assert.equal(scene.resourceLabels.cooling.value,'1');
+ assert.equal(scene.resourceStatusLabels.cooling.value,'1 CRYO');
+ cooling.step(scene.model,2000);
+ scene.paintBoard();
+ assert.equal(cooling.heat(scene.model,reactor),0);
+ assert.equal(cooling.heat(scene.model,pump),0);
+ scene.showBuildingTooltip(7);
+ assert.ok(scene.tooltipObjects.some(o=>o.value==='PORTEE : 8 CASES VOISINES'));
+ scene.hideBuildingTooltip();
+ preview.setObserved(scene.model,[6]);
+ scene.updateResourceHud();
+ assert.equal(scene.resourceLabels.cooling.value,'0');
+ assert.equal(scene.resourceStatusLabels.cooling.value,'0 CRYO');
+ assert.equal(cooling.bonus(scene.model,reactor),0);
+ scene.selectSpeed(0);
+ const heat=cooling.heat(scene.model,reactor);
+ scene.update(0,500);
+ assert.equal(cooling.heat(scene.model,reactor),heat);
+ const resumed=saves.restore(saves.capture(scene),World);
+ assert.equal(resumed.model.world.get(reactor,'BuildingHeat').percent,heat);
+});
+
+test('Cryopump appears in building reward choices but does not change the starter hand',()=>{
+ const scene=new VNextScene();scene.create();
+ assert.ok(cards.REWARD_CARDS.includes('cryopump'));
+ assert.ok(!cards.STARTER_CARDS.includes('cryopump'));
+ scene.waveClock.number=1;
+ scene.activeReward={number:1,options:['cryopump','reactor','factory']};
+ scene.buildUi();
+ const item=scene.ui.find(o=>o.getData?.('reward')==='cryopump');
+ assert.ok(item);
+ assert.equal(scene.chooseReward('cryopump'),true);
+ assert.ok(cards.cards(scene.model).includes('cryopump'));
+});
+
+test('Cryopump makes observed perception pulse faster without changing baseline detection',()=>{
+ const scene=new VNextScene();scene.create();
+ const pump=preview.placeBuilding(scene.model,'cryopump',7);
+ const amp=preview.placeBuilding(scene.model,'perception_amplifier',6);
+ preview.setObserved(scene.model,[6,7]);
+ const old=threats.radius(scene.model);
+ scene.update(0,60);
+ const phase=scene.world.get(scene.model.game,'PerceptionPulse').phaseMs;
+ assert.equal(phase,72);
+ assert.ok(threats.radius(scene.model)>old);
+ preview.setObserved(scene.model,[6]);
+ scene.update(0,60);
+ assert.equal(scene.world.get(scene.model.game,'PerceptionPulse').phaseMs,132);
+ assert.equal(scene.world.has(pump),true);
+ assert.equal(scene.world.has(amp),true);
+});

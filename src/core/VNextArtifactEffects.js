@@ -87,7 +87,7 @@ function network(model,events,economy) {
  }
  return activated;
 }
-function production(model,dt,economy) {
+function production(model,dt,economy,coolingBonuses={}) {
  if(!Number.isFinite(dt)||dt<0)throw new Error('Invalid artifact delta');
  const s=state(model);
  syncAttention(model);
@@ -98,7 +98,7 @@ function production(model,dt,economy) {
   s.grace[id]=Math.max(0,remaining-dt);
   if(s.grace[id]===0)delete s.grace[id];
  }
- const events=economy.step(model,dt,extra,focusedBuilding(model,economy));
+ const events=economy.step(model,dt,extra,focusedBuilding(model,economy),coolingBonuses);
  // Only genuine observed completions propagate, never echoes or duplicate outputs.
  const pulses=network(model,events,economy);
  if(owns(model,'echo')) {

@@ -87,11 +87,11 @@ class VNextScene extends Phaser.Scene {
         this.actionEffects = new OverseerBattleActionEffects.BattleActionEffects();
         this.types = OverseerVNextBuildings.BUILDINGS;
         // The resource HUD borrows glyphs and colors from the corresponding buildings.
-        // Cooling remains a placeholder; Data is produced by the compute node.
+        // Cooling is a live local service, never a storable Resources balance.
         this.resourceStyles = [
             { id: 'energy', label: 'Énergie', glyph: 'reactor', source: 'reactor', color: 0x35d8ef },
             { id: 'matter', label: 'Matière', glyph: 'extractor', source: 'extractor', color: 0x39dd92 },
-            { id: 'cooling', label: 'Refroidissement', glyph: 'cooling', pending: true, color: 0x87b9e8 },
+            { id: 'cooling', label: 'Refroidissement', glyph: 'cooling', flow: true, color: 0x87b9e8 },
             { id: 'components', label: 'Composants', glyph: 'factory', source: 'factory', color: 0xf4ba58 },
             { id: 'data', label: 'Données', glyph: 'compute_node', source: 'compute_node', color: 0xb58aff }
         ];
@@ -335,7 +335,10 @@ class VNextScene extends Phaser.Scene {
             const cw = l.leftW - 24;
             this.text(x + 53, y + 19, type.label, 12);
             const recipe = OverseerVNextEconomy.PROTOTYPE_RECIPES[typeId];
-            this.text(x + 53, y + 38, typeId === 'laboratory' ? 'RECHERCHE : 30 S / TECHNO' : recipe ? 'PRODUCTION EXPÉRIMENTALE' : 'À IMPLÉMENTER', 10, '#7393a8');
+            this.text(x + 53, y + 38, typeId === 'laboratory' ? 'RECHERCHE : 30 S / TECHNO' :
+                typeId === 'cryopump' ? 'REFROIDIT LES VOISINS' :
+                typeId === 'perception_amplifier' ? 'VISION PULSANTE' :
+                recipe ? 'PRODUCTION EXPÉRIMENTALE' : 'À IMPLÉMENTER', 10, '#7393a8');
             const hit = this.keep(this.add.zone(x + cw / 2, y + 32, cw, 65).setInteractive({ useHandCursor: true }));
             hit.setData('palette', typeId);
             hit.on('pointerover', () => this.showCardTooltip(typeId, x + cw, y + 10));
@@ -619,10 +622,16 @@ class VNextScene extends Phaser.Scene {
             keepTip(this.add.text(tx, ty, content, { fontFamily: 'monospace', fontSize: `${size}px`, color }).setDepth(211));
         label(x + 41, y + 14, info.label, 15, '#e3f0f5');
         label(x + pad, y + 48, info.description, 11, '#a6bfce');
+        const entity=this.world.query('Building').find(id=>this.world.get(id,'Building').type===type);
+        if(entity)label(x + pad, y + 79,`CHALEUR : ${Math.round(OverseerVNextCooling.heat(this.model,entity))}%`,10,'#f4ba58');
         if (!recipe) {
-            if (type === 'perception_amplifier') {
+            if (type === 'cryopump') {
+                label(x + pad, y + 101, 'PORTÉE : 8 CASES VOISINES', 10, '#87b9e8');
+                label(x + pad, y + 125, 'ACTIVATION : SOUS VISION', 10, '#87b9e8');
+                label(x + pad, y + 150, 'BONUS SEUL, AUCUN MALUS', 10, '#819eaf');
+            } else if (type === 'perception_amplifier') {
                 label(x + pad, y + 101, 'RAYON : 350 → 500', 11, '#91ced1');
-                label(x + pad, y + 125, 'PULSATION : 5 S SOUS VISION', 10, '#91ced1');
+                label(x + pad, y + 125, 'PULSATION : 5 S (PLUS RAPIDE SI FROID)', 10, '#91ced1');
                 label(x + pad, y + 150, 'CIBLES MARQUÉES : MÉMOIRE 2 S', 9, '#819eaf');
             } else if (type === 'laboratory') {
                 label(x + pad, y + 105, 'PRODUIT : TECHNOLOGIE DE SOIN', 10, '#69d9a0');
@@ -656,7 +665,13 @@ class VNextScene extends Phaser.Scene {
     drawGlyph(g, type, x, y, color, r) {
         g.lineStyle(2, color, 1);
         if (type === 'reactor') g.strokeCircle(x, y, r * 0.75);
-        else if (type === 'perception_amplifier') {
+        else if (type === 'cryopump') {
+            g.strokeCircle(x,y,r*0.45);
+            for(const a of [0,Math.PI/3,2*Math.PI/3]) {
+                const dx=Math.cos(a)*r,dy=Math.sin(a)*r;
+                g.lineBetween(x-dx,y-dy,x+dx,y+dy);
+            }
+        } else if (type === 'perception_amplifier') {
             g.strokeCircle(x, y, r * 0.48);
             g.strokeCircle(x, y, r * 0.82);
             g.lineBetween(x - r, y, x - r * 0.8, y);
@@ -728,6 +743,12 @@ class VNextScene extends Phaser.Scene {
                 g.lineStyle(1, 0x67e5e7, 0.7).strokeCircle(p.x, p.y, cell * 0.36);
             }
             this.drawGlyph(g, type, p.x, p.y, active ? style.color : 0x5b7687, cell * 0.18);
+            const heat=OverseerVNextCooling.heat(this.model,id);
+            const hx=p.x-cell*0.22,hy=p.y-cell*0.4,hw=cell*0.44;
+            g.fillStyle(0x1b3443,0.8).fillRect(hx,hy,hw,2.5);
+            g.fillStyle(0xf4ba58,0.8).fillRect(hx,hy,hw*heat/100,2.5);
+            if(OverseerVNextCooling.bonus(this.model,id)>0)
+                g.lineStyle(1,0x87b9e8,0.65).strokeCircle(p.x,p.y,cell*0.34);
             const progress = this.world.get(id, 'Production') || (type === 'laboratory' ? this.world.get(id, 'Research') : null);
             const progressDuration = type === 'laboratory' ? OverseerVNextTechnologies.RESEARCH_MS : progress?.cooldownMs;
             if (active && progress && progressDuration > 0) {
@@ -924,7 +945,9 @@ class VNextScene extends Phaser.Scene {
         this.hideResourceTooltip();
         const tipX = Math.max(8, Math.min(this.scale.width - 190, x));
         const tipY = Math.max(72, Math.min(this.scale.height - 35, y));
-        this.resourceTooltip = this.add.text(tipX, tipY, style.label, {
+        const coverage=style.flow?OverseerVNextCooling.coverage(this.model):null;
+        const title=coverage?`Refroidissement : ${coverage.buildings} couverts`:style.label;
+        this.resourceTooltip = this.add.text(tipX, tipY, title, {
             fontFamily: 'monospace', fontSize: '12px', color: '#e3f0f5',
             backgroundColor: '#0b1d2b', padding: { x: 9, y: 6 }
         }).setDepth(220);
@@ -1015,7 +1038,7 @@ class VNextScene extends Phaser.Scene {
     drawTechnologies() {
         const l=this.layout, right=Boolean(l.rightW);
         const x=right?l.rightX+12:l.boardX+16;
-        const y=right?l.mainTop+223:this.gridLayout.y+this.gridLayout.size+105;
+        const y=right?l.mainTop+223:this.gridLayout.y+this.gridLayout.size+125;
         const items=OverseerVNextTechnologies.inventory(this.model).items;
         if(!right && l.leftW<165)return;
         this.text(x,y,'TECHNOLOGIES',12,'#b58aff');
@@ -1094,6 +1117,16 @@ class VNextScene extends Phaser.Scene {
         this.updateVisionUpgradeButton();
         for (const style of this.resourceStyles) {
             if (style.pending) continue;
+            if(style.flow) {
+                const coverage=OverseerVNextCooling.coverage(this.model);
+                this.resourceLabels[style.id]?.setText(String(coverage.buildings));
+                this.compactResources?.[style.id]?.setText(String(coverage.buildings));
+                for(const status of [this.resourceStatusLabels[style.id],this.compactResourceDeltas?.[style.id]]) {
+                    status?.setText(`${coverage.pumps} CRYO`);
+                    status?.setColor('#87b9e8');
+                }
+                continue;
+            }
             this.resourceLabels[style.id]?.setText(String(balance[style.id]));
             this.compactResources?.[style.id]?.setText(String(balance[style.id]));
             const rate = Number(this.resourceRatePerSecond(style.id).toFixed(1));
@@ -1674,9 +1707,11 @@ class VNextScene extends Phaser.Scene {
         for (const wave of OverseerVNextWaves.advance(this.waveClock, dt)) this.triggerWave(wave);
         this.updateWaveTimeline();
         const previousResources = { ...this.world.get(this.model.game, 'Resources') };
-        const economyEvents = OverseerVNextArtifactEffects.production(this.model, dt, OverseerVNextEconomy);
+        OverseerVNextCooling.step(this.model,dt);
+        const coolingBonuses=OverseerVNextCooling.bonuses(this.model);
+        const economyEvents = OverseerVNextArtifactEffects.production(this.model, dt, OverseerVNextEconomy,coolingBonuses);
         const researchEvents=OverseerVNextTechnologies.step(this.model,dt,
-            OverseerVNextArtifactEffects.focusedBuilding(this.model,OverseerVNextEconomy));
+            OverseerVNextArtifactEffects.focusedBuilding(this.model,OverseerVNextEconomy),coolingBonuses);
         if(researchEvents.length)this.buildUi();
         for (const event of economyEvents) {
             if (event.type === 'unit-produced') this.spawnFriendlyUnit(event.unitType, event);
@@ -1692,7 +1727,8 @@ class VNextScene extends Phaser.Scene {
         this.paintBoard();
         const players = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'player' && this.world.get(id, 'Health').hp > 0);
         const enemies = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'enemy' && this.world.get(id, 'Health').hp > 0);
-        OverseerVNextThreats.step(this.model, dt);
+        const pulseBonus=Math.max(0,...OverseerVNextThreats.amplifiers(this.model).map(id=>coolingBonuses[id]||0));
+        OverseerVNextThreats.step(this.model, dt, 1+pulseBonus);
         OverseerVNextThreats.update(this.world, enemies, dt, OverseerVNextThreats.radius(this.model));
         const posts = new Map(players.map((id, index) =>
             [id, OverseerCombat.formationPosition(index, players.length)]));

@@ -8,7 +8,7 @@
         { id: 'extractor', label: 'Extracteur', group: 'economy', color: 0x39dd92, description: 'Extrait de la matière brute.', status: 'prototype' },
         { id: 'factory', label: 'Fabrique', group: 'economy', color: 0xf4ba58, description: 'Transforme des intrants en composants.', status: 'prototype' },
         { id: 'compute_node', label: 'Nœud de calcul', group: 'economy', color: 0xb58aff, description: 'Transforme énergie, matière et composants en données.', status: 'prototype' },
-        { id: 'cryopump', label: 'Cryopompe', group: 'economy', color: 0x87b9e8, description: 'Soutient les machines grâce au refroidissement.', status: 'planned' },
+        { id: 'cryopump', label: 'Cryopompe', group: 'economy', color: 0x87b9e8, description: 'Refroidit ses huit cases voisines sous vision et donne des bonus de cadence.', status: 'prototype' },
         { id: 'barracks', label: 'Caserne', group: 'military', color: 0x62e7e1, description: 'Fabrique des unités de base autonomes.', status: 'planned' },
         { id: 'ballistics', label: 'Centre balistique', group: 'military', color: 0xe3bd6a, description: 'Fabrique des tireurs à distance.', status: 'planned' },
         { id: 'armor_forge', label: 'Forge blindée', group: 'military', color: 0x5fa8e6, description: 'Fabrique des unités résistantes.', status: 'planned' },

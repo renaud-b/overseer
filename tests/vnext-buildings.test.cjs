@@ -21,6 +21,7 @@ test('undecided mechanics remain explicitly planned', () => {
     assert.equal(getBuilding('compute_node').status, 'prototype');
     assert.equal(getBuilding('barracks').status, 'planned');
     assert.equal(getBuilding('absent'), null);
+    assert.equal(getBuilding('cryopump').status,'prototype');
     assert.ok(!Object.hasOwn(getBuilding('cryopump'), 'recipe'));
     assert.ok(!Object.hasOwn(getBuilding('barracks'), 'constructionCost'));
 });
