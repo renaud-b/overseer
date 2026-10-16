@@ -1230,6 +1230,8 @@ class VNextScene extends Phaser.Scene {
         const dead = new Set(this.battleUnits.filter(id =>
             !this.world.has(id) || this.world.get(id, 'Health')?.hp <= 0));
         if (!dead.size) return false;
+        OverseerVNextArtifactEffects.recycle(this.model, [...dead]);
+        OverseerVNextArtifactEffects.propagate(this.model, [...dead]);
         this.battleUnits = this.battleUnits.filter(id => !dead.has(id));
         for (const id of dead) {
             if (this.world.has(id)) this.world.destroy(id);
@@ -1239,6 +1241,7 @@ class VNextScene extends Phaser.Scene {
             if (alive.length) this.waveMembers.set(number, alive);
             else this.waveMembers.delete(number);
         }
+        this.updateResourceHud(); // Refunds from destroyed units are immediately visible.
         this.saveCurrentGame();
         return true;
     }
@@ -1412,7 +1415,7 @@ class VNextScene extends Phaser.Scene {
         this.paintBattle();
     }
 
-    spawnFriendlyUnit(type) {
+    spawnFriendlyUnit(type, productionEvent = null) {
         const stats = this.cache.json.get('vnextLegacyStats');
         const config = stats.units.find(unit => unit.id === type);
         if (!config) return;
@@ -1427,7 +1430,16 @@ class VNextScene extends Phaser.Scene {
             elapsedMs: 0, detectionRadius: 400, behavior: type === 'unit_dronoid' ? 'healer' : config.behavior || null
         });
         this.world.set(id, 'PreviewUnit', { type });
+        // Manufacturing provenance lives on the unit, not in the renderer.
+        // No cost for spontaneous units, reinforcements or the starter lineup.
+        if (productionEvent?.type === 'unit-produced' &&
+            productionEvent.unitType === type && productionEvent.spent) {
+            this.world.set(id, 'ManufacturedCost', {
+                resources: { ...productionEvent.spent }
+            });
+        }
         this.battleUnits.push(id);
+        return id;
     }
 
     battleUnitStyle(id) {
@@ -1628,10 +1640,11 @@ class VNextScene extends Phaser.Scene {
         this.updateWaveTimeline();
         const previousResources = { ...this.world.get(this.model.game, 'Resources') };
         const economyEvents = OverseerVNextArtifactEffects.production(this.model, dt, OverseerVNextEconomy);
-        const researchEvents=OverseerVNextTechnologies.step(this.model,dt);
+        const researchEvents=OverseerVNextTechnologies.step(this.model,dt,
+            OverseerVNextArtifactEffects.focusedBuilding(this.model,OverseerVNextEconomy));
         if(researchEvents.length)this.buildUi();
         for (const event of economyEvents) {
-            if (event.type === 'unit-produced') this.spawnFriendlyUnit(event.unitType);
+            if (event.type === 'unit-produced') this.spawnFriendlyUnit(event.unitType, event);
             if (event.type === 'production') this.showProductionPopup(event);
         }
         const zoneEvents=OverseerVNextZones.step(this.model,dt);

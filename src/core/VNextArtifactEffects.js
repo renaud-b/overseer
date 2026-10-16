@@ -5,6 +5,7 @@
 const ECHO_MS=20000, GRACE_MS=3000, LASER_MS=15000, DUPLICATE_MS=30000;
 const CORE={x:65,y:300}, LASER_RADIUS=350, LASER_DAMAGE=3;
 const BURST_RADIUS=80, BURST_DAMAGE=2, SHIELD_HP=15, RECOVERY_HP=5;
+const FOCUS_BONUS=0.4, RECYCLE_RATE=0.25, MARK_MS=2000;
 function owns(model,id){return model.world.get(model.game,'ArtifactCollection')?.ids.includes(id)===true;}
 function observed(model) {
  return model.world.query('Building','GridSlot').filter(id=>{
@@ -46,6 +47,15 @@ function syncAttention(model) {
   if(current.has(Number(id))||!model.world.has(Number(id)))delete s.grace[id];
  s.observed=now;
 }
+// Only one productive node watched: empty observed tiles do not break focus.
+function focusedBuilding(model,economy) {
+ if(!owns(model,'hyperfocus'))return null;
+ const watched=observed(model).filter(id=>{
+  const type=model.world.get(id,'Building').type;
+  return Boolean(economy.PROTOTYPE_RECIPES[type])||type==='laboratory';
+ });
+ return watched.length===1?watched[0]:null;
+}
 function production(model,dt,economy) {
  if(!Number.isFinite(dt)||dt<0)throw new Error('Invalid artifact delta');
  const s=state(model);
@@ -57,7 +67,7 @@ function production(model,dt,economy) {
   s.grace[id]=Math.max(0,remaining-dt);
   if(s.grace[id]===0)delete s.grace[id];
  }
- const events=economy.step(model,dt,extra);
+ const events=economy.step(model,dt,extra,focusedBuilding(model,economy));
  if(owns(model,'echo')) {
   s.echoMs+=dt;
   const pulses=Math.floor(s.echoMs/ECHO_MS);
@@ -168,7 +178,54 @@ function deaths(model,deadIds) {
  }
  return events;
 }
-const api={state,valid,syncAttention,production,startWave,baseHit,clearWave,laser,deaths,
+// Only units that actually consumed resources carry ManufacturedCost. Starter,
+ // summoned and spontaneously generated units never refund anything.
+function recycle(model,deadIds) {
+ if(!owns(model,'recycle'))return [];
+ const world=model.world,resources=world.get(model.game,'Resources'),events=[];
+ for(const id of deadIds){
+  if(!world.has(id)||world.get(id,'Faction')?.side!=='player'||
+    world.get(id,'Health')?.hp>0)continue;
+  const provenance=world.get(id,'ManufacturedCost');
+  if(!provenance)continue;
+  const refunded={};
+  for(const [resource,quantity] of Object.entries(provenance.resources)){
+   if(!Object.hasOwn(resources,resource)||!Number.isFinite(quantity)||quantity<0)continue;
+   const amount=quantity*RECYCLE_RATE;
+   resources[resource]+=amount;
+   refunded[resource]=amount;
+  }
+  world.remove(id,'ManufacturedCost'); // Idempotent even before entity cleanup.
+  events.push({type:'artifact-recycle',unit:id,refunded});
+ }
+ return events;
+}
+// A marked victim passes its target designation to the closest living enemy.
+ // Use the existing ThreatMark component: CombatSystem already understands it.
+function propagate(model,deadIds) {
+ if(!owns(model,'mark_chain'))return [];
+ const world=model.world,events=[];
+ for(const id of deadIds) {
+  if(!world.has(id)||world.get(id,'Faction')?.side!=='enemy'||
+   world.get(id,'Health')?.hp>0||!world.get(id,'ThreatMark'))continue;
+  const at=world.get(id,'Position');
+  if(!at)continue;
+  const target=world.query('Faction','Health','Position').filter(other=>
+   other!==id&&world.get(other,'Faction').side==='enemy'&&
+   world.get(other,'Health').hp>0).sort((a,b)=>{
+    const p=world.get(a,'Position'),q=world.get(b,'Position');
+    return Math.hypot(p.x-at.x,p.y-at.y)-Math.hypot(q.x-at.x,q.y-at.y)||a-b;
+   })[0];
+  if(target===undefined)continue;
+  const existing=world.get(target,'ThreatMark');
+  world.set(target,'ThreatMark',{remainingMs:Math.max(existing?.remainingMs||0,MARK_MS)});
+  world.remove(id,'ThreatMark'); // Exactly one transfer per corpse.
+  events.push({type:'artifact-mark-transfer',from:id,target});
+ }
+ return events;
+}
+const api={state,valid,syncAttention,focusedBuilding,production,startWave,baseHit,clearWave,laser,deaths,
+ recycle,propagate,FOCUS_BONUS,RECYCLE_RATE,MARK_MS,
  ECHO_MS,GRACE_MS,LASER_MS,DUPLICATE_MS,SHIELD_HP,LASER_RADIUS};
 root.OverseerVNextArtifactEffects=api;
 if(typeof module!=='undefined'&&module.exports)module.exports=api;

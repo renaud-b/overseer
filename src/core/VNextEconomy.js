@@ -80,13 +80,14 @@
         for (const [key, qty] of Object.entries(recipe.consumes)) resources[key] -= qty;
         if (MILITARY[building.type]) return {
             type: 'unit-produced', building: id, buildingType: building.type,
-            unitType: MILITARY[building.type].unitType
+            unitType: MILITARY[building.type].unitType,
+            spent: { ...recipe.consumes } // Provenance for potential refund on death.
         };
         for (const [key, qty] of Object.entries(recipe.produces)) resources[key] += qty;
         return { type: 'production', building: id, buildingType: building.type };
     }
 
-    function step(model, deltaMs, extraActivationMs = {}) {
+    function step(model, deltaMs, extraActivationMs = {}, focusedBuildingId = null) {
         if (!Number.isFinite(deltaMs) || deltaMs < 0) throw new Error('Invalid simulation delta');
         const resources = initialize(model);
         if (deltaMs === 0) return [];
@@ -104,7 +105,9 @@
             // Surcharge accelerates only observed machines; the artifact grace is unboosted.
             const extra = watched ? model.world.get(model.game, 'TechnologyEffects')?.overloadMs || 0 : 0;
             const acceleratedMs = activeMs + Math.min(activeMs, Math.max(0, extra));
-            progress.elapsedMs += acceleratedMs;
+            // Hyperfocus stacks additively with Surcharge, never boosts grace or Echo.
+            const focusBonus = watched && id === focusedBuildingId ? activeMs * 0.4 : 0;
+            progress.elapsedMs += acceleratedMs + focusBonus;
             progress.blocked = false;
             if (MILITARY[type]) {
                 // A completed cycle waits for materials/capacity. No resource reservation,
