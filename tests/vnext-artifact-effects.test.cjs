@@ -209,17 +209,32 @@ test('Recyclage neuronal returns 25% of a paid unit recipe only once', () => {
  const dead=unit(m,'player',100,100,0);
  m.world.set(dead,'ManufacturedCost',{resources:{components:25,energy:15}});
  const free=unit(m,'player',110,100,0);
- assert.equal(effects.recycle(m,[free,dead]).length,1);
- assert.equal(resources(m).components,6.25);
- assert.equal(resources(m).energy,3.75);
+ assert.deepEqual(effects.recycle(m,[free,dead]),[{type:'artifact-recycle',unit:dead,refunded:{components:6,energy:4}}]);
+ assert.equal(resources(m).components,6);
+ assert.equal(resources(m).energy,4);
  assert.equal(m.world.hasComponent(dead,'ManufacturedCost'),false);
  assert.deepEqual(effects.recycle(m,[dead,free]),[]);
- assert.equal(resources(m).energy,3.75);
+ assert.equal(resources(m).energy,4);
  const alive=unit(m,'player',120,100,6);
  m.world.set(alive,'ManufacturedCost',{resources:{components:25}});
  assert.deepEqual(effects.recycle(m,[alive]),[]);
- assert.equal(resources(m).components,6.25);
+ assert.equal(resources(m).components,6);
 });
+test('Recyclage refunds round to whole units on top of an existing balance', () => {
+ const m=model();artifacts.add(m,'recycle');
+ resources(m).energy=47;
+ resources(m).components=44;
+ const dead=unit(m,'player',100,100,0);
+ m.world.set(dead,'ManufacturedCost',{resources:{energy:15,components:25}});
+ const events=effects.recycle(m,[dead]);
+ assert.deepEqual(events[0].refunded,{energy:4,components:6});
+ assert.equal(resources(m).energy,51); // Not 50.75.
+ assert.equal(resources(m).components,50); // Not 50.25.
+ assert.ok(Number.isInteger(resources(m).energy));
+ assert.ok(Number.isInteger(resources(m).components));
+ assert.deepEqual(effects.recycle(m,[dead]),[]);
+});
+
 test('Propagation de conscience targets nearest LIVING enemy and expires outside detection', () => {
  const threats=require('../src/core/VNextThreats.js');
  const m=model();artifacts.add(m,'mark_chain');

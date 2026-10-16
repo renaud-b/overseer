@@ -1672,14 +1672,14 @@ test('manufactured soldiers record costs; Recyclage refunds exactly once while s
  const count=scene.battleUnits.length;
  assert.equal(scene.cleanupDeadUnits(),true);
  assert.equal(scene.battleUnits.length,count-1);
- assert.equal(stock.components,6.25);
- assert.equal(stock.energy,3.75);
+ assert.equal(stock.components,6);
+ assert.equal(stock.energy,4);
  assert.equal(scene.cleanupDeadUnits(),false);
- assert.equal(stock.energy,3.75);
+ assert.equal(stock.energy,4);
  const starter=scene.battleUnits[0];
  scene.world.get(starter,'Health').hp=0;
  scene.cleanupDeadUnits();
- assert.equal(stock.components,6.25);
+ assert.equal(stock.components,6);
  savedEntries.clear();
 });
 test('a manufactured unit keeps its refund provenance through Continue', () => {
@@ -1695,8 +1695,8 @@ test('a manufactured unit keeps its refund provenance through Continue', () => {
  resumed.world.get(id,'Health').hp=0;
  resumed.cleanupDeadUnits();
  const resources=resumed.world.get(resumed.model.game,'Resources');
- assert.equal(resources.components,6.25);
- assert.equal(resources.energy,3.75);
+ assert.equal(resources.components,6);
+ assert.equal(resources.energy,4);
  savedEntries.clear();
 });
 test('a marked enemy killed during combat transfers designation before ECS cleanup', () => {
