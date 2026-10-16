@@ -267,7 +267,8 @@ function recycle(model,deadIds) {
   const refunded={};
   for(const [resource,quantity] of Object.entries(provenance.resources)){
    if(!Object.hasOwn(resources,resource)||!Number.isFinite(quantity)||quantity<0)continue;
-   const amount=quantity*RECYCLE_RATE;
+   // Refund full units so resource balances remain discrete.
+   const amount=Math.round(quantity*RECYCLE_RATE);
    resources[resource]+=amount;
    refunded[resource]=amount;
   }
