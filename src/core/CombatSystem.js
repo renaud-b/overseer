@@ -8,7 +8,14 @@ function stepUnit(world,id,delta,options={}){
  combat.elapsedMs+=delta;
  const opponents=(options.opponents||[]).filter(other=>world.has(other)&&world.get(other,'Health')?.hp>0).map(other=>({id:other,position:world.get(other,'Position')})).filter(o=>o.position);
  const detection=combat.detectionRadius;
- const candidate=opponents.filter(o=>distance(position,o.position)<detection).sort((a,b)=>distance(position,a.position)-distance(position,b.position))[0];
+ const central=options.centralDetection && faction.side==='player';
+ const eligible=opponents.filter(o=>central
+   ? Boolean(world.get(o.id,'ThreatMark')) || distance(position,o.position)<=55
+   : distance(position,o.position)<detection);
+ // Retain the previous marked target until it disappears, not merely until a closer enemy arrives.
+ const locked=central && eligible.find(o=>o.id===combat.targetId);
+ const candidate=locked || eligible.sort((a,b)=>distance(position,a.position)-distance(position,b.position))[0];
+ if (central) combat.targetId=candidate?.id ?? null;
  const target=combat.behavior==='base_rusher'?null:candidate;
  const events=[];
  if(combat.behavior==='healer' && faction.side==='player') {
