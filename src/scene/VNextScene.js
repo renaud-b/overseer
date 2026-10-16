@@ -1207,6 +1207,9 @@ class VNextScene extends Phaser.Scene {
         g.clear();
         const p = (x, y) => ({ x: b.x + b.w * x / 1000, y: b.y + b.h * y / 600 });
         const base = p(65, 300);
+        // Detection is measured in simulation units; the panel mask clips its visible edge.
+        const detectionRadius = OverseerVNextThreats.RADIUS * b.w / 1000;
+        g.lineStyle(1, 0x91ced1, 0.44).strokeCircle(base.x, base.y, detectionRadius);
         const coreColor = this.baseHealthColor();
         g.lineStyle(2, coreColor, 0.82).strokeCircle(base.x, base.y, 12);
         g.lineStyle(1, coreColor, 0.38).strokeCircle(base.x, base.y, 21);
@@ -1232,6 +1235,10 @@ class VNextScene extends Phaser.Scene {
             const style = this.battleUnitStyle(id);
             const color = OverseerHitEffects.tintColor(style.color, visual.flash);
             this.drawBattleUnit(g, style, q.x, q.y, r, color);
+            if (side === 'enemy' && this.world.get(id, 'ThreatMark')) {
+                g.lineStyle(1.5, 0xff6674, 0.92).strokeRect(
+                    q.x - r - 4, q.y - r - 4, (r + 4) * 2, (r + 4) * 2);
+            }
             g.fillStyle(0x23404e, 0.8).fillRect(q.x - 11, q.y - r - 9, 22, 3);
             g.fillStyle(side === 'player' ? 0x44dc91 : 0xff5e79, 1)
                 .fillRect(q.x - 11, q.y - r - 9, 22 * Math.max(0, hp.hp / hp.maxHp), 3);
@@ -1321,6 +1328,7 @@ class VNextScene extends Phaser.Scene {
         this.paintBoard();
         const players = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'player' && this.world.get(id, 'Health').hp > 0);
         const enemies = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'enemy' && this.world.get(id, 'Health').hp > 0);
+        OverseerVNextThreats.update(this.world, enemies, dt);
         for (const id of [...players, ...enemies]) {
             if (this.world.get(id, 'Health').hp <= 0) continue;
             const side = this.world.get(id, 'Faction').side;
@@ -1328,7 +1336,8 @@ class VNextScene extends Phaser.Scene {
                 opponents: side === 'player' ? enemies : players,
                 base: side === 'enemy' && this.baseHp > 0 ? { x: 65, y: 300 } : null,
                 patrol: side === 'player' ? { x: 280, y: 300 } : null,
-                allies: side === 'player' ? players : []
+                allies: side === 'player' ? players : [],
+                centralDetection: side === 'player'
             });
             for (const event of events) {
                 if (event.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - event.damage);
