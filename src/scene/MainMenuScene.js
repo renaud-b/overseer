@@ -22,7 +22,7 @@ const OVERSEER_MENU_CIRCUITS = [
     [[.27, 1], [.27, .92], [.38, .92], [.38, .86]],
     [[.70, 1], [.70, .93], [.62, .93], [.62, .86]]
 ];
-// New VNext entry screen. The previous menu remains in LegacyMainMenuScene.
+// Primary entry point for VNext, talents and the shared options modal.
 class MainMenuScene extends Phaser.Scene {
     constructor() {
         super({ key: 'MainMenuScene' });
