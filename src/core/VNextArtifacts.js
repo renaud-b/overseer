@@ -43,6 +43,7 @@
     }
     function list(model) { return [...collection(model).ids]; }
     function available(model) {
+        if (!hasCapacity(model)) return [];
         const owned = new Set(list(model));
         return IDS.filter(id => !owned.has(id) &&
             (id !== 'terminal_overload' || owned.has('core_laser')));

@@ -1740,7 +1740,7 @@ test('terminal laser discharge adds only two visible bolts to living nearby enem
  }
  artifactEffects.state(scene.model).laserMs=artifactEffects.LASER_MS;
  scene.update(0,60);
- assert.equal(scene.world.get(ids[0],'Health').hp<=0,true);
+ assert.equal(scene.world.has(ids[0]),false,'the victim has been reclaimed by the ECS');
  assert.equal(scene.world.get(ids[1],'Health').hp,8);
  assert.equal(scene.world.get(ids[2],'Health').hp,8);
  assert.equal(scene.world.get(ids[3],'Health').hp,10);
