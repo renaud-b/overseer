@@ -178,6 +178,17 @@
                 g.lineStyle(1.5,0xb58aff,0.82).lineBetween(source.x,source.y,target.x,target.y);
             }
         }
+        // Subtle links expose which observed neighbors benefit from each Cryopump.
+        const pumps = OverseerVNextCooling.pumps(this.model);
+        const cooled = OverseerVNextCooling.bonuses(this.model);
+        for (const pump of pumps) {
+            const from = point(this.world.get(pump, 'GridSlot').index);
+            for (const [id, rate] of Object.entries(cooled)) {
+                if (!rate || Number(id) === pump || !OverseerVNextCooling.cooled(this.model, Number(id), [pump])) continue;
+                const to = point(this.world.get(Number(id), 'GridSlot').index);
+                g.lineStyle(1, 0x87b9e8, 0.48).lineBetween(from.x, from.y, to.x, to.y);
+            }
+        }
         this.world.query('Building', 'GridSlot').forEach(id => {
             const slot = this.world.get(id, 'GridSlot').index;
             const p = point(slot);
@@ -194,10 +205,6 @@
             const relayed=OverseerVNextArtifactEffects.relayActive(this.model,id);
             if(relayed)g.lineStyle(1.5,0xb58aff,0.85).strokeCircle(p.x,p.y,cell*0.36);
             this.drawGlyph(g, type, p.x, p.y, active ? style.color : 0x5b7687, cell * 0.18);
-            const heat=OverseerVNextCooling.heat(this.model,id);
-            const hx=p.x-cell*0.22,hy=p.y-cell*0.4,hw=cell*0.44;
-            g.fillStyle(0x1b3443,0.8).fillRect(hx,hy,hw,2.5);
-            g.fillStyle(0xf4ba58,0.8).fillRect(hx,hy,hw*heat/100,2.5);
             if(OverseerVNextCooling.bonus(this.model,id)>0)
                 g.lineStyle(1,0x87b9e8,0.65).strokeCircle(p.x,p.y,cell*0.34);
             const progress = this.world.get(id, 'Production') || (type === 'laboratory' ? this.world.get(id, 'Research') : null);
