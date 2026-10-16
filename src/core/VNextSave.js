@@ -22,7 +22,7 @@
                 progression.fractions && typeof progression.fractions==='object' &&
                 !Array.isArray(progression.fractions), 'production talents');
             for (const [entityId,entry] of Object.entries(progression.fractions)) {
-                requireValid(/^\\d+$/.test(entityId) && world.has(Number(entityId)) &&
+                requireValid(/^\d+$/.test(entityId) && world.has(Number(entityId)) &&
                     world.hasComponent(Number(entityId),'Building') &&
                     entry && typeof entry==='object' &&
                     ['inputs','outputs'].every(kind => entry[kind] &&
