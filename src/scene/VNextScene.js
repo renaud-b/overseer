@@ -361,6 +361,8 @@ class VNextScene extends Phaser.Scene {
         this.paletteGraphics = g;
         this.refreshPaletteSelection();
         this.note = this.text(l.m + 13, l.mainBottom - 75, 'Économie ECS : test actif', 11, '#a5b8c6');
+        this.shardLabel = this.text(l.m + 13, l.mainBottom - 47,
+            `ÉCLATS DE MÉMOIRE  ${OverseerVNextMemoryShards.balance(this.saveStorage())}`, 11, '#f5b94f');
     }
 
     refreshPaletteSelection() {
@@ -1285,6 +1287,8 @@ class VNextScene extends Phaser.Scene {
             this.baseHp = recovered.hp;
             if (recovered.healed) this.actionEffects.heal(
                 {x:65,y:300}, {x:65,y:300}, 0x69d9a0);
+            const payout=OverseerVNextMemoryShards.grant(this.model,number,this.saveStorage());
+            if(payout)this.shardLabel?.setText(`ÉCLATS DE MÉMOIRE  ${payout.balance}`);
             this.rewardQueue.push(this.rewardForWave(number));
             changed = true;
         }
@@ -1360,7 +1364,10 @@ class VNextScene extends Phaser.Scene {
         this.keep(this.add.text(x + 20, y + 19, `VAGUE ${reward.number} TERMINÉE`, {
             fontFamily:'monospace',fontSize:'17px',color:'#dfeaf0'
         }).setDepth(301));
-        this.keep(this.add.text(x + 20, y + 48, 'Choisissez une carte · simulation en pause', {
+        const paid=OverseerVNextMemoryShards.awarded(this.model,reward.number);
+        const subtitle=paid ? `+${OverseerVNextMemoryShards.PER_WAVE} ÉCLAT DE MÉMOIRE · Choisissez une carte` :
+            'Choisissez une carte · simulation en pause';
+        this.keep(this.add.text(x + 20, y + 48, subtitle, {
             fontFamily:'monospace',fontSize:'11px',color:'#8daabb'
         }).setDepth(301));
         const stage=OverseerVNextRewards.current(reward);

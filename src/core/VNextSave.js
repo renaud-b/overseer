@@ -77,6 +77,10 @@
                 world.get(id, 'Tile')?.index === i &&
                 typeof world.get(id, 'Watched')?.active === 'boolean', 'tile');
         });
+        const payoutState=world.get(game,'WaveShardRewards');
+        requireValid(!payoutState || (Array.isArray(payoutState.claimed) &&
+            new Set(payoutState.claimed).size===payoutState.claimed.length &&
+            payoutState.claimed.every(wave=>integer(wave,1,data.waveClock?.number))), 'wave shard payouts');
         const resources = world.get(game, 'Resources');
         requireValid(resources && ['energy', 'matter', 'components'].every(id =>
             number(resources[id])) &&
