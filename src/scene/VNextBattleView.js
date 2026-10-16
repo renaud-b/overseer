@@ -118,6 +118,15 @@
         return 0x48b8c4;
     },
 
+    detectionColor() {
+        // One HP-dependent hue for both passive detection and the radar wave.
+        // Mixing a little white improves legibility without changing the core hue.
+        const color = this.baseHealthColor();
+        const lighten = channel => Math.round(channel + (255 - channel) * 0.35);
+        return (lighten((color >> 16) & 255) << 16) |
+            (lighten((color >> 8) & 255) << 8) | lighten(color & 255);
+    },
+
     paintBattle() {
         if (!this.battleGraphics || !this.battleBounds) return;
         const g = this.battleGraphics, b = this.battleBounds;
@@ -126,20 +135,29 @@
         g.clear();
         const p = (x, y) => ({ x: b.x + b.w * x / 1000, y: b.y + b.h * y / 600 });
         const base = p(65, 300);
-        // Detection is measured in simulation units; the panel mask clips its visible edge.
-        const detectionRadius = OverseerVNextThreats.radius(this.model) * b.w / 1000;
-        g.lineStyle(1, 0x91ced1, 0.44)
-            .strokeCircle(base.x, base.y, detectionRadius);
-        const sweepRadius=OverseerVNextThreats.sweepRadius(this.model);
-        if(sweepRadius>0) {
-            // The battlefield uses an anisotropic (1000 x 600) simulation projection.
-            // Project both axes so the rendered wave crosses a unit when ECS marks it.
-            // The existing panel geometry mask removes the ring outside the screen.
-            const rx=sweepRadius*b.w/1000,ry=sweepRadius*b.h/600;
-            g.lineStyle(5,0x91ced1,0.08).strokeEllipse(base.x,base.y,rx*2,ry*2);
-            g.lineStyle(1.7,0x91ced1,0.72).strokeEllipse(base.x,base.y,rx*2,ry*2);
-        }
         const coreColor = this.baseHealthColor();
+        const sensorColor = this.detectionColor();
+        if (OverseerVNextThreats.active(this.model)) {
+            // The regular 350-unit detection still works, but is hidden while the
+            // amplifier sweeps. Phaser renders a true circular radar from the core.
+            const progress = OverseerVNextThreats.sweepRadius(this.model) /
+                OverseerVNextThreats.PULSE.maxRadius;
+            if (progress > 0) {
+                // Reach every panel corner before the wave vanishes and restarts.
+                // World-to-screen is anisotropic: this is explicitly the visual
+                // circle, while threat marking remains in deterministic ECS space.
+                const maxDx = Math.max(base.x - b.x, b.x + b.w - base.x);
+                const maxDy = Math.max(base.y - b.y, b.y + b.h - base.y);
+                const outerRadius = Math.hypot(maxDx, maxDy) + 8;
+                const ringRadius = progress * outerRadius;
+                g.lineStyle(5, sensorColor, 0.08).strokeCircle(base.x, base.y, ringRadius);
+                g.lineStyle(1.7, sensorColor, 0.72).strokeCircle(base.x, base.y, ringRadius);
+            }
+        } else {
+            const detectionRadius = OverseerVNextThreats.radius(this.model) * b.w / 1000;
+            g.lineStyle(1, sensorColor, 0.44)
+                .strokeCircle(base.x, base.y, detectionRadius);
+        }
         if (OverseerVNextArtifactEffects.state(this.model).shieldPoints > 0) {
             g.lineStyle(2, 0x69d9a0, 0.9).strokeCircle(base.x, base.y, 29);
         }

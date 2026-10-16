@@ -1817,7 +1817,7 @@ test('terminal overload is absent from reward proposals until core laser is equi
  savedEntries.clear();
 });
 
-test('perception amplifier renders a traveling radar wave clipped inside battlefield',()=>{
+test('perception amplifier renders a circular radar centered on the core and hides the normal ring',()=>{
     savedEntries.clear();
     const scene=new VNextScene();scene.create();
     assert.equal(threats.radius(scene.model),350);
@@ -1825,22 +1825,27 @@ test('perception amplifier renders a traveling radar wave clipped inside battlef
     const id=preview.placeBuilding(scene.model,'perception_amplifier',6);
     preview.setObserved(scene.model,[6]);
     scene.buildUi();
-    const core=()=>scene.battleGraphics.drawCalls.find(c=>
-        c.type==='strokeCircle'&&c.color===0x91ced1);
-    const wave=()=>scene.battleGraphics.drawCalls.filter(c=>
-        c.type==='strokeEllipse'&&c.color===0x91ced1);
-    const baseX=scene.battleBounds.x+scene.battleBounds.w*65/1000;
-    assert.ok(Math.abs(core().r-350*scene.battleBounds.w/1000)<1e-6);
-    assert.equal(wave().length,0,'no radar wave at radius zero');
+    const g=scene.battleGraphics,b=scene.battleBounds;
+    const baseX=b.x+b.w*65/1000,baseY=b.y+b.h*300/600;
+    const tinted=scene.detectionColor();
+    const rings=()=>g.drawCalls.filter(call=>call.type==='strokeCircle'&&call.color===tinted);
+    const edge=Math.hypot(Math.max(baseX-b.x,b.x+b.w-baseX),
+                          Math.max(baseY-b.y,b.y+b.h-baseY))+8;
+    assert.equal(rings().length,0,'no permanent ring or radar wave at the start of a sweep');
     scene.world.set(scene.model.game,'PerceptionPulse',{phaseMs:2500});
     scene.paintBattle();
-    assert.ok(Math.abs(core().r-350*scene.battleBounds.w/1000)<1e-6);
-    assert.equal(wave().length,2,'thin wavefront with a discreet glow');
-    const perimeter=wave().at(-1);
-    assert.ok(Math.abs(perimeter.width-1020*scene.battleBounds.w/1000)<1e-6);
-    assert.ok(Math.abs(perimeter.height-1020*scene.battleBounds.h/600)<1e-6);
-    assert.ok(Math.abs(perimeter.x-baseX)<1e-6);
-    assert.equal(scene.battleGraphics.mask,scene.battleMask,'existing geometry mask clips sweep');
+    assert.equal(rings().length,2,'one circle with a subtle glow, no second detection ring');
+    assert.equal(g.drawCalls.filter(call=>call.type==='strokeEllipse').length,0);
+    for(const ring of rings()){
+        assert.ok(Math.abs(ring.x-baseX)<1e-6);
+        assert.ok(Math.abs(ring.y-baseY)<1e-6);
+        assert.ok(Math.abs(ring.r-edge/2)<1e-6);
+    }
+    assert.equal(g.mask,scene.battleMask,'the existing battlefield mask clips the circular wave');
+    scene.world.set(scene.model.game,'PerceptionPulse',{phaseMs:4950});
+    scene.paintBattle();
+    assert.ok(rings().at(-1).r>Math.hypot(Math.max(baseX-b.x,b.x+b.w-baseX),
+                Math.max(baseY-b.y,b.y+b.h-baseY)), 'the wave exits the panel at the end');
     scene.selectSpeed(0);
     const phase=scene.world.get(scene.model.game,'PerceptionPulse').phaseMs;
     scene.update(0,300);
@@ -1849,10 +1854,42 @@ test('perception amplifier renders a traveling radar wave clipped inside battlef
     preview.setObserved(scene.model,[]);
     scene.paintBattle();
     assert.equal(threats.radius(scene.model),350);
-    assert.equal(wave().length,0,'the wave disappears off vision');
+    assert.equal(rings().length,1,'the normal range reappears only when the amplifier is inactive');
+    assert.ok(Math.abs(rings()[0].r-350*b.w/1000)<1e-6);
     assert.equal(scene.world.has(id),true);
     const saved=saves.restore(saves.capture(scene),World);
     assert.equal(saved.model.world.get(saved.model.game,'PerceptionPulse').phaseMs,phase);
+    savedEntries.clear();
+});
+
+test('detection and radar rings follow a lighter version of the current core HP color',()=>{
+    savedEntries.clear();
+    const scene=new VNextScene();scene.create();
+    const amp=preview.placeBuilding(scene.model,'perception_amplifier',6);
+    const colors=[[100,0x48b8c4],[55,0xf0ba60],[20,0xff6674]];
+    const light=color=>{
+        const channel=n=>Math.round(n+(255-n)*0.35);
+        return (channel((color>>16)&255)<<16) |
+            (channel((color>>8)&255)<<8) | channel(color&255);
+    };
+    for(const [hp,coreColor] of colors){
+        scene.baseHp=hp;
+        scene.paintBattle();
+        assert.equal(scene.baseHealthColor(),coreColor);
+        const lighter=light(coreColor);
+        assert.equal(scene.detectionColor(),lighter);
+        assert.ok(scene.battleGraphics.drawCalls.some(c=>
+            c.type==='strokeCircle'&&c.color===lighter&&c.r>50));
+        preview.setObserved(scene.model,[6]);
+        scene.world.set(scene.model.game,'PerceptionPulse',{phaseMs:2500});
+        scene.paintBattle();
+        assert.equal(scene.battleGraphics.drawCalls.filter(c=>
+            c.type==='strokeCircle'&&c.color===lighter&&c.r>50).length,2);
+        assert.equal(scene.battleGraphics.drawCalls.filter(c=>
+            c.type==='strokeEllipse').length,0);
+        preview.setObserved(scene.model,[]);
+    }
+    assert.equal(scene.world.has(amp),true);
     savedEntries.clear();
 });
 
