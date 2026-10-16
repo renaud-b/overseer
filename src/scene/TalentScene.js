@@ -24,9 +24,15 @@ class TalentScene extends Phaser.Scene {
         this.cameras.main.fadeIn(250,8,18,28);
         this.scale.on('resize', this.render, this);
         this.input.on('wheel', this.onWheel, this);
+        this.input.on('pointerdown',this.onBackgroundDown,this);
+        this.input.on('pointermove',this.onDrag,this);
+        this.input.on('pointerup',this.onDragEnd,this);
         this.events.once('shutdown', () => {
             this.scale.off('resize',this.render,this);
             this.input.off('wheel',this.onWheel,this);
+            this.input.off('pointerdown',this.onBackgroundDown,this);
+            this.input.off('pointermove',this.onDrag,this);
+            this.input.off('pointerup',this.onDragEnd,this);
         });
         this.render();
     }
@@ -77,16 +83,10 @@ class TalentScene extends Phaser.Scene {
             const selected=this.selectedId===n.id;
             const color=unlocked?p.cyan:available?0xf5b94f:0x506d7c;
             const circle=keep(this.add.circle(v.x,v.y,Math.max(12,23*this.zoom),unlocked?0x194850:0x172b38,1).setStrokeStyle(selected?3:1.5,color).setInteractive({useHandCursor:true}));
-            circle.on('pointerdown',(_,lx,ly,event)=>{event?.stopPropagation?.();this.selectedId=n.id;this.render();});
+            circle.on('pointerdown',()=>{this.suppressDrag=true;this.selectedId=n.id;this.render();});
             keep(this.add.text(v.x,v.y,this.glyph(n.id),{fontFamily:'monospace',fontSize:Math.max(9,13*this.zoom)+'px',color:unlocked?'#aef8ef':'#b5cbd5'}).setOrigin(.5));
             keep(this.add.text(v.x,v.y+Math.max(22,29*this.zoom),this.shortName(n.id),{fontFamily:'monospace',fontSize:'10px',color:unlocked?'#d7e9ef':'#859eaf'}).setOrigin(.5));
         }
-        const hit=keep(this.add.zone(area.x+area.w/2,area.y+area.h/2,area.w,area.h).setInteractive());
-        hit.setDepth(-1);
-        hit.on('pointerdown',pointer=>{this.dragging={x:pointer.x,y:pointer.y,px:this.pan.x,py:this.pan.y};});
-        hit.on('pointermove',pointer=>{if(this.dragging && pointer.isDown){this.pan={x:this.dragging.px+pointer.x-this.dragging.x,y:this.dragging.py+pointer.y-this.dragging.y};this.render();}});
-        hit.on('pointerup',()=>{this.dragging=null;});
-        hit.on('pointerout',()=>{this.dragging=null;});
         this.renderDetails(keep,g,b);
         keep(this.add.text(24,b.h-53,'MOLETTE : ZOOM   ·   GLISSER : DÉPLACER',{fontFamily:'monospace',fontSize:'10px',color:p.muted}));
         const center=keep(this.add.text(area.x+area.w-10,b.h-53,'RECENTRER',{fontFamily:'monospace',fontSize:'11px',color:'#8ecacb'}).setOrigin(1,0).setInteractive({useHandCursor:true}));
@@ -108,6 +108,9 @@ class TalentScene extends Phaser.Scene {
         return nodes;
     }
     toScreen(n,area){return {x:area.x+area.w/2+n._x*this.zoom+this.pan.x,y:area.y+65+n._y*this.zoom+this.pan.y};}
+    onBackgroundDown(pointer){const a=this.bounds().area;if(this.suppressDrag){this.suppressDrag=false;return;}if(pointer.x>=a.x&&pointer.x<=a.x+a.w&&pointer.y>=a.y&&pointer.y<=a.y+a.h)this.dragging={x:pointer.x,y:pointer.y,px:this.pan.x,py:this.pan.y};}
+    onDrag(pointer){if(!this.dragging||!pointer.isDown)return;this.pan={x:this.dragging.px+pointer.x-this.dragging.x,y:this.dragging.py+pointer.y-this.dragging.y};this.render();}
+    onDragEnd(){this.dragging=null;this.suppressDrag=false;}
     onWheel(pointer,objects,dx,dy){const a=this.bounds().area;if(pointer.x<a.x||pointer.x>a.x+a.w||pointer.y<a.y||pointer.y>a.y+a.h)return;this.zoom=Math.max(.55,Math.min(1.65,this.zoom+(dy>0?-.1:.1)));this.render();}
     renderDetails(keep,g,b){
         const p=this.palette,x=b.panelX,w=b.side,h=b.area.h;
