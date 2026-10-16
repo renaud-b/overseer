@@ -91,3 +91,19 @@ test('VNext tooltip presentation loads before the scene in the browser', () => {
     vm.runInNewContext(fs.readFileSync(path.join(ROOT, tooltip), 'utf8'), context);
     assert.equal(typeof context.OverseerVNextTooltips?.install, 'function');
 });
+
+
+test('VNext board presentation loads before VNextScene', () => {
+    const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    const scripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)].map(match => match[1]);
+    const tooltip = 'src/scene/VNextTooltips.js';
+    const board = 'src/scene/VNextBoardView.js';
+    const scene = 'src/scene/VNextScene.js';
+    assert.ok(scripts.includes(board), 'Missing board presentation module');
+    assert.ok(scripts.indexOf(tooltip) < scripts.indexOf(board));
+    assert.ok(scripts.indexOf(board) < scripts.indexOf(scene));
+    const vm = require('node:vm');
+    const context = {};
+    vm.runInNewContext(fs.readFileSync(path.join(ROOT, board), 'utf8'), context);
+    assert.equal(typeof context.OverseerVNextBoardView?.install, 'function');
+});
