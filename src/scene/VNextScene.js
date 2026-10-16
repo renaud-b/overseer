@@ -527,7 +527,7 @@ class VNextScene extends Phaser.Scene {
     onDragStart(pointer, object) {
         if (this.activeReward) return;
         const technology=object.getData('technology');
-        if(technology){this.techDrag=technology;this.dragGhost=this.add.graphics();this.dragGhost.lineStyle(2,0x69d9a0,1).strokeCircle(0,0,16);this.dragGhost.setPosition(pointer.x,pointer.y).setDepth(300);return;}
+        if(OverseerVNextTechnologies.TYPES.includes(technology)){this.techDrag=technology;this.dragGhost=this.add.graphics();this.dragGhost.lineStyle(2,0x69d9a0,1).strokeCircle(0,0,16);this.dragGhost.setPosition(pointer.x,pointer.y).setDepth(300);return;}
         const type = object.getData('palette');
         if (!type) return;
         this.dragType = type;
@@ -547,7 +547,7 @@ class VNextScene extends Phaser.Scene {
             this.dragType = null;
             return;
         }
-        if(object.getData('technology')) {
+        if(OverseerVNextTechnologies.TYPES.includes(object.getData('technology'))) {
             const target=this.technologyTarget(pointer.x,pointer.y);
             if(target && OverseerVNextTechnologies.consume(this.model,object.getData('technology'))) {
                 // PR C attaches an ECS effect to this successful activation.
