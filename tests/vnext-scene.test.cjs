@@ -26,10 +26,10 @@ const sceneSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextScene.js'), 
 class Display {
     constructor(x = 0, y = 0) { this.x = x; this.y = y; this.handlers = {}; this.data = {}; this.drawCalls = []; }
     on(name, fn) { this.handlers[name] = fn; return this; }
-    setInteractive() { return this; }
+    setInteractive() { this.interactive = true; return this; }
     setPadding() { return this; }
     setPosition(x, y) { this.x = x; this.y = y; return this; }
-    setDepth() { return this; }
+    setDepth(value) { this.depth = value; return this; }
     setData(name, value) { this.data[name] = value; return this; }
     getData(name) { return this.data[name]; }
     setText(value) { this.value = value; return this; }
@@ -60,7 +60,7 @@ class FakeScene {
         this.add = {
             graphics: () => new Display(),
             text: (x, y, value, style) => { const d = new Display(x, y); d.setText(value); d.color = style?.color; return d; },
-            zone: (x, y) => new Display(x, y)
+            zone: (x, y, width, height) => { const d = new Display(x, y); d.width = width; d.height = height; return d; }
         };
         this.scene = { start() {} };
         const units = ['unit_guard', 'unit_sniper', 'unit_dronoid', 'unit_mecha'].map(id => ({
@@ -442,6 +442,58 @@ test('reward cards show and clean up existing building detail popup above overla
     card.handlers.pointerover();
     scene.chooseReward('barracks');
     assert.equal(scene.tooltipObjects.length, 0);
+});
+
+test('reward overlay shields the whole game and rejects input until a reward is chosen', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const paletteBefore = scene.ui.find(o => o.getData?.('palette') === 'reactor');
+    scene.onDragStart({ x: 20, y: 20 }, paletteBefore);
+    assert.ok(scene.dragGhost, 'drag can begin before the reward appears');
+
+    scene.activeReward = { number: 1, options: ['factory', 'barracks', 'extractor'] };
+    scene.selectedType = 'reactor';
+    scene.buildUi();
+    const blocker = scene.ui.find(o => o.getData?.('rewardBlocker') === true);
+    assert.ok(blocker, 'an interactive screen-sized zone shields the UI');
+    assert.equal(blocker.interactive, true);
+    assert.equal(blocker.depth, 301);
+    assert.equal(blocker.width, scene.scale.width);
+    assert.equal(blocker.height, scene.scale.height);
+    const rewardZone = scene.ui.find(o => o.getData?.('reward') === 'barracks');
+    assert.ok(rewardZone);
+    assert.ok(rewardZone.depth > blocker.depth, 'reward cards remain clickable above the shield');
+
+    const handBefore = cards.cards(scene.model);
+    const attentionBefore = { ...scene.attention };
+    const patternBefore = scene.visionRules.patternIndex;
+    const speedBefore = scene.speed;
+    const backgroundPalette = scene.ui.find(o => o.getData?.('palette') === 'reactor');
+    scene.clickTile(6);
+    backgroundPalette.handlers.pointerdown();
+    scene.onKey({ code: 'KeyD', key: 'd' });
+    scene.onKey({ code: 'KeyE', key: 'e' });
+    scene.onKey({ code: 'Digit5', key: '5' });
+    scene.onDragStart({ x: 20, y: 20 }, backgroundPalette);
+    scene.onDragEnd({
+        x: scene.gridLayout.x + scene.gridLayout.cell * 1.5,
+        y: scene.gridLayout.y + scene.gridLayout.cell * 1.5
+    }, backgroundPalette);
+    assert.equal(preview.buildingAt(scene.model, 6), null);
+    assert.deepEqual(cards.cards(scene.model), handBefore);
+    assert.deepEqual({ ...scene.attention }, attentionBefore);
+    assert.equal(scene.visionRules.patternIndex, patternBefore);
+    assert.equal(scene.speed, speedBefore);
+    assert.equal(scene.dragGhost, null, 'the pending drag must be cancelled');
+    assert.equal(scene.activeReward.number, 1);
+
+    rewardZone.handlers.pointerdown();
+    assert.equal(scene.activeReward, null);
+    assert.equal(cards.cards(scene.model).length, handBefore.length + 1);
+    assert.equal(scene.ui.some(o => o.getData?.('rewardBlocker') === true), false);
+    scene.selectedType = 'reactor';
+    scene.clickTile(6);
+    assert.ok(preview.buildingAt(scene.model, 6), 'construction works again after choosing');
 });
 
 test('military specialty rewards include all three new production cards', () => {
