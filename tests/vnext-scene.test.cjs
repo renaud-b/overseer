@@ -36,6 +36,7 @@ const brandSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBrand.js'), 
 const visionSource = fs.readFileSync(path.join(ROOT, 'src/scene/entities/Vision.js'), 'utf8');
 const tooltipSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextTooltips.js'), 'utf8');
 const boardSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBoardView.js'), 'utf8');
+const battleViewSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBattleView.js'), 'utf8');
 const sceneSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextScene.js'), 'utf8');
 
 class Display {
@@ -94,7 +95,7 @@ class FakeScene {
 }
 const OverseerVNextBrand = vm.runInNewContext(brandSource + '\nOverseerVNextBrand;', {});
 const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
-const VNextScene = vm.runInNewContext(tooltipSource + '\n' + boardSource + '\n' + sceneSource + '\nVNextScene;', {
+const VNextScene = vm.runInNewContext(tooltipSource + '\n' + boardSource + '\n' + battleViewSource + '\n' + sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
     OverseerECS: { World }, OverseerCombat: combat, OverseerHitEffects: hitEffects,
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
@@ -2162,4 +2163,35 @@ test('extracted board view reads ECS and disposes replaced graphics during rebui
     assert.ok(scene.gridLayout.size > 0);
     assert.equal(scene.world.query('Tile').length, 25);
     assert.deepEqual(scene.world.serialize(), before, 'rebuilding the board must not reset a run');
+});
+
+
+test('extracted battle view clips every layer and releases obsolete Phaser objects on resize', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const before = scene.world.serialize();
+    scene.paintBattle();
+    assert.deepEqual(scene.world.serialize(), before, 'painting must not mutate ECS');
+    const oldMask = scene.battleMask;
+    const oldLayers = [scene.zoneGraphics, scene.battleGraphics,
+        scene.battleParticleGraphics, scene.battleActionGraphics];
+    for (const layer of oldLayers) assert.strictEqual(layer.mask, oldMask);
+
+    scene.scale.width = 940;
+    scene.scale.height = 680;
+    scene.buildUi();
+    assert.ok(oldMask.destroyed, 'mask from previous viewport must be destroyed');
+    assert.ok(oldLayers.every(layer => layer.destroyed), 'old graphics must be destroyed');
+    assert.ok(scene.battleMask);
+    assert.notStrictEqual(scene.battleMask, oldMask);
+    for (const layer of [scene.zoneGraphics, scene.battleGraphics,
+        scene.battleParticleGraphics, scene.battleActionGraphics])
+        assert.strictEqual(layer.mask, scene.battleMask);
+    assert.deepEqual(scene.world.serialize(), before, 'resizing must not reset combat ECS');
+
+    const newMask = scene.battleMask;
+    scene.releaseBattleView();
+    assert.ok(newMask.destroyed);
+    assert.equal(scene.battleMask, null);
+    scene.releaseBattleView(); // Destruction is safe even when called twice.
 });
