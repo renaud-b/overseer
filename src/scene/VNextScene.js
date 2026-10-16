@@ -127,6 +127,11 @@ class VNextScene extends Phaser.Scene {
             // No resetBattle(), production reset or re-grant: ECS is the restored truth.
             this.battleUnits = restored.battleUnits;
         } else {
+            const defense = OverseerTalentProgression.read(this.saveStorage()).unlocked;
+            this.world.set(this.model.game, 'DefenseTalents', {
+                reinforced: defense.includes('starter_base_hp'),
+                extraGuard: defense.includes('starter_reinforcement')
+            });
             OverseerVNextCards.initialize(this.model);
             OverseerVNextTechnologies.inventory(this.model);
             OverseerVNextEconomy.initialize(this.model);
