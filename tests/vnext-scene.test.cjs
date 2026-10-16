@@ -575,6 +575,7 @@ test('pending reward is resumed without replaying the cleared wave', () => {
     savedEntries.clear();
     const running = new VNextScene();
     running.create();
+    running.waveClock.seed = 137;
     const wave = waves.wave(1, running.waveClock.seed);
     running.waveClock.number = 1;
     running.waveClock.elapsedMs = wave.dueAtMs;
@@ -583,6 +584,7 @@ test('pending reward is resumed without replaying the cleared wave', () => {
     running.checkWaveClears();
     assert.equal(running.activeReward.number, 1);
     const options = [...running.activeReward.options];
+    assert.doesNotThrow(() => saves.restore(saves.capture(running), World));
 
     const resumed = new VNextScene();
     resumed.init({ resume: true });
