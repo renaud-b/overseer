@@ -1277,7 +1277,8 @@ test('observed laboratory displays live research progress and a technology after
 test('wave rewards mix one-shot technology and buildings, preserve save/restore',()=>{
  const scene=new VNextScene();scene.create();
  const choices=new Set();for(let n=1;n<=80;n++)for(const type of scene.rewardOptions(n))choices.add(type);
- assert.ok(scene.rewardOptions(1,'technology').includes('tech:healing_field'));
+ assert.equal(scene.rewardOptions(1,'technology').length,3);
+ assert.ok(scene.rewardOptions(1,'technology').every(type=>technologies.TYPES.includes(type.slice(5))));
   assert.ok(choices.has('reactor'));
  scene.waveClock.number=1;scene.activeReward={number:1,options:['reactor','factory','tech:healing_field']};
  assert.doesNotThrow(()=>saves.restore(saves.capture(scene),World));
