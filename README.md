@@ -2,7 +2,7 @@
 
 **Overseer** est un jeu de stratégie tactique / roguelite en navigateur : le joueur incarne une IA qui pilote une base de machines, oriente son attention pour en activer les bâtiments, produit des unités autonomes et survit à des vagues ennemies.
 
-> **État du projet : prototype jouable, nouvelle direction en conception.** Les règles, ressources et visuels actuels ne représentent pas encore le nouveau design minimaliste. Voir [Direction de jeu](docs/GAME_DIRECTION.md).
+> **État du projet : VNext est la seule version jouable.** Certaines statistiques de combat viennent encore du catalogue historique. Voir [Direction de jeu](docs/GAME_DIRECTION.md).
 
 ## Jouer en local
 
@@ -125,12 +125,12 @@ Chaque ligne indique composition, nombre d'ennemis apparus et morts, durée en *
 ## Architecture du prototype
 
 - `index.html`, `src/main.js` : chargement et démarrage Phaser.
-- `src/scene/GameScene.js` : orchestration du jeu existant.
+- `src/scene/VNextScene.js` et `src/scene/VNext*.js` : orchestration et adaptateurs Phaser de VNext.
 - `src/core/World.js` : registre ECS de données, entités, composants et hiérarchie.
 - `src/core/CombatSystem.js` : première tranche de simulation de combat indépendante de Phaser.
-- `src/scene/entities/` : éléments de gameplay et adaptateurs graphiques, encore partiellement historiques.
-- `src/scene/managers/` : construction, ressources, talents, sorts, vagues et HUD.
-- `assets/game_stats.json` : **configuration utilisée actuellement**, héritée de l'ancien contrat ; elle décrit huit ressources et 23 types de bâtiments, **pas** les cinq ressources proposées pour la refonte.
+- `src/scene/entities/Vision.js` : ancien modèle de motifs de vision, encore utilisé pour l'initialisation VNext.
+- `src/core/VNext*.js` : règles ECS de production, combat et progression, indépendantes du rendu.
+- `assets/game_stats.json` : **source historique encore utilisée par VNext pour les statistiques des unités et ennemis** ; son ancien catalogue de bâtiments et de ressources ne pilote pas la nouvelle économie.
 - `assets/game_texts_*.json` : textes localisés.
 - `tests/` : tests Node exécutés par `npm test`.
 
