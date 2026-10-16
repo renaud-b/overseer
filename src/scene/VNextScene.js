@@ -991,6 +991,22 @@ class VNextScene extends Phaser.Scene {
                         .lineBetween(start.x, start.y, end.x, end.y);
                     actions.lineStyle(1, effect.color, effect.alpha)
                         .strokeCircle(end.x, end.y, 2.5);
+                } else if (effect.kind === 'heal') {
+                    // A repair is legible as support, never mistaken for damage recoil.
+                    actions.lineStyle(2, effect.color, effect.alpha * 0.22)
+                        .lineBetween(start.x, start.y, end.x, end.y);
+                    actions.lineStyle(1, effect.color, effect.alpha * 0.9)
+                        .lineBetween(start.x, start.y, end.x, end.y);
+                    const radius = 5 + 9 * effect.progress;
+                    actions.lineStyle(1, effect.color, effect.alpha * 0.9)
+                        .strokeCircle(end.x, end.y, radius);
+                    for (let i = 0; i < 3; i++) {
+                        const angle = (i * Math.PI * 2 / 3) + effect.progress * 1.4;
+                        const orbit = 15 * (1 - effect.progress) + 2;
+                        actions.fillStyle(effect.color, effect.alpha * 0.8).fillCircle(
+                            end.x + Math.cos(angle) * orbit,
+                            end.y + Math.sin(angle) * orbit, 1.6);
+                    }
                 }
             }
         }
@@ -1044,6 +1060,13 @@ class VNextScene extends Phaser.Scene {
                         attackerPosition, targetPosition, this.battleUnitStyle(event.attacker).color);
                     this.hitEffects.hit(event.target,
                         attackerPosition, targetPosition, targetStyle.color);
+                }
+                if (event.type === 'heal' && event.amount > 0 &&
+                    this.world.has(event.healer) && this.world.has(event.target)) {
+                    this.actionEffects.heal(
+                        this.world.get(event.healer, 'Position'),
+                        this.world.get(event.target, 'Position'),
+                        this.battleUnitStyle(event.healer).color);
                 }
             }
         }

@@ -3,6 +3,7 @@
 
     // Visual snapshots in world coordinates. The simulator already resolved the attack.
     const LASER_MS = 160;
+    const HEAL_MS = 350;
     const MAX_ACTIONS = 48;
 
     function isPoint(p) {
@@ -25,6 +26,10 @@
 
         laser(from, to, color) {
             return this.add('laser', from, to, color, LASER_MS);
+        }
+
+        heal(from, to, color = 0x60dca4) {
+            return this.add('heal', from, to, color, HEAL_MS);
         }
 
         update(deltaMs) {

@@ -678,3 +678,29 @@ test('ranged attack emits a laser and HitEffects from one confirmed hit, without
     scene.update(0, 250);
     assert.deepEqual(scene.actionEffects.visuals(), paused);
 });
+
+test('a produced repair drone emits a healing beam and target halo, without hit recoil', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.spawnFriendlyUnit('unit_dronoid');
+    const healer = scene.battleUnits.at(-1);
+    assert.equal(scene.world.get(healer, 'Combat').behavior, 'healer');
+    const guard = scene.battleUnits.find(id =>
+        scene.world.get(id, 'PreviewUnit')?.type === 'unit_guard');
+    scene.world.get(guard, 'Health').hp = 2;
+    const healerPos = scene.world.get(healer, 'Position');
+    Object.assign(scene.world.get(guard, 'Position'),
+        { x: healerPos.x + 10, y: healerPos.y });
+    scene.world.get(healer, 'Combat').elapsedMs = 5000;
+    const before = scene.world.get(guard, 'Health').hp;
+    scene.update(0, 16);
+
+    assert.ok(scene.world.get(guard, 'Health').hp > before);
+    const healing = scene.actionEffects.visuals().find(visual => visual.kind === 'heal');
+    assert.ok(healing, 'the actual ECS heal event emits a visible effect');
+    assert.equal(healing.color, battleStyles.styleFor('unit_dronoid', 'player').color);
+    assert.ok(scene.battleActionGraphics.drawCalls.some(call =>
+        call.type === 'strokeCircle' && call.color === healing.color));
+    assert.deepEqual(scene.hitEffects.view(guard), { x: 0, y: 0, flash: 0 });
+    assert.equal(scene.hitEffects.fragments().length, 0);
+});

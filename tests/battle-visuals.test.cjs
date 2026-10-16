@@ -33,3 +33,20 @@ test('laser snapshots source and destination, fades and is bounded', () => {
     actions.clear();
     assert.equal(actions.visuals().length, 0);
 });
+
+test('healing creates a longer green reaction and never shares laser identity', () => {
+    const actions = new BattleActionEffects();
+    const from = { x: 10, y: 20 }, to = { x: 50, y: 30 };
+    assert.equal(actions.heal(from, to), true);
+    const visual = actions.visuals()[0];
+    assert.equal(visual.kind, 'heal');
+    assert.equal(visual.color, styleFor('unit_dronoid', 'player').color);
+    to.x = 1000;
+    actions.update(175);
+    const middle = actions.visuals()[0];
+    assert.deepEqual(middle.to, { x: 50, y: 30 });
+    assert.ok(middle.alpha > 0 && middle.alpha < 1);
+    assert.ok(middle.progress > 0 && middle.progress < 1);
+    actions.update(175);
+    assert.equal(actions.visuals().length, 0);
+});
