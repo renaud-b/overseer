@@ -130,6 +130,7 @@ class VNextScene extends Phaser.Scene {
             OverseerVNextCards.initialize(this.model);
             OverseerVNextTechnologies.inventory(this.model);
             OverseerVNextEconomy.initialize(this.model);
+            OverseerVNextEconomy.configureTalents(this.model, OverseerTalentProgression.read(this.saveStorage()).unlocked);
             this.applyAttention();
             this.resetBattle();
         }
