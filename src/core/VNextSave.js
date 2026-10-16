@@ -76,7 +76,8 @@
         });
         const resources = world.get(game, 'Resources');
         requireValid(resources && ['energy', 'matter', 'components'].every(id =>
-            number(resources[id])), 'resources');
+            number(resources[id])) &&
+            (resources.data === undefined || number(resources.data)), 'resources');
         const hand = world.get(game, 'BuildingHand');
         requireValid(hand && Array.isArray(hand.cards) &&
             hand.cards.every(card => rewardTypes().includes(card)), 'building hand');
