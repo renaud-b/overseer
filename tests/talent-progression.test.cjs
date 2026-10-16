@@ -3,12 +3,17 @@ test('purchases preserve historical keys and prerequisites',()=>{const s=store()
 test('reset refunds historical purchases',()=>{const s=store();s.setItem('memoryShards','30');p.purchase(s,catalog.get('starter_base_hp'));p.purchase(s,catalog.get('starter_drone'));assert.equal(p.reset(s,catalog).ok,true);assert.deepEqual(p.read(s),{unlocked:['root'],shards:30});});
 
 
-test('production branch is staged and cannot spend shards before ECS effects exist',()=>{
+test('production branch purchases are persistent and competing specializations cannot coexist',()=>{
  const s=store();s.setItem('memoryShards','100');
- const nodes=['production_extraction','production_components','production_efficiency','production_automation'];
- for(const id of nodes){const talent=catalog.get(id);assert.ok(talent?.planned,id);assert.equal(p.canUnlock(p.read(s),talent),false);assert.equal(p.purchase(s,talent).ok,false);}
+ assert.equal(p.purchase(s,catalog.get('production_components')).ok,false);
+ assert.equal(p.purchase(s,catalog.get('production_extraction')).ok,true);
+ assert.equal(p.purchase(s,catalog.get('production_components')).ok,true);
+ assert.equal(p.purchase(s,catalog.get('production_efficiency')).ok,false);
+ assert.equal(p.purchase(s,catalog.get('production_automation')).ok,true);
+ assert.deepEqual(p.read(s).unlocked,['root','production_extraction','production_components','production_automation']);
+ assert.equal(p.read(s).shards,75);
+ assert.equal(p.reset(s,catalog).ok,true);
  assert.equal(p.read(s).shards,100);
- assert.deepEqual(catalog.get('production_automation').prerequisites,['production_efficiency']);
 });
 test('historical economy purchases survive new catalog and reset remains refundable',()=>{
  const s=store();s.setItem('memoryShards','70');s.setItem('unlockedTalents',JSON.stringify(['root','starter_economy','extra_scrap','extra_alloy']));
