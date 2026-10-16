@@ -32,6 +32,7 @@
         if (!unitType) return 0;
         return model.world.query('PreviewUnit', 'Health', 'Faction').filter(id =>
             model.world.get(id, 'Faction').side === 'player' &&
+            !model.world.hasComponent(id, 'TemporaryAlly') &&
             model.world.get(id, 'PreviewUnit').type === unitType &&
             model.world.get(id, 'Health').hp > 0).length;
     }
@@ -100,7 +101,10 @@
                 Math.min(deltaMs, Math.max(0, extraActivationMs[id] || 0));
             if (!activeMs) continue;
             const progress = model.world.get(id, 'Production');
-            progress.elapsedMs += activeMs;
+            // Surcharge accelerates only observed machines; the artifact grace is unboosted.
+            const extra = watched ? model.world.get(model.game, 'TechnologyEffects')?.overloadMs || 0 : 0;
+            const acceleratedMs = activeMs + Math.min(activeMs, Math.max(0, extra));
+            progress.elapsedMs += acceleratedMs;
             progress.blocked = false;
             if (MILITARY[type]) {
                 // A completed cycle waits for materials/capacity. No resource reservation,

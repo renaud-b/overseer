@@ -1,6 +1,8 @@
 (function(root){'use strict';
 const KINDS=Object.freeze(['building','technology','artifact']);
 function mode(number,seed){
+ // Guaranteed dual reward after every milestone assault; keep ordinary 40/40/20.
+ if(Number.isInteger(number)&&number>0&&number%10===0)return ['building','technology'];
  let x=(Math.imul(number,0x9e3779b1)^seed^0x76eab43d)>>>0;
  x=Math.imul(x^(x>>>16),0x7feb352d);x=Math.imul(x^(x>>>15),0x846ca68b);x=(x^(x>>>16))>>>0;
  const roll=x%10;

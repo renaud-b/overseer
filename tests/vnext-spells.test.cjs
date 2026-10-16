@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const {World}=require('../src/core/World.js'),preview=require('../src/core/VNextPreview.js'),zones=require('../src/core/VNextZones.js'),combat=require('../src/core/CombatSystem.js'),tech=require('../src/core/VNextTechnologies.js');
 function unit(model,side,x){const id=model.world.create(model.game),w=model.world;w.set(id,'Faction',{side});w.set(id,'Health',{hp:10,maxHp:10});w.set(id,'Position',{x,y:300});w.set(id,'Movement',{speed:100});w.set(id,'Combat',{elapsedMs:0,cooldownMs:1000,damage:1,range:20,detectionRadius:500,attackType:'melee'});return id;}
-test('research catalog exposes three independent one-shot types',()=>{assert.deepEqual(tech.TYPES,['healing_field','berserk','stasis_field']);});
+test('research catalog exposes seven independent one-shot types',()=>{assert.deepEqual(new Set(tech.TYPES),new Set(['healing_field','berserk','stasis_field','overclock','overload','emp_field','reinforcements']));});
 test('berserk improves attack cadence, targets at most two allies and expires',()=>{
  const m=preview.createModel(World),a=unit(m,'player',100),b=unit(m,'player',110),c=unit(m,'player',120),enemy=unit(m,'enemy',120);
  zones.cast(m,'berserk',{x:400,y:300});
