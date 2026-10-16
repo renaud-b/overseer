@@ -44,6 +44,19 @@ Le menu propose **Continuer** lorsqu'une sauvegarde VNext valide existe. **Nouve
 4. Défendre la base sur un champ de bataille contre des vagues d'ennemis.
 5. Choisir des récompenses et améliorer sa stratégie.
 
+### Construction et fabrication dans VNext (état actuel)
+
+Dans la scène **VNext**, **aucune ressource n'est dépensée pour placer un bâtiment**. Jouer une carte la retire simplement de la main. Les quantités indiquées pour les bâtiments militaires correspondent à la **fabrication de chaque unité**, et non à leur construction.
+
+| Producteur | Unité | Composants par unité | Énergie par unité |
+|---|---|---:|---:|
+| Caserne | Soldat | **25** | **15** |
+| Centre balistique | Tireur | 35 | 20 |
+| Forge blindée | Tank | 60 | 35 |
+| Centre médical | Drone soigneur | 40 | 25 |
+
+**Cadences militaires :** Caserne **5 s**, Centre balistique **8 s**, Forge blindée **12 s**, Centre médical **10 s** (temps de simulation, à vitesse ×1). Chaque bâtiment progresse uniquement lorsqu'il est observé ; sortir de la vision fige le cycle en cours, qui reprend à sa réactivation. Les ressources sont débitées **seulement lorsque l'unité est produite**. Un cycle achevé attend sans nouvelle dépense lorsque les ressources ou la capacité manquent ; la capacité est de **trois unités vivantes par bâtiment militaire**. Les sauvegardes conservent l'avancement du cycle.
+
 Le jeu comprend également un système de talents et une progression entre les parties. **Ne pas présumer que l'ensemble de ces mécaniques est déjà migré dans le noyau ECS.**
 
 ## Architecture du prototype

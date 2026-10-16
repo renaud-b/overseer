@@ -254,7 +254,6 @@ class VNextScene extends Phaser.Scene {
         this.paletteGraphics = g;
         this.refreshPaletteSelection();
         this.note = this.text(l.m + 13, l.mainBottom - 75, 'Économie ECS : test actif', 11, '#a5b8c6');
-        this.text(l.m + 13, l.mainBottom - 53, 'Coûts de pose non définis', 10, '#7292a6');
     }
 
     refreshPaletteSelection() {
@@ -381,7 +380,6 @@ class VNextScene extends Phaser.Scene {
             keepTip(this.add.text(tx, ty, content, { fontFamily: 'monospace', fontSize: `${size}px`, color }).setDepth(211));
         label(x + 41, y + 14, info.label, 15, '#e3f0f5');
         label(x + pad, y + 48, info.description, 11, '#a6bfce');
-        label(x + pad, y + 77, 'CONSTRUCTION : COÛT À DÉFINIR', 10, '#819eaf');
         if (!recipe) {
             label(x + pad, y + 105, 'PRODUCTION NON SIMULÉE', 11, '#819eaf');
             return;
@@ -399,9 +397,13 @@ class VNextScene extends Phaser.Scene {
         };
         const inputs = Object.entries(recipe.consumes);
         drawItems(OverseerVNextEconomy.MILITARY[type] ? 'COÛT PAR UNITÉ' : 'CONSOMME / CYCLE', inputs, y + 99);
-        drawItems(OverseerVNextEconomy.MILITARY[type] ? 'FABRIQUE / UNITÉ' : 'PRODUIT / CYCLE', Object.entries(recipe.produces).filter(([key]) => !key.startsWith('unit_')), y + 138);
-        if (OverseerVNextEconomy.MILITARY[type]) label(x + 18, y + 162, `UNITÉS ${OverseerVNextEconomy.aliveUnits(this.model, type)}/${OverseerVNextEconomy.unitCapacity(this.model, type)}`, 11, '#62e7e1');
-        else label(x + width - 78, y + 168, `${recipe.cycleMs / 1000}s/cycle`, 9, '#819eaf');
+        if (OverseerVNextEconomy.MILITARY[type]) {
+            label(x + pad, y + 142, `CYCLE : ${recipe.cycleMs / 1000}s / UNITÉ`, 10, '#819eaf');
+            label(x + 18, y + 162, `UNITÉS ${OverseerVNextEconomy.aliveUnits(this.model, type)}/${OverseerVNextEconomy.unitCapacity(this.model, type)}`, 11, '#62e7e1');
+        } else {
+            drawItems('PRODUIT / CYCLE', Object.entries(recipe.produces).filter(([key]) => !key.startsWith('unit_')), y + 138);
+            label(x + width - 78, y + 168, `${recipe.cycleMs / 1000}s/cycle`, 9, '#819eaf');
+        }
     }
 
     drawGlyph(g, type, x, y, color, r) {

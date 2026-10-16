@@ -90,28 +90,54 @@ test('simulated balance and production components survive repeated initializatio
     assert.throws(() => economy.step(model, -1), /Invalid simulation delta/);
 });
 
-test('barracks only consumes 25 components and 15 energy when watched and affordable', () => {
+test('barracks needs five observed seconds and spends resources only at completion', () => {
     const model = preview.createModel(World);
     const id = preview.placeBuilding(model, 'barracks', 6);
     economy.initialize(model);
     const balance = model.world.get(model.game, 'Resources');
     balance.components = 24; balance.energy = 15;
     preview.setObserved(model, [6]);
-    assert.deepEqual(economy.step(model, 60), []);
-    assert.equal(model.world.get(id, 'Production').blocked, true);
+    assert.equal(economy.PROTOTYPE_RECIPES.barracks.cycleMs, 5000);
+    assert.deepEqual(economy.step(model, 4999), []);
+    assert.equal(model.world.get(id, 'Production').elapsedMs, 4999);
+    assert.equal(model.world.get(id, 'Production').blocked, false);
+    assert.deepEqual({ ...balance }, { energy: 15, matter: 0, components: 24 });
+
+    assert.deepEqual(economy.step(model, 1), []);
+    assert.equal(model.world.get(id, 'Production').elapsedMs, 5000);
+    assert.equal(model.world.get(id, 'Production').blocked, true, 'finished work waits for materials');
     balance.components = 25;
-    const events = economy.step(model, 60);
+    const events = economy.step(model, 1);
     assert.equal(events.length, 1);
     assert.equal(events[0].type, 'unit-produced');
     assert.equal(events[0].unitType, 'unit_guard');
-    assert.equal(balance.components, 0);
-    assert.equal(balance.energy, 0);
-    assert.deepEqual(economy.step(model, 60), []);
+    assert.equal(model.world.get(id, 'Production').elapsedMs, 1, 'time after a blocked cycle counts toward the next');
+    assert.deepEqual({ ...balance }, { energy: 0, matter: 0, components: 0 });
+    assert.deepEqual(economy.step(model, 60), [], 'cannot instantly produce another soldier');
+});
+
+test('military manufacturing pauses outside vision and resumes its saved progress', () => {
+    const model = preview.createModel(World);
+    const id = preview.placeBuilding(model, 'barracks', 6);
+    economy.initialize(model);
+    const balance = model.world.get(model.game, 'Resources');
+    balance.components = 25; balance.energy = 15;
+    preview.setObserved(model, [6]);
+    assert.deepEqual(economy.step(model, 2300), []);
+    preview.setObserved(model, []);
+    assert.deepEqual(economy.step(model, 30000), []);
+    assert.equal(model.world.get(id, 'Production').elapsedMs, 2300);
+    assert.deepEqual(economy.step(model, 0), []);
+    preview.setObserved(model, [6]);
+    assert.deepEqual(economy.step(model, 2699), []);
+    assert.deepEqual({ ...balance }, { energy: 15, matter: 0, components: 25 });
+    assert.equal(economy.step(model, 1)[0].unitType, 'unit_guard');
+    assert.deepEqual({ ...balance }, { energy: 0, matter: 0, components: 0 });
 });
 
 test('each barracks raises living guard cap by three, without spending resources at cap', () => {
     const model = preview.createModel(World);
-    preview.placeBuilding(model, 'barracks', 6);
+    const barracks = preview.placeBuilding(model, 'barracks', 6);
     economy.initialize(model);
     preview.setObserved(model, [6]);
     const resources = model.world.get(model.game, 'Resources');
@@ -124,44 +150,76 @@ test('each barracks raises living guard cap by three, without spending resources
         return id;
     };
     assert.equal(economy.unitCapacity(model, 'barracks'), 3);
-    for (let i = 0; i < 3; i++) {
-        const events = economy.step(model, 60);
-        assert.equal(events.length, 1);
-        assert.equal(events[0].unitType, 'unit_guard');
-        spawn();
-    }
+    const initial = economy.step(model, 15000);
+    assert.equal(initial.length, 3, 'large deltas may finish several cycles, never exceeding the cap');
+    assert.ok(initial.every(e => e.unitType === 'unit_guard'));
+    initial.forEach(spawn);
     assert.equal(economy.aliveUnits(model, 'barracks'), 3);
+    assert.deepEqual({ ...resources }, { energy: 155, matter: 0, components: 125 });
+
     const before = { ...resources };
-    assert.deepEqual(economy.step(model, 60), []);
+    assert.deepEqual(economy.step(model, 5000), []);
+    assert.equal(model.world.get(barracks, 'Production').blocked, true);
+    assert.equal(model.world.get(barracks, 'Production').elapsedMs, 5000);
     assert.deepEqual(resources, before);
     const second = preview.placeBuilding(model, 'barracks', 8);
     assert.ok(second);
     assert.equal(economy.unitCapacity(model, 'barracks'), 6);
-    assert.equal(economy.step(model, 60).length, 1);
+    assert.equal(economy.step(model, 1).length, 1, 'completed cycle resumes when cap rises');
+    spawn();
+
     const guard = model.world.query('PreviewUnit')[0];
     model.world.get(guard, 'Health').hp = 0;
-    assert.equal(economy.aliveUnits(model, 'barracks'), 2);
-    assert.equal(economy.step(model, 60).length, 1);
+    assert.equal(economy.aliveUnits(model, 'barracks'), 3);
+    assert.deepEqual(economy.step(model, 1), [], 'free capacity does not skip a fresh cycle');
+    assert.equal(economy.step(model, 4999).length, 1);
 });
 
-test('all specialized producers spend their provisional costs and honor independent caps', () => {
+test('all specialized producers complete their own cadences before charging costs', () => {
     const models = [
-        ['ballistics','unit_sniper',35,20],
-        ['armor_forge','unit_mecha',60,35],
-        ['medical_center','unit_dronoid',40,25]
+        ['ballistics', 'unit_sniper', 35, 20, 8000],
+        ['armor_forge', 'unit_mecha', 60, 35, 12000],
+        ['medical_center', 'unit_dronoid', 40, 25, 10000]
     ];
-    for (const [type, unit, components, energy] of models) {
+    for (const [type, unit, components, energy, cycleMs] of models) {
         const model = preview.createModel(World);
-        preview.placeBuilding(model, type, 6);
+        const id = preview.placeBuilding(model, type, 6);
         economy.initialize(model);
-        preview.setObserved(model,[6]);
-        const resources=model.world.get(model.game,'Resources');
-        resources.components=components; resources.energy=energy;
-        const events=economy.step(model,60);
-        assert.equal(events.length,1);
-        assert.equal(events[0].unitType,unit);
-        assert.equal(resources.components,0);
-        assert.equal(resources.energy,0);
-        assert.equal(economy.unitCapacity(model,type),3);
+        preview.setObserved(model, [6]);
+        const resources = model.world.get(model.game, 'Resources');
+        resources.components = components; resources.energy = energy;
+        assert.equal(economy.PROTOTYPE_RECIPES[type].cycleMs, cycleMs);
+        assert.equal(model.world.get(id, 'Production').cooldownMs, cycleMs);
+        assert.deepEqual(economy.step(model, cycleMs - 1), []);
+        assert.deepEqual({ ...resources }, { energy, matter: 0, components });
+        const events = economy.step(model, 1);
+        assert.equal(events.length, 1);
+        assert.equal(events[0].unitType, unit);
+        assert.deepEqual({ ...resources }, { energy: 0, matter: 0, components: 0 });
+        assert.equal(economy.unitCapacity(model, type), 3);
     }
 });
+
+test('legacy zero-cadence military production does not turn old elapsed time into free units', () => {
+    const model = preview.createModel(World);
+    const id = preview.placeBuilding(model, 'barracks', 6);
+    economy.initialize(model);
+    const prior = model.world.get(id, 'Production');
+    prior.cooldownMs = 0;
+    prior.elapsedMs = 63000; // Old implementation accumulated time without a cadence.
+    prior.blocked = true;
+    const restoredWorld = World.restore(model.world.serialize());
+    const restoredModel = { ...model, world: restoredWorld };
+    const resources = restoredWorld.get(model.game, 'Resources');
+    resources.components = 50; resources.energy = 30;
+    preview.setObserved(restoredModel, [6]);
+    economy.initialize(restoredModel);
+    const progress = restoredWorld.get(id, 'Production');
+    assert.equal(progress.cooldownMs, 5000);
+    assert.equal(progress.elapsedMs, 0);
+    assert.equal(progress.blocked, false);
+    assert.deepEqual(economy.step(restoredModel, 4999), []);
+    assert.equal(economy.step(restoredModel, 1).length, 1);
+    assert.equal(resources.components, 25);
+});
+
