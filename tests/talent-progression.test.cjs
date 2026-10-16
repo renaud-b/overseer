@@ -1,6 +1,6 @@
 const test=require('node:test');const assert=require('node:assert/strict');const p=require('../src/core/TalentProgression.js');const catalog=require('../src/core/TalentCatalog.js');function store(){const m=new Map();return {getItem:k=>m.has(k)?m.get(k):null,setItem:(k,v)=>m.set(k,v),removeItem:k=>m.delete(k)};}
-test('purchases preserve historical keys and prerequisites',()=>{const s=store();s.setItem('memoryShards','30');assert.equal(p.purchase(s,catalog.get('starter_drone')).ok,false);assert.equal(p.purchase(s,catalog.get('starter_base_hp')).ok,true);assert.equal(p.read(s).shards,25);assert.equal(p.purchase(s,catalog.get('starter_drone')).ok,true);assert.equal(p.read(s).shards,17);});
-test('reset refunds historical purchases',()=>{const s=store();s.setItem('memoryShards','30');p.purchase(s,catalog.get('starter_base_hp'));p.purchase(s,catalog.get('starter_drone'));assert.equal(p.reset(s,catalog).ok,true);assert.deepEqual(p.read(s),{unlocked:['root'],shards:30});});
+test('purchases preserve historical keys and prerequisites',()=>{const s=store();s.setItem('memoryShards','30');assert.equal(p.purchase(s,catalog.get('starter_drone')).ok,false);assert.equal(p.purchase(s,catalog.get('starter_base_hp')).ok,true);assert.equal(p.read(s).shards,25);assert.equal(p.purchase(s,catalog.get('starter_drone')).ok,false);assert.equal(p.purchase(s,catalog.get('starter_reinforcement')).ok,true);assert.equal(p.read(s).shards,17);});
+test('reset refunds historical purchases',()=>{const s=store();s.setItem('memoryShards','30');p.purchase(s,catalog.get('starter_base_hp'));p.purchase(s,catalog.get('starter_reinforcement'));assert.equal(p.reset(s,catalog).ok,true);assert.deepEqual(p.read(s),{unlocked:['root'],shards:30});});
 
 
 test('production branch is staged and cannot spend shards before ECS effects exist',()=>{
@@ -17,4 +17,11 @@ test('historical economy purchases survive new catalog and reset remains refunda
  assert.equal(p.read(s).shards,70);
  assert.equal(p.reset(s,catalog).ok,true);
  assert.equal(p.read(s).shards,95);
+});
+
+test('old purchased defense nodes stay refundable without being sold to new players',()=>{
+ const s=store();s.setItem('unlockedTalents',JSON.stringify(['root','starter_base_hp','starter_drone']));
+ assert.equal(p.purchase(s,catalog.get('starter_drone')).ok,false);
+ assert.equal(p.reset(s,catalog).ok,true);
+ assert.equal(p.read(s).shards,13);
 });
