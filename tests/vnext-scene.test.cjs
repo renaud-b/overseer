@@ -1277,7 +1277,8 @@ test('observed laboratory displays live research progress and a technology after
 test('wave rewards mix one-shot technology and buildings, preserve save/restore',()=>{
  const scene=new VNextScene();scene.create();
  const choices=new Set();for(let n=1;n<=80;n++)for(const type of scene.rewardOptions(n))choices.add(type);
- assert.ok(scene.rewardOptions(1,'technology').includes('tech:healing_field'));
+ assert.equal(scene.rewardOptions(1,'technology').length,3);
+ assert.ok(scene.rewardOptions(1,'technology').every(type=>technologies.TYPES.includes(type.slice(5))));
   assert.ok(choices.has('reactor'));
  scene.waveClock.number=1;scene.activeReward={number:1,options:['reactor','factory','tech:healing_field']};
  assert.doesNotThrow(()=>saves.restore(saves.capture(scene),World));
@@ -1329,4 +1330,103 @@ test('reward distribution approximates 40/40/20 deterministically',()=>{
   assert.deepEqual(rewardSystem.mode(10,seed),['building','technology']);
   assert.deepEqual(rewardSystem.mode(20,seed),['building','technology']);
  }
+});
+
+
+test('technology inventory hover explains each effect and cleans up on drag and resize', () => {
+    const scene = new VNextScene();
+    scene.create();
+    technologies.inventory(scene.model).items.push('healing_field', 'berserk', 'stasis_field');
+    scene.buildUi();
+    for (const [type, expected] of [
+        ['healing_field', '+1 PV toutes les 2 s'],
+        ['berserk', "Cadence d'attaque : +50 %"],
+        ['stasis_field', 'Vitesse : -50 %']
+    ]) {
+        const card = scene.ui.find(o => o.getData?.('technology') === type);
+        assert.ok(card, type + ' appears in inventory');
+        card.handlers.pointerover();
+        assert.ok(scene.technologyTooltipObjects.some(o => o.value === expected), expected);
+        const previous = [...scene.technologyTooltipObjects];
+        card.handlers.pointerout();
+        assert.equal(scene.technologyTooltipObjects.length, 0);
+        assert.ok(previous.every(o => o.destroyed));
+    }
+    const card = scene.ui.find(o => o.getData?.('technology') === 'berserk');
+    card.handlers.pointerover();
+    scene.onDragStart({ x: 15, y: 15 }, card);
+    assert.equal(scene.technologyTooltipObjects.length, 0);
+    scene.dragGhost.destroy(); scene.dragGhost = null;
+    scene.showTechnologyTooltip('stasis_field', 900, 200);
+    const old = [...scene.technologyTooltipObjects];
+    scene.scale.width = 800;
+    scene.buildUi();
+    assert.ok(old.every(o => o.destroyed));
+});
+
+test('technology reward hover displays effect details above the reward overlay', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.activeReward = { number: 1, options: ['tech:healing_field', 'tech:berserk', 'tech:stasis_field'] };
+    scene.buildUi();
+    for (const [type, expected] of [
+        ['tech:healing_field', 'RÉGÉNÉRATION'],
+        ['tech:berserk', 'BERSERK'],
+        ['tech:stasis_field', 'STASE']
+    ]) {
+        const card = scene.ui.find(o => o.getData?.('reward') === type);
+        assert.ok(card);
+        card.handlers.pointerover();
+        assert.ok(scene.technologyTooltipObjects.some(o => o.value === expected && o.depth === 311));
+        const old = [...scene.technologyTooltipObjects];
+        card.handlers.pointerout();
+        assert.ok(old.every(o => o.destroyed));
+    }
+    scene.ui.find(o => o.getData?.('reward') === 'tech:berserk').handlers.pointerover();
+    const old = [...scene.technologyTooltipObjects];
+    scene.chooseReward('tech:berserk');
+    assert.ok(old.every(o => o.destroyed));
+});
+
+
+test('Surcharge uses a base drop and Surcadencement uses a battlefield drop without wasting invalid casts', () => {
+    const scene = new VNextScene();
+    scene.create();
+    technologies.inventory(scene.model).items.push('overload', 'overclock');
+    scene.buildUi();
+    const overload = scene.ui.find(o => o.getData?.('technology') === 'overload');
+    assert.ok(overload);
+    scene.onDragEnd({x:-12,y:-12},overload);
+    assert.ok(technologies.inventory(scene.model).items.includes('overload'));
+    const l=scene.layout;
+    scene.onDragEnd({x:l.boardX+l.boardW/2,y:l.mainTop+110},overload);
+    assert.equal(zones.active(scene.model,'overload'),true);
+    assert.ok(!technologies.inventory(scene.model).items.includes('overload'));
+    const overclock=scene.ui.find(o => o.getData?.('technology') === 'overclock');
+    assert.ok(overclock);
+    const b=scene.battleBounds;
+    scene.onDragEnd({x:b.x+b.w/2,y:b.y+b.h/2},overclock);
+    assert.equal(zones.speedMultiplier(scene.model),1.5);
+    assert.ok(!technologies.inventory(scene.model).items.includes('overclock'));
+    const saved=saves.restore(saves.capture(scene),World);
+    assert.equal(zones.speedMultiplier(saved.model),1.5);
+});
+
+test('new technologies show accurate tooltips in inventory and reward choice', () => {
+    const scene = new VNextScene();
+    scene.create();
+    technologies.inventory(scene.model).items.push('overclock','overload');
+    scene.buildUi();
+    for(const [type,expected] of [['overclock','Déplacement : +50 %'],['overload','Production : ×2']]){
+        const label=scene.ui.find(o=>o.getData?.('technology')===type);
+        assert.ok(label);
+        label.handlers.pointerover();
+        assert.ok(scene.technologyTooltipObjects.some(o=>o.value===expected));
+        label.handlers.pointerout();
+    }
+    scene.activeReward={number:1,options:['tech:overclock','tech:overload','tech:healing_field']};
+    scene.buildUi();
+    const reward=scene.ui.find(o=>o.getData?.('reward')==='tech:overload');
+    reward.handlers.pointerover();
+    assert.ok(scene.technologyTooltipObjects.some(o=>o.value==='SURCHARGE'));
 });

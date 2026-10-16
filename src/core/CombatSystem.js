@@ -8,7 +8,7 @@ function stepUnit(world,id,delta,options={}){
  const berserk=world.get(id,'TechnologyBuff')?.type==='berserk';
  combat.elapsedMs+=delta*(berserk?1.5:1);
  const opponents=(options.opponents||[]).filter(other=>world.has(other)&&world.get(other,'Health')?.hp>0).map(other=>({id:other,position:world.get(other,'Position')})).filter(o=>o.position);
- let speed=movement.speed;
+ let speed=movement.speed*(faction.side==='player'?(options.allySpeedMultiplier||1):1);
  if(faction.side==='enemy')for(const zoneId of world.query('TechnologyZone')) {
   const zone=world.get(zoneId,'TechnologyZone');
   if(zone.type==='stasis_field'&&distance(position,zone)<=zone.radius){speed*=0.5;break;}
