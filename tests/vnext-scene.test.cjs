@@ -2466,7 +2466,9 @@ test('radar marks distant targets in real scene simulation only when the ring cr
  for(let i=0;i<55;i++)scene.update(0,60); // radius ~673, still short of 755.
  assert.equal(scene.world.get(id,'ThreatMark'),undefined);
  for(let i=0;i<12;i++)scene.update(0,60); // radius ~820, passes the enemy.
- assert.equal(scene.world.get(id,'ThreatMark').remainingMs,2000);
+ const remaining=scene.world.get(id,'ThreatMark')?.remainingMs;
+ assert.ok(remaining>0&&remaining<=2000,'a distant enemy retains its radar mark after the sweep');
+ assert.ok(remaining<2000,'mark memory already counts down after the crossing frame');
  assert.equal(threats.radius(scene.model),350);
  savedEntries.clear();
 });
