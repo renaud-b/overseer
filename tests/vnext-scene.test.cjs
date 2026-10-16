@@ -2058,3 +2058,83 @@ test('memory shards persist across defeat and fresh games without touching talen
     assert.equal(shards.balance(saveStorage),13);
     savedEntries.clear();
 });
+
+
+test('all six tooltip families are presentation-only and disposed on UI rebuild', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    scene.create();
+    const before = scene.world.serialize();
+
+    scene.showCardTooltip('reactor', 260, 180);
+    scene.showTechnologyTooltip('berserk', 330, 240);
+    scene.showResourceTooltip(scene.resourceStyles[0], 450, 300);
+    scene.showArtifactTooltip(null, 600, 100);
+    scene.showWaveTooltip(0, 650, 680);
+
+    const ally = scene.battleUnits.find(id =>
+        scene.world.get(id, 'Faction')?.side === 'player');
+    const position = scene.world.get(ally, 'Position');
+    const bounds = scene.battleBounds;
+    scene.onBattleUnitPointer({
+        x: bounds.x + position.x * bounds.w / 1000,
+        y: bounds.y + position.y * bounds.h / 600
+    });
+    const groups = [
+        scene.tooltipObjects, scene.technologyTooltipObjects,
+        scene.artifactTooltipObjects, scene.waveTooltipObjects,
+        scene.battleTooltipObjects
+    ].map(items => [...items]);
+    const resourceTooltip = scene.resourceTooltip;
+    assert.ok(groups.every(items => items.length), 'every graphics tooltip is visible');
+    assert.ok(resourceTooltip, 'resource tooltip is visible');
+    assert.deepEqual(scene.world.serialize(), before, 'hover must not alter ECS state');
+
+    scene.scale.width = 900;
+    scene.scale.height = 650;
+    const oldMask = scene.battleMask;
+    scene.buildUi();
+    assert.ok(oldMask.destroyed, 'previous battlefield mask is released');
+    assert.ok(groups.flat().every(object => object.destroyed), 'all tooltip displays are released');
+    assert.ok(resourceTooltip.destroyed, 'resource tooltip is released');
+    assert.deepEqual([
+        scene.tooltipObjects.length, scene.technologyTooltipObjects.length,
+        scene.artifactTooltipObjects.length, scene.waveTooltipObjects.length,
+        scene.battleTooltipObjects.length
+    ], [0, 0, 0, 0, 0]);
+    assert.equal(scene.resourceTooltip, null);
+    assert.equal(scene.battleHoverPointer, null);
+    assert.deepEqual(scene.world.serialize(), before, 'UI rebuild must not alter ECS state');
+    savedEntries.clear();
+});
+
+test('scene shutdown releases battle hover and rendering mask without touching the run', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    const registered = {};
+    scene.events.once = (name, callback) => { registered[name] = callback; };
+    scene.create();
+    assert.equal(typeof registered.shutdown, 'function');
+    const before = scene.world.serialize();
+    scene.showTechnologyTooltip('stasis_field', 500, 220);
+    const techDisplays = [...scene.technologyTooltipObjects];
+    const ally = scene.battleUnits.find(id =>
+        scene.world.get(id, 'Faction')?.side === 'player');
+    const position = scene.world.get(ally, 'Position');
+    const bounds = scene.battleBounds;
+    scene.onBattleUnitPointer({
+        x: bounds.x + position.x * bounds.w / 1000,
+        y: bounds.y + position.y * bounds.h / 600
+    });
+    const battleDisplays = [...scene.battleTooltipObjects];
+    const oldMask = scene.battleMask;
+    assert.ok(battleDisplays.length);
+
+    registered.shutdown();
+    assert.ok(oldMask.destroyed);
+    assert.equal(scene.battleMask, null);
+    assert.ok([...techDisplays, ...battleDisplays].every(object => object.destroyed));
+    assert.equal(scene.battleHoverPointer, null);
+    assert.deepEqual(scene.world.serialize(), before);
+    savedEntries.clear();
+});
