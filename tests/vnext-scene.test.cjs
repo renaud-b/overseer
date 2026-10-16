@@ -726,7 +726,9 @@ test('clearing tenth-wave elite guarantees two reward choices in existing journe
     scene.triggerWave(wave);
     for(const id of scene.waveMembers.get(10))scene.world.get(id,'Health').hp=0;
     scene.checkWaveClears();
-    assert.deepEqual(scene.activeReward.stages.map(stage=>stage.kind),['building','technology']);
+    const kinds = scene.activeReward.stages.map(stage => stage.kind);
+    assert.deepEqual(kinds.slice(0,2), ['building','technology']);
+    assert.ok(kinds.length === 2 || (kinds.length === 3 && kinds[2] === 'artifact'));
     const cardBefore=cards.cards(scene.model).length;
     assert.equal(scene.chooseReward(scene.activeReward.options[0]),true);
     assert.equal(cards.cards(scene.model).length,cardBefore+1);
@@ -736,6 +738,10 @@ test('clearing tenth-wave elite guarantees two reward choices in existing journe
     const techBefore=technologies.inventory(scene.model).items.length;
     assert.equal(scene.chooseReward(scene.activeReward.options[0]),true);
     assert.equal(technologies.inventory(scene.model).items.length,techBefore+1);
+    if (scene.activeReward) {
+        assert.equal(rewards.current(scene.activeReward).kind, 'artifact');
+        assert.equal(scene.chooseReward(scene.activeReward.options[0]), true);
+    }
     assert.equal(scene.activeReward,null);
     savedEntries.clear();
 });
