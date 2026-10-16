@@ -4,21 +4,21 @@
     const CAPACITY = 6;
     const CATALOG = Object.freeze([
         { id: 'echo', label: 'Écho de conscience', symbol: 'orbit', color: 0xb58aff,
-          description: 'Un bâtiment hors vision termine périodiquement un cycle.' },
+          description: 'Toutes les 20 s, un bâtiment hors vision produit une fois si les ressources et capacités le permettent.' },
         { id: 'spontaneous', label: 'Génération spontanée', symbol: 'triangle', color: 0xf4ba58,
-          description: 'Au début d’une vague, une unité alliée peut apparaître gratuitement.' },
+          description: 'Au début de chaque vague, 10 % de chance de produire gratuitement une unité d’un bâtiment militaire disponible.' },
         { id: 'core_laser', label: 'Jugement du noyau', symbol: 'cross', color: 0x62e7e1,
-          description: 'Le noyau tire occasionnellement sur un ennemi détecté.' },
+          description: 'Toutes les 15 s, le noyau tire sur un ennemi dans son rayon de détection (3 dégâts).' },
         { id: 'lingering', label: 'Mémoire résiduelle', symbol: 'orbit', color: 0xb58aff,
-          description: 'Un bâtiment continue brièvement à fonctionner hors vision.' },
+          description: 'Un bâtiment continue à fonctionner 3 s après être sorti de la vision.' },
         { id: 'shield', label: 'Instinct de conservation', symbol: 'diamond', color: 0x69d9a0,
-          description: 'Un bouclier protège le noyau lorsqu’il devient vulnérable.' },
+          description: 'Une fois par vague, le noyau active un bouclier de 15 PV quand sa vie descend sous 30.' },
         { id: 'death_burst', label: 'Dernière instruction', symbol: 'triangle', color: 0xff6674,
-          description: 'Une unité alliée détruite inflige des dégâts aux ennemis proches.' },
+          description: 'Une unité alliée détruite inflige 2 dégâts aux ennemis proches (rayon 80).' },
         { id: 'recovery', label: 'Protocole de récupération', symbol: 'cross', color: 0x69d9a0,
-          description: 'Le noyau peut récupérer de la vie après une vague.' },
+          description: 'Après une vague où le noyau a perdu de la vie, il récupère jusqu’à 5 PV.' },
         { id: 'duplicate', label: 'Parallélisme quantique', symbol: 'diamond', color: 0xf4ba58,
-          description: 'Certaines productions accordent un résultat supplémentaire.' }
+          description: 'Toutes les 30 s, la prochaine production industrielle accorde un second résultat gratuit.' }
     ].map(entry => Object.freeze(entry)));
     const IDS = Object.freeze(CATALOG.map(entry => entry.id));
     function get(id) { return CATALOG.find(artifact => artifact.id === id) || null; }

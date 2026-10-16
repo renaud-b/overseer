@@ -109,6 +109,7 @@ class VNextScene extends Phaser.Scene {
         this.rewardSerial = 0;
 
         OverseerVNextArtifacts.collection(this.model); // Optional in pre-artifact saves.
+        OverseerVNextArtifactEffects.state(this.model); // Timers live in ECS across Continue.
         if (restored) {
             OverseerVNextEconomy.initialize(this.model); // Backfill Data for old saves, preserve cycles.
             // No resetBattle(), production reset or re-grant: ECS is the restored truth.
@@ -273,7 +274,7 @@ class VNextScene extends Phaser.Scene {
                 color, wordWrap: { width: width - 26 } }).setDepth(depth + 1));
         label(artifact?.label || 'Emplacement vide', 12, 14, '#dfeaf0');
         label(artifact?.description || 'Un artefact obtenu apparaîtra ici.', 37, 11, '#9cb9c9');
-        if (artifact) label('EFFET EN PRÉPARATION', 91, 10, '#f4ba58');
+        if (artifact) label('EFFET PASSIF ACTIF', 91, 10, '#69d9a0');
     }
 
     drawSpeedControls(w) {
@@ -1004,6 +1005,10 @@ class VNextScene extends Phaser.Scene {
         for (const group of wave.enemies) {
             for (let i = 0; i < group.count; i++) this.spawnEnemyUnit(group.type, i, group.count, wave.number);
         }
+        for (const event of OverseerVNextArtifactEffects.startWave(
+            this.model, wave.number, this.waveClock.seed, this.baseHp, OverseerVNextEconomy)) {
+            this.spawnFriendlyUnit(event.unitType);
+        }
         // Preview markers slide forward; the wave plan itself remains deterministic.
         this.previewWaves = OverseerVNextWaves.preview(8, this.waveClock.seed, this.waveClock.number);
         this.buildUi();
@@ -1050,6 +1055,10 @@ class VNextScene extends Phaser.Scene {
             if (!members.length) continue;
             if (!members.every(id => !this.world.has(id) || this.world.get(id, 'Health').hp <= 0)) continue;
             this.waveMembers.delete(number);
+            const recovered = OverseerVNextArtifactEffects.clearWave(this.model, number, this.baseHp);
+            this.baseHp = recovered.hp;
+            if (recovered.healed) this.actionEffects.heal(
+                {x:65,y:300}, {x:65,y:300}, 0x69d9a0);
             this.rewardQueue.push(this.rewardForWave(number));
             changed = true;
         }
@@ -1336,6 +1345,9 @@ class VNextScene extends Phaser.Scene {
         const detectionRadius = OverseerVNextThreats.RADIUS * b.w / 1000;
         g.lineStyle(1, 0x91ced1, 0.44).strokeCircle(base.x, base.y, detectionRadius);
         const coreColor = this.baseHealthColor();
+        if (OverseerVNextArtifactEffects.state(this.model).shieldPoints > 0) {
+            g.lineStyle(2, 0x69d9a0, 0.9).strokeCircle(base.x, base.y, 29);
+        }
         g.lineStyle(2, coreColor, 0.82).strokeCircle(base.x, base.y, 12);
         g.lineStyle(1, coreColor, 0.38).strokeCircle(base.x, base.y, 21);
         const healthWidth = Math.min(62, b.w - 6);
@@ -1439,7 +1451,7 @@ class VNextScene extends Phaser.Scene {
         for (const wave of OverseerVNextWaves.advance(this.waveClock, dt)) this.triggerWave(wave);
         this.updateWaveTimeline();
         const previousResources = { ...this.world.get(this.model.game, 'Resources') };
-        const economyEvents = OverseerVNextEconomy.step(this.model, dt);
+        const economyEvents = OverseerVNextArtifactEffects.production(this.model, dt, OverseerVNextEconomy);
         const researchEvents=OverseerVNextTechnologies.step(this.model,dt);
         if(researchEvents.length)this.buildUi();
         for (const event of economyEvents) {
@@ -1469,7 +1481,10 @@ class VNextScene extends Phaser.Scene {
                 centralDetection: side === 'player'
             });
             for (const event of events) {
-                if (event.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - event.damage);
+                if (event.type === 'base-attack') {
+                    const result = OverseerVNextArtifactEffects.baseHit(this.model, this.baseHp, event.damage);
+                    this.baseHp = result.hp;
+                }
                 if (event.type === 'attack' && this.world.has(event.attacker) && this.world.has(event.target)) {
                     // Snapshot directions at impact time; simulation positions never receive recoil.
                     const attackerPosition = this.world.get(event.attacker, 'Position');
@@ -1490,6 +1505,18 @@ class VNextScene extends Phaser.Scene {
             }
         }
         if (this.baseHp <= 0) { this.finishRun(); return; }
+        const ray = OverseerVNextArtifactEffects.laser(this.model, dt);
+        if (ray) {
+            this.actionEffects.laser(ray.from, ray.to, 0x62e7e1);
+            this.hitEffects.hit(ray.target, ray.from, ray.to, 0x62e7e1);
+        }
+        const deadAllies = this.battleUnits.filter(id => this.world.has(id) &&
+            this.world.get(id, 'Faction').side === 'player' &&
+            this.world.get(id, 'Health').hp <= 0);
+        for (const burst of OverseerVNextArtifactEffects.deaths(this.model, deadAllies)) {
+            this.actionEffects.laser(burst.from, burst.to, 0xff6674);
+            this.hitEffects.hit(burst.target, burst.from, burst.to, 0xff6674);
+        }
         OverseerCombat.separateUnits(this.world, this.battleUnits);
         // Wall-clock duration makes impacts readable at x1/x3/x5. Pause freezes them.
         this.hitEffects.update(Math.min(60, Math.max(0, delta)));

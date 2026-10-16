@@ -85,6 +85,10 @@
             (typeof require === 'function' ? require('./VNextArtifacts.js') : null);
         const artifactCollection = world.get(game, 'ArtifactCollection');
         requireValid(!artifactCollection || artifacts.valid(artifactCollection.ids), 'artifact collection');
+        const effectRules = root.OverseerVNextArtifactEffects ||
+            (typeof require === 'function' ? require('./VNextArtifactEffects.js') : null);
+        const effectState = world.get(game, 'ArtifactEffects');
+        requireValid(!effectState || effectRules.valid(effectState), 'artifact effects');
         const hand = world.get(game, 'BuildingHand');
         requireValid(hand && Array.isArray(hand.cards) &&
             hand.cards.every(card => rewardTypes().includes(card)), 'building hand');
