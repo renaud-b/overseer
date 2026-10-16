@@ -16,6 +16,50 @@
         medical_center: Object.freeze({ cycleMs: 10000, produces: { unit_dronoid: 1 }, consumes: { components: 40, energy: 25 } })
     });
 
+    const ECONOMIC_TYPES = new Set(['reactor','extractor','factory','compute_node']);
+    const TALENTS = ['production_extraction','production_components','production_efficiency','production_automation'];
+    function talents(model) {
+        return model.world.get(model.game,'ProductionTalents')?.ids || [];
+    }
+    // Snapshot persistent choices at run creation; old saves default to no bonuses.
+    function configureTalents(model, ids = []) {
+        if (model.world.hasComponent(model.game,'ProductionTalents')) return false;
+        model.world.set(model.game,'ProductionTalents',{
+            ids: [...new Set(ids.filter(id=>TALENTS.includes(id)))],
+            fractions: {}
+        });
+        return true;
+    }
+    function adjustedOutputs(model,id,type,produces) {
+        const active=talents(model), multiplier=
+            (['reactor','extractor'].includes(type)&&active.includes('production_extraction'))?1.2:
+            (type==='factory'&&active.includes('production_components'))?1.25:1;
+        const state=model.world.get(model.game,'ProductionTalents');
+        const result={};
+        for(const [key,amount] of Object.entries(produces)){
+            if(!state || multiplier===1){result[key]=amount;continue;}
+            const bucket=state.fractions[id] ||= { outputs:{}, inputs:{} };
+            const total=amount*multiplier+(bucket.outputs[key]||0);
+            result[key]=Math.floor(total+1e-9);
+            bucket.outputs[key]=Math.max(0,total-result[key]);
+        }
+        return result;
+    }
+    function adjustedInputs(model,id,type,consumes) {
+        const state=model.world.get(model.game,'ProductionTalents');
+        const discount=state?.ids.includes('production_efficiency')&&
+            ['factory','compute_node'].includes(type);
+        const result={}, credits={};
+        for(const [key,quantity] of Object.entries(consumes)){
+            if(!discount){result[key]=quantity;continue;}
+            const bucket=state.fractions[id] ||= { outputs:{}, inputs:{} };
+            const balance=bucket.inputs[key]||0;
+            const exact=quantity*0.85-balance;
+            result[key]=Math.max(0,Math.ceil(exact-1e-9));
+            credits[key]=Math.max(0,Math.min(1,result[key]-exact));
+        }
+        return {costs:result,credits};
+    }
     const MILITARY = Object.freeze({
         barracks: Object.freeze({ unitType: 'unit_guard', capacityPerBuilding: 3 }),
         ballistics: Object.freeze({ unitType: 'unit_sniper', capacityPerBuilding: 3 }),
@@ -76,14 +120,20 @@
         if (MILITARY[building.type] &&
             aliveUnits(model, building.type) + pending.filter(e =>
                 e.type === 'unit-produced' && e.buildingType === building.type).length >= unitCapacity(model, building.type)) return null;
-        if (Object.entries(recipe.consumes).some(([key, qty]) => resources[key] < qty)) return null;
-        for (const [key, qty] of Object.entries(recipe.consumes)) resources[key] -= qty;
+        const {costs,credits}=adjustedInputs(model,id,building.type,recipe.consumes);
+        if (Object.entries(costs).some(([key, qty]) => resources[key] < qty)) return null;
+        for (const [key, qty] of Object.entries(costs)) resources[key] -= qty;
+        const state=model.world.get(model.game,'ProductionTalents');
+        if(state&&Object.keys(credits).length){
+            const bucket=state.fractions[id] ||= {outputs:{},inputs:{}};
+            Object.assign(bucket.inputs,credits);
+        }
         if (MILITARY[building.type]) return {
             type: 'unit-produced', building: id, buildingType: building.type,
             unitType: MILITARY[building.type].unitType,
-            spent: { ...recipe.consumes } // Provenance for potential refund on death.
+            spent: { ...costs } // Provenance for potential refund on death.
         };
-        for (const [key, qty] of Object.entries(recipe.produces)) resources[key] += qty;
+        for (const [key, qty] of Object.entries(adjustedOutputs(model,id,building.type,recipe.produces))) resources[key] += qty;
         return { type: 'production', building: id, buildingType: building.type };
     }
 
@@ -110,8 +160,9 @@
             const coolingBonus = watched ? Math.max(0, coolingBonuses[id] || 0) : 0;
             // +100% observed military progress at wave opening, never on off-vision relay.
             const anticipationBonus = watched && MILITARY[type] ? Math.min(activeMs,anticipationMs) : 0;
+            const automationBonus = watched && ECONOMIC_TYPES.has(type) && talents(model).includes('production_automation') ? activeMs * 0.1 : 0;
             // Bonus from cooling stacks additively with Hyperfocus and Surcharge.
-            progress.elapsedMs += acceleratedMs + focusBonus + activeMs * coolingBonus + anticipationBonus;
+            progress.elapsedMs += acceleratedMs + focusBonus + activeMs * coolingBonus + anticipationBonus + automationBonus;
             progress.blocked = false;
             if (MILITARY[type]) {
                 // A completed cycle waits for materials/capacity. No resource reservation,
@@ -143,7 +194,7 @@
         return events;
     }
 
-    const api = { PROTOTYPE_RECIPES, MILITARY, unitCapacity, aliveUnits, initialize, forceCycle, step };
+    const api = { PROTOTYPE_RECIPES, MILITARY, TALENTS, configureTalents, unitCapacity, aliveUnits, initialize, forceCycle, step };
     root.OverseerVNextEconomy = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
