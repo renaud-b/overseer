@@ -243,7 +243,7 @@ test('compute node shows Data stock, throughput, tooltip and floating production
     assert.equal(scene.resourceStatusLabels.data.color, '#69e5ac');
     assert.ok(scene.productionPopups.some(effect =>
         effect.label.value === '+2' && effect.label.color === '#b58aff'));
-    assert.equal(scene.visionUpgradeCostLabel.value, '2/10 DONNÉES');
+    assert.equal(scene.visionUpgradeCostLabel.value, '2/30 DONNÉES');
     scene.scale.width = 800;
     scene.buildUi();
     assert.equal(scene.compactResources.data.value, '2');
@@ -263,11 +263,11 @@ test('Data from compute-node cycles pays a vision upgrade and survives Continue'
     running.selectedType = 'compute_node';
     running.clickTile(6);
     const resources = running.world.get(running.model.game, 'Resources');
-    resources.energy = 10; resources.matter = 5; resources.components = 5;
+    resources.energy = 30; resources.matter = 15; resources.components = 15;
     // Speed up the ECS production only; the UI must still see its real Data balance.
-    economy.step(running.model, 24000);
+    economy.step(running.model, 84000);
     for (let i = 0; i < 100; i++) running.update(0, 60);
-    assert.equal(resources.data, 10);
+    assert.equal(resources.data, 30);
     assert.equal(running.visionUpgradeButton.color, '#b58aff');
     assert.equal(running.tryUpgradeVision(), true);
     assert.equal(resources.data, 0);
