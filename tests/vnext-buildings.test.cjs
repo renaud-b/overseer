@@ -16,7 +16,8 @@ test('VNext building catalog has 14 distinct named archetypes', () => {
 
 test('undecided mechanics remain explicitly planned', () => {
     assert.equal(getBuilding('attention_relay').status, 'planned');
-    assert.equal(getBuilding('jammer').status, 'planned');
+    assert.equal(getBuilding('perception_amplifier').status, 'prototype');
+    assert.equal(getBuilding('jammer'), null);
     assert.equal(getBuilding('compute_node').status, 'prototype');
     assert.equal(getBuilding('barracks').status, 'planned');
     assert.equal(getBuilding('absent'), null);

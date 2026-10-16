@@ -15,7 +15,7 @@
         { id: 'medical_center', label: 'Centre médical', group: 'military', color: 0x69d9a0, description: 'Fabrique des unités soigneuses.', status: 'planned' },
         { id: 'laboratory', label: 'Laboratoire', group: 'support', color: 0xb58aff, description: 'Destiné aux données et aux protocoles.', status: 'planned' },
         { id: 'maintenance', label: 'Centre de maintenance', group: 'support', color: 0xf4ba58, description: 'Destiné à réparer la base.', status: 'planned' },
-        { id: 'jammer', label: 'Brouilleur', group: 'support', color: 0xff6674, description: 'Destiné à produire des perturbations temporaires au combat.', status: 'planned' },
+        { id: 'perception_amplifier', label: 'Amplificateur de perception', group: 'support', color: 0x91ced1, description: 'Fait pulser le rayon de détection du noyau quand il est observé.', status: 'prototype' },
         { id: 'bastion', label: 'Bastion', group: 'tactical', color: 0x5fa8e6, description: 'Destiné à protéger la base.', status: 'planned' },
         { id: 'attention_relay', label: 'Relais d’attention', group: 'tactical', color: 0xaa8cf6, description: 'Transmettrait l’activation aux voisins ; portée liée au refroidissement.', status: 'planned' }
     ].map(building => Object.freeze(building)));

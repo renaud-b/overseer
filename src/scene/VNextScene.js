@@ -620,7 +620,11 @@ class VNextScene extends Phaser.Scene {
         label(x + 41, y + 14, info.label, 15, '#e3f0f5');
         label(x + pad, y + 48, info.description, 11, '#a6bfce');
         if (!recipe) {
-            if (type === 'laboratory') {
+            if (type === 'perception_amplifier') {
+                label(x + pad, y + 101, 'RAYON : 350 → 500', 11, '#91ced1');
+                label(x + pad, y + 125, 'PULSATION : 5 S SOUS VISION', 10, '#91ced1');
+                label(x + pad, y + 150, 'CIBLES MARQUÉES : MÉMOIRE 2 S', 9, '#819eaf');
+            } else if (type === 'laboratory') {
                 label(x + pad, y + 105, 'PRODUIT : TECHNOLOGIE DE SOIN', 10, '#69d9a0');
                 label(x + pad, y + 128, '1 TECHNOLOGIE / 30 S SOUS VISION', 10, '#b58aff');
                 label(x + pad, y + 151, 'INVENTAIRE : PANNEAU DE DROITE', 9, '#819eaf');
@@ -652,7 +656,12 @@ class VNextScene extends Phaser.Scene {
     drawGlyph(g, type, x, y, color, r) {
         g.lineStyle(2, color, 1);
         if (type === 'reactor') g.strokeCircle(x, y, r * 0.75);
-        else if (type === 'extractor') {
+        else if (type === 'perception_amplifier') {
+            g.strokeCircle(x, y, r * 0.48);
+            g.strokeCircle(x, y, r * 0.82);
+            g.lineBetween(x - r, y, x - r * 0.8, y);
+            g.lineBetween(x + r * 0.8, y, x + r, y);
+        } else if (type === 'extractor') {
             g.strokeEllipse(x, y, r * 1.5, r * 0.95);
             g.lineBetween(x - r * 0.7, y + r * 0.7, x + r * 0.7, y - r * 0.7);
         } else if (type === 'factory') {
@@ -1549,8 +1558,9 @@ class VNextScene extends Phaser.Scene {
         const p = (x, y) => ({ x: b.x + b.w * x / 1000, y: b.y + b.h * y / 600 });
         const base = p(65, 300);
         // Detection is measured in simulation units; the panel mask clips its visible edge.
-        const detectionRadius = OverseerVNextThreats.RADIUS * b.w / 1000;
-        g.lineStyle(1, 0x91ced1, 0.44).strokeCircle(base.x, base.y, detectionRadius);
+        const detectionRadius = OverseerVNextThreats.radius(this.model) * b.w / 1000;
+        g.lineStyle(1, 0x91ced1, OverseerVNextThreats.active(this.model) ? 0.67 : 0.44)
+            .strokeCircle(base.x, base.y, detectionRadius);
         const coreColor = this.baseHealthColor();
         if (OverseerVNextArtifactEffects.state(this.model).shieldPoints > 0) {
             g.lineStyle(2, 0x69d9a0, 0.9).strokeCircle(base.x, base.y, 29);
@@ -1682,7 +1692,8 @@ class VNextScene extends Phaser.Scene {
         this.paintBoard();
         const players = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'player' && this.world.get(id, 'Health').hp > 0);
         const enemies = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'enemy' && this.world.get(id, 'Health').hp > 0);
-        OverseerVNextThreats.update(this.world, enemies, dt);
+        OverseerVNextThreats.step(this.model, dt);
+        OverseerVNextThreats.update(this.world, enemies, dt, OverseerVNextThreats.radius(this.model));
         const posts = new Map(players.map((id, index) =>
             [id, OverseerCombat.formationPosition(index, players.length)]));
         for (const id of [...players, ...enemies]) {
@@ -1723,7 +1734,7 @@ class VNextScene extends Phaser.Scene {
             }
         }
         if (this.baseHp <= 0) { this.finishRun(); return; }
-        const ray = OverseerVNextArtifactEffects.laser(this.model, dt);
+        const ray = OverseerVNextArtifactEffects.laser(this.model, dt, OverseerVNextThreats.radius(this.model));
         if (ray) {
             this.actionEffects.laser(ray.from, ray.to, 0x62e7e1);
             this.hitEffects.hit(ray.target, ray.from, ray.to, 0x62e7e1);

@@ -1794,3 +1794,46 @@ test('terminal overload is absent from reward proposals until core laser is equi
  assert.equal(after.has('artifact:terminal_overload'),true);
  savedEntries.clear();
 });
+
+test('perception amplifier draws its simulated pulse and triggers only when observed',()=>{
+    const scene=new VNextScene();scene.create();
+    const baseRadius=threats.radius(scene.model);
+    assert.equal(baseRadius,350);
+    assert.ok(cards.REWARD_CARDS.includes('perception_amplifier'));
+    cards.grant(scene.model,'perception_amplifier');
+    const id=preview.placeBuilding(scene.model,'perception_amplifier',6);
+    preview.setObserved(scene.model,[6]);
+    scene.buildUi();
+    const radiusDrawn=()=>scene.battleGraphics.drawCalls.find(call=>
+        call.type==='strokeCircle'&&call.color===0x91ced1 &&
+        Math.abs(call.x-(scene.battleBounds.x+scene.battleBounds.w*65/1000))<0.1)?.r;
+    assert.ok(Math.abs(radiusDrawn()-350*scene.battleBounds.w/1000)<1e-6);
+    scene.world.set(scene.model.game,'PerceptionPulse',{phaseMs:2500});
+    scene.paintBattle();
+    assert.ok(Math.abs(radiusDrawn()-500*scene.battleBounds.w/1000)<1e-6);
+    scene.selectSpeed(0);
+    const phase=scene.world.get(scene.model.game,'PerceptionPulse').phaseMs;
+    scene.update(0,300);
+    assert.equal(scene.world.get(scene.model.game,'PerceptionPulse').phaseMs,phase);
+    scene.selectSpeed(1);
+    preview.setObserved(scene.model,[]);
+    scene.paintBattle();
+    assert.equal(threats.radius(scene.model),350);
+    assert.ok(scene.world.has(id));
+    const saved=saves.restore(saves.capture(scene),World);
+    assert.equal(saved.model.world.get(saved.model.game,'PerceptionPulse').phaseMs,phase);
+});
+
+test('amplifier can be chosen in wave building rewards and describes the pulse',()=>{
+    const scene=new VNextScene();scene.create();
+    scene.waveClock.number=1;
+    scene.activeReward={number:1,options:['reactor','perception_amplifier','factory']};
+    scene.buildUi();
+    const card=scene.ui.find(o=>o.getData?.('reward')==='perception_amplifier');
+    assert.ok(card);
+    card.handlers.pointerover();
+    assert.ok(scene.tooltipObjects.some(o=>o.value==='RAYON : 350 → 500'));
+    card.handlers.pointerout();
+    assert.equal(scene.chooseReward('perception_amplifier'),true);
+    assert.ok(cards.cards(scene.model).includes('perception_amplifier'));
+});
