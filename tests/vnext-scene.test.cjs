@@ -2513,3 +2513,60 @@ test('radar marks distant targets in real scene simulation only when the ring cr
  assert.equal(threats.radius(scene.model),350);
  savedEntries.clear();
 });
+
+test('core secondary ring becomes a closed animated sine wave that gets noisier with damage',()=>{
+    savedEntries.clear();
+    const scene=new VNextScene();scene.create();
+    const base={x:scene.battleBounds.x+scene.battleBounds.w*65/1000,
+        y:scene.battleBounds.y+scene.battleBounds.h/2};
+    const waveAt=(hp,phase)=>{
+        scene.baseHp=hp;
+        scene.waveClock.elapsedMs=phase;
+        scene.paintBattle();
+        const strokes=scene.battleGraphics.drawCalls.filter(call=>
+            call.type==='strokePoints'&&call.color===scene.baseHealthColor());
+        assert.equal(strokes.length,1,'exactly one signal contour around the central circle');
+        assert.equal(scene.battleGraphics.drawCalls.filter(call=>
+            call.type==='strokeCircle'&&call.color===scene.baseHealthColor()).length,1,
+            'only the primary core circle remains');
+        assert.equal(strokes[0].points.length,96,'bounded vector geometry');
+        assert.ok(strokes[0].points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)));
+        const radii=strokes[0].points.map(p=>Math.hypot(p.x-base.x,p.y-base.y));
+        assert.ok(radii.every(r=>r>14&&r<27),'the contour does not overlap the core');
+        return radii;
+    };
+    const healthy=waveAt(100,1000);
+    const damaged=waveAt(55,1000);
+    const critical=waveAt(12,1000);
+    // Higher frequencies produce more local curvature than a smooth healthy sine.
+    const roughness=r=>r.reduce((sum,v,i)=>sum+
+        Math.abs(r[(i+1)%r.length]-2*v+r[(i+r.length-1)%r.length]),0);
+    assert.ok(roughness(damaged)>roughness(healthy)*1.5);
+    assert.ok(roughness(critical)>roughness(damaged)*1.3);
+    const moving=waveAt(12,1480);
+    assert.ok(critical.some((r,i)=>Math.abs(r-moving[i])>0.15),
+        'the signal visibly moves with simulation time');
+    savedEntries.clear();
+});
+
+test('core sine-wave animation freezes in pause and resumes without an extra timer',()=>{
+    savedEntries.clear();
+    const scene=new VNextScene();scene.create();
+    scene.baseHp=20;
+    scene.update(0,60);
+    const before=scene.waveClock.elapsedMs;
+    const outline=()=>scene.coreSignalPoints(100,100);
+    const snapshot=outline();
+    scene.selectSpeed(0);
+    scene.update(0,2000);
+    assert.equal(scene.waveClock.elapsedMs,before);
+    assert.deepEqual(outline(),snapshot);
+    scene.selectSpeed(1);
+    scene.update(0,60);
+    assert.ok(scene.waveClock.elapsedMs>before);
+    assert.notDeepEqual(outline(),snapshot);
+    const saved=saves.restore(saves.capture(scene),World);
+    assert.equal(saved.waveClock.elapsedMs,scene.waveClock.elapsedMs,
+        'the renderer reads the already persisted simulation clock');
+    savedEntries.clear();
+});
