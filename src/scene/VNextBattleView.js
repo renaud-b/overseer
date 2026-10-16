@@ -127,6 +127,31 @@
             (lighten((color >> 8) & 255) << 8) | lighten(color & 255);
     },
 
+    coreSignalPoints(x, y, timeMs = this.waveClock?.elapsedMs || 0) {
+        // Pure presentation geometry, driven by saved simulation time (not wall time).
+        // An undulating perimeter stays legible when healthy; deterministic higher
+        // harmonics become increasingly prominent as the core loses integrity.
+        const damage = 1 - Math.max(0, Math.min(100, this.baseHp)) / 100;
+        const noise = Math.pow(damage, 1.2);
+        const phase = timeMs / 1000;
+        const points = [];
+        const segments = 96;
+        for (let i = 0; i < segments; i++) {
+            const angle = 2 * Math.PI * i / segments;
+            const wave = 1.25 * Math.sin(6 * angle - phase * 1.6);
+            const interference = noise * (
+                1.7 * Math.sin(17 * angle + phase * 2.4) +
+                1.3 * Math.sin(31 * angle - phase * 3.1) +
+                0.9 * Math.sin(43 * angle + phase * 4.7)
+            );
+            // r > 15 even at zero HP; never obscures the radius-12 core.
+            const radius = 21 + wave + interference;
+            points.push({ x: x + Math.cos(angle) * radius,
+                          y: y + Math.sin(angle) * radius });
+        }
+        return points;
+    },
+
     paintBattle() {
         if (!this.battleGraphics || !this.battleBounds) return;
         const g = this.battleGraphics, b = this.battleBounds;
@@ -162,7 +187,8 @@
             g.lineStyle(2, 0x69d9a0, 0.9).strokeCircle(base.x, base.y, 29);
         }
         g.lineStyle(2, coreColor, 0.82).strokeCircle(base.x, base.y, 12);
-        g.lineStyle(1, coreColor, 0.38).strokeCircle(base.x, base.y, 21);
+        g.lineStyle(1, coreColor, 0.55)
+            .strokePoints(this.coreSignalPoints(base.x, base.y), true);
         const healthWidth = Math.min(62, b.w - 6);
         const healthX = Math.max(b.x + 3, Math.min(base.x - healthWidth / 2,
             b.x + b.w - healthWidth - 3));
