@@ -1435,7 +1435,9 @@ class VNextScene extends Phaser.Scene {
             this.world.set(id, 'PreviewUnit', { type });
             this.battleUnits.push(id);
         });
-        this.paintBattle();
+        // No rendering here: create() calls resetBattle() before buildUi().
+        // On a reused Phaser Scene, the previous Text/Graphics were destroyed
+        // during shutdown; buildUi() recreates the panel and paints it safely.
     }
 
     spawnFriendlyUnit(type, productionEvent = null) {

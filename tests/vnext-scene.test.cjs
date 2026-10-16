@@ -1058,10 +1058,20 @@ test('reusing VNextScene after defeat starts a fresh world without returning to 
     assert.equal(scene.runFinished, true);
     assert.equal(saves.read(saveStorage), null);
 
+    // Phaser destroys its display list on shutdown but reuses the Scene instance.
+    // The old status Text has no backing frame anymore: touching setText must fail.
+    const oldBattleStatus = scene.battleStatus;
+    scene.ui.forEach(object => object.destroy());
+    assert.equal(oldBattleStatus.destroyed, true);
+    oldBattleStatus.setText = () => { throw new Error('setText on a destroyed Phaser Text'); };
+
     let redirectedToMenu = false;
     scene.scene.start = key => { if (key === 'MainMenuScene') redirectedToMenu = true; };
     scene.init({ resume: false }); // Payload sent by MainMenuScene after defeat.
-    scene.create(); // Same Phaser scene instance; no page refresh.
+    assert.doesNotThrow(() => scene.create()); // Same Phaser scene instance; no page refresh.
+    assert.notEqual(scene.battleStatus, oldBattleStatus);
+    assert.equal(scene.battleStatus.destroyed, undefined);
+    assert.match(scene.battleStatus.value, /Alliés 3/);
     assert.equal(redirectedToMenu, false);
     assert.equal(scene.resumeRequested, false);
     assert.equal(scene.runFinished, false);
