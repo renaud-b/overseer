@@ -1867,6 +1867,7 @@ test('detection and radar rings follow a lighter version of the current core HP 
     savedEntries.clear();
     const scene=new VNextScene();scene.create();
     const amp=preview.placeBuilding(scene.model,'perception_amplifier',6);
+    preview.setObserved(scene.model,[]); // The initial attention may already cover slot 6.
     const colors=[[100,0x48b8c4],[55,0xf0ba60],[20,0xff6674]];
     const light=color=>{
         const channel=n=>Math.round(n+(255-n)*0.35);
