@@ -859,3 +859,15 @@ test('laboratory research appears as draggable one-shot card and invalid drop pr
  assert.equal(technologies.inventory(scene.model).items.length,0);
  assert.equal(scene.world.query('TechnologyZone').length,1);
 });
+
+test('observed laboratory displays live research progress and a technology after one cycle', () => {
+    const scene = new VNextScene(); scene.create();
+    const laboratory = preview.placeBuilding(scene.model, 'laboratory', 6);
+    preview.setObserved(scene.model, [6]);
+    scene.update(0,60);
+    assert.ok(scene.world.hasComponent(laboratory, 'Research'));
+    scene.world.get(laboratory, 'Research').elapsedMs = technologies.RESEARCH_MS - 60;
+    scene.update(0,60);
+    assert.equal(technologies.inventory(scene.model).items.length,1);
+    assert.ok(scene.ui.some(o => o.getData?.('technology') === 'healing_field'));
+});

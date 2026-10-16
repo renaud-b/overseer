@@ -62,7 +62,7 @@ test('extractor is one-shot and enables the matter side of the starting economy'
     assert.ok(hand.play(model, 'extractor', 7));
     assert.equal(hand.play(model, 'extractor', 8), null);
     assert.equal(preview.buildingAt(model, 7) !== null, true);
-    assert.deepEqual(hand.cards(model), ['reactor', 'factory', 'barracks']);
+    assert.deepEqual(hand.cards(model), ['reactor', 'factory', 'barracks', 'laboratory']);
 });
 
 test('reward grants exactly one additional one-shot card', () => {

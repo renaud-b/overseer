@@ -240,7 +240,7 @@ class VNextScene extends Phaser.Scene {
             const cw = l.leftW - 24;
             this.text(x + 53, y + 19, type.label, 12);
             const recipe = OverseerVNextEconomy.PROTOTYPE_RECIPES[typeId];
-            this.text(x + 53, y + 38, recipe ? 'PRODUCTION EXPÉRIMENTALE' : 'À IMPLÉMENTER', 10, '#7393a8');
+            this.text(x + 53, y + 38, typeId === 'laboratory' ? 'RECHERCHE : 12 S / TECHNO' : recipe ? 'PRODUCTION EXPÉRIMENTALE' : 'À IMPLÉMENTER', 10, '#7393a8');
             const hit = this.keep(this.add.zone(x + cw / 2, y + 32, cw, 65).setInteractive({ useHandCursor: true }));
             hit.setData('palette', typeId);
             hit.on('pointerover', () => this.showCardTooltip(typeId, x + cw, y + 10));
@@ -385,7 +385,11 @@ class VNextScene extends Phaser.Scene {
         label(x + 41, y + 14, info.label, 15, '#e3f0f5');
         label(x + pad, y + 48, info.description, 11, '#a6bfce');
         if (!recipe) {
-            label(x + pad, y + 105, 'PRODUCTION NON SIMULÉE', 11, '#819eaf');
+            if (type === 'laboratory') {
+                label(x + pad, y + 105, 'PRODUIT : TECHNOLOGIE DE SOIN', 10, '#69d9a0');
+                label(x + pad, y + 128, '1 TECHNOLOGIE / 12 S SOUS VISION', 10, '#b58aff');
+                label(x + pad, y + 151, 'INVENTAIRE : PANNEAU DE DROITE', 9, '#819eaf');
+            } else label(x + pad, y + 105, 'PRODUCTION NON SIMULÉE', 11, '#819eaf');
             return;
         }
         const drawItems = (title, entries, rowY) => {
@@ -471,13 +475,14 @@ class VNextScene extends Phaser.Scene {
                 g.lineStyle(1, 0x67e5e7, 0.7).strokeCircle(p.x, p.y, cell * 0.36);
             }
             this.drawGlyph(g, type, p.x, p.y, active ? style.color : 0x5b7687, cell * 0.18);
-            const progress = this.world.get(id, 'Production');
-            if (active && progress && progress.cooldownMs > 0) {
+            const progress = this.world.get(id, 'Production') || (type === 'laboratory' ? this.world.get(id, 'Research') : null);
+            const progressDuration = type === 'laboratory' ? OverseerVNextTechnologies.RESEARCH_MS : progress?.cooldownMs;
+            if (active && progress && progressDuration > 0) {
                 // Small progress indicator, driven by ECS state, not a Phaser timer.
                 const px = p.x - cell * 0.25, py = p.y + cell * 0.36, pw = cell * 0.5;
                 g.fillStyle(0x294354, 0.8).fillRect(px, py, pw, 3);
                 g.fillStyle(progress.blocked ? 0xff6674 : 0x62e7e1, 0.95)
-                    .fillRect(px, py, pw * Math.min(1, progress.elapsedMs / progress.cooldownMs), 3);
+                    .fillRect(px, py, pw * Math.min(1, progress.elapsedMs / progressDuration), 3);
             }
             if (id === this.movingId) g.lineStyle(2, 0xffffff, 0.9).strokeCircle(p.x, p.y, cell * 0.4);
         });
