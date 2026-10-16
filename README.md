@@ -48,6 +48,8 @@ Le menu propose **Continuer** lorsqu'une sauvegarde VNext valide existe. **Nouve
 
 Dans la scène **VNext**, **aucune ressource n'est dépensée pour placer un bâtiment**. Jouer une carte la retire simplement de la main. Les quantités indiquées pour les bâtiments militaires correspondent à la **fabrication de chaque unité**, et non à leur construction.
 
+La **main initiale** contient uniquement **Réacteur, Extracteur, Fabrique et Caserne**. Le **Laboratoire** et le **Nœud de calcul** restent des cartes disponibles parmi les récompenses de bâtiment entre vagues ; les sauvegardes existantes conservent leur main actuelle. La barre des six artefacts démarre après le titre avec environ **64 px d'espacement** sur grand écran, réduits si nécessaire sur écran compact pour préserver les contrôles de vitesse.
+
 | Producteur | Unité | Composants par unité | Énergie par unité |
 |---|---|---:|---:|
 | Caserne | Soldat | **25** | **15** |
