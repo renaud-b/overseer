@@ -118,10 +118,10 @@
             this.resourceLabels[style.id] = this.text(x + 21, y - 2, '0', 15, color);
             this.resourceStatusLabels[style.id] = this.text(l.rightX + l.rightW - 8, y + 1, '—', 10, '#7898aa').setOrigin(1, 0);
         });
-    }
+    },
 
     // Statuses report real ECS activation/blockage. The rate indicator uses
-    // actual balance changes over simulation time, not projected recipe output.,
+    // actual balance changes over simulation time, not projected recipe output.
 
     drawTechnologies() {
         const l=this.layout, right=Boolean(l.rightW);
@@ -143,9 +143,9 @@
             this.input.setDraggable(label);row++;
         }
         if(!row)this.text(x,y+28,'Aucune disponible',10,'#7898aa');
-    }
+    },
 
-    // Coordinates in the simulation's 1000×600 battlefield space.,
+    // Coordinates in the simulation's 1000×600 battlefield space.
 
     resourceActivity(source) {
         const buildings = this.world.query('Building', 'GridSlot')
