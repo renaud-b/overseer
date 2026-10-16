@@ -13,6 +13,20 @@ test('guards, snipers, mechas and drones have unique noncombat display identitie
     assert.equal(styleFor('basic_monster', 'enemy').shape, 'circle');
 });
 
+test('six known enemy archetypes have distinguishable rendering identities', () => {
+    const types = ['basic_monster', 'ranged_monster', 'base_rusher', 'stalker', 'mother_slime', 'baby_slime'];
+    const identities = types.map(type => styleFor(type, 'enemy'));
+    assert.equal(new Set(identities.map(style => style.color)).size, types.length);
+    assert.equal(styleFor('basic_monster', 'enemy').shape, 'circle');
+    assert.equal(styleFor('ranged_monster', 'enemy').shape, 'diamond');
+    assert.equal(styleFor('base_rusher', 'enemy').shape, 'hexagon');
+    assert.ok(styleFor('baby_slime', 'enemy').size < styleFor('mother_slime', 'enemy').size);
+    assert.equal(styleFor('mystery', 'enemy').shape, 'circle');
+    const labels = require('../src/scene/effects/BattleUnitStyles.js');
+    assert.equal(labels.enemyLabel('base_rusher'), 'Percuteur');
+    assert.equal(labels.enemyLabel('mystery'), 'mystery');
+});
+
 test('laser snapshots source and destination, fades and is bounded', () => {
     const actions = new BattleActionEffects();
     const from = { x: 12, y: 24 }, to = { x: 35, y: 66 };
