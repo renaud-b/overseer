@@ -88,7 +88,7 @@ class TalentScene extends Phaser.Scene {
             this.text(keep,box.x+box.w/2,box.y+box.h*.73,'DÉBLOCAGE ULTÉRIEUR',10,'#667e8d').setOrigin(.5);
             return;
         }
-        const tree=(this.talentTrees[box.id]||[]).filter(t=>t.id!=='root');
+        const tree=(this.talentTrees[box.id]||[]).filter(t=>t.id!=='root'&&(!t.legacy||this.progress.unlocked.includes(t.id)));
         const positions=this.domainPositions(tree,box);
         // Connections are strictly inside each domain, with a small root hub per panel.
         for(const node of tree){
@@ -106,7 +106,7 @@ class TalentScene extends Phaser.Scene {
             const unlocked=this.progress.unlocked.includes(node.id);
             const available=OverseerTalentProgression.canUnlock(this.progress,node);
             const selected=this.selectedId===box.id+':'+node.id;
-            const border=unlocked?p.cyan:available?p.amber:0x54717d;
+            const border=unlocked?p.cyan:node.planned?box.color:available?p.amber:0x54717d;
             const r=Math.max(9,Math.min(15,box.w/30));
             const circle=keep(this.add.circle(xy.x,xy.y,r,unlocked?0x1a5056:0x152e3a).setStrokeStyle(selected?3:1.4,border).setInteractive({useHandCursor:true}));
             circle.on('pointerdown',()=>{this.selectedId=box.id+':'+node.id;this.render();});
@@ -158,18 +158,18 @@ class TalentScene extends Phaser.Scene {
         this.text(keep,x+16,b.area.y+48,label,10,p.amber);
         this.text(keep,x+16,b.area.y+72,this.name(talent.id),15,p.ink,{wordWrap:{width:w-32}});
         const descKey='talent_'+talent.id+'_description',desc=this.translate(descKey);
-        this.text(keep,x+16,b.area.y+128,desc===descKey?'Effet à préciser pour VNext.':desc,12,'#adc6d3',{wordWrap:{width:w-32},lineSpacing:5});
+        this.text(keep,x+16,b.area.y+128,talent.description|| (desc===descKey?'Effet à préciser pour VNext.':desc),12,'#adc6d3',{wordWrap:{width:w-32},lineSpacing:5});
         const unlocked=this.progress.unlocked.includes(talent.id);
         const parent=talent.parent&&talent.parent!=='root'?talent.parent:null;
-        const prereq=parent&&!this.progress.unlocked.includes(parent);
+        const prereq=(parent&&!this.progress.unlocked.includes(parent))||(talent.prerequisites||[]).some(id=>!this.progress.unlocked.includes(id));
         const affordable=OverseerTalentProgression.canUnlock(this.progress,talent);
         const foot=b.area.y+h-119;
         this.text(keep,x+16,foot,'PRÉREQUIS : '+(parent?this.name(parent):'NOYAU'),10,p.muted,{wordWrap:{width:w-32}});
-        this.text(keep,x+16,foot+32,unlocked?'ÉTAT : DÉBLOQUÉ':prereq?'ÉTAT : PRÉREQUIS MANQUANT':this.progress.shards<talent.cost?'ÉTAT : ÉCLATS INSUFFISANTS':'ÉTAT : DISPONIBLE',10,unlocked?'#62e7e1':p.amber,{wordWrap:{width:w-32}});
-        this.text(keep,x+16,foot+58,unlocked?'ACTIF':'COÛT : '+talent.cost+' ÉCLATS',11,unlocked?'#62e7e1':p.amber);
+        this.text(keep,x+16,foot+32,unlocked?'ÉTAT : DÉBLOQUÉ':talent.planned?'ÉTAT : À VENIR':prereq?'ÉTAT : PRÉREQUIS MANQUANT':this.progress.shards<talent.cost?'ÉTAT : ÉCLATS INSUFFISANTS':'ÉTAT : DISPONIBLE',10,unlocked?'#62e7e1':p.amber,{wordWrap:{width:w-32}});
+        this.text(keep,x+16,foot+58,unlocked?'ACTIF':talent.planned?'PRIX PROVISOIRE : '+talent.cost+' ÉCLATS':'COÛT : '+talent.cost+' ÉCLATS',11,unlocked?'#62e7e1':p.amber);
         const y=b.area.y+h-29;
         const button=keep(this.add.rectangle(x+w/2,y,w-32,38,affordable?0x164b55:0x203440).setStrokeStyle(1,affordable?p.cyan:p.border));
-        this.text(keep,x+w/2,y,unlocked?'DÉBLOQUÉ':affordable?'DÉBLOQUER':'INDISPONIBLE',11,affordable?'#c4f9f4':p.muted).setOrigin(.5);
+        this.text(keep,x+w/2,y,unlocked?'DÉBLOQUÉ':talent.planned?'À VENIR':affordable?'DÉBLOQUER':'INDISPONIBLE',11,affordable?'#c4f9f4':p.muted).setOrigin(.5);
         if(affordable)button.setInteractive({useHandCursor:true}).on('pointerdown',()=>{
             const result=OverseerTalentProgression.purchase(this.storage(),talent);
             if(result.ok){this.progress=result.state;this.render();}
