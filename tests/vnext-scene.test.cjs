@@ -1568,7 +1568,7 @@ test('six artifact slots appear between title and speed controls, including on n
     savedEntries.clear();
 });
 
-test('artifact reward follows building/technology, is saved, and hides when inventory fills', () => {
+test('artifact reward follows building/technology, is saved, and remains offerable when full', () => {
     savedEntries.clear();
     const scene = new VNextScene(); scene.create();
     const seed = 812;
@@ -1593,7 +1593,11 @@ test('artifact reward follows building/technology, is saved, and hides when inve
 
     for(const id of artifacts.IDS) artifacts.add(resumed.model,id);
     assert.equal(artifacts.list(resumed.model).length, 6);
-    for(let n=3;n<130;n++) assert.ok(resumed.rewardForWave(n).stages.every(s=>s.kind!=='artifact'));
+    for(let n=3;n<130;n++) {
+        const offered = resumed.rewardForWave(n).stages.some(s=>s.kind==='artifact');
+        assert.equal(offered,rewards.artifactDrop(n,seed),
+            'full inventory still gets an artifact offer at the usual rarity');
+    }
     savedEntries.clear();
 });
 
@@ -1615,6 +1619,13 @@ test('an artifact offered by queued rewards is replaced or skipped when previous
     assert.ok(options.every(type=>!artifacts.list(scene.model).includes(type.slice(9))));
     for(const id of artifacts.IDS) artifacts.add(scene.model,id);
     scene.reconcileArtifactRewards();
+    assert.equal(rewards.current(scene.activeReward).kind,'artifact');
+    assert.ok(scene.activeReward.options.every(type =>
+        !artifacts.list(scene.model).includes(type.slice(9))));
+    const chosen=scene.activeReward.options[0];
+    assert.equal(scene.chooseReward(chosen),true);
+    assert.equal(scene.activeReward.pendingArtifact,chosen.slice(9));
+    assert.equal(scene.declineArtifactReward(),true);
     assert.equal(scene.activeReward,null);
     savedEntries.clear();
 });
