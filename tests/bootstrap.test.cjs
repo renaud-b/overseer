@@ -148,3 +148,24 @@ test('VNext HUD, wave and reward presentations load after battle view, before sc
         assert.equal(typeof context[exported]?.install, 'function', exported);
     }
 });
+
+
+test('VNext input, run flow and simulation modules load before VNextScene', () => {
+    const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    const scripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)].map(match => match[1]);
+    const modules = ['src/scene/VNextInput.js', 'src/scene/VNextRunFlow.js',
+        'src/scene/VNextSimulation.js'];
+    const sceneIndex = scripts.indexOf('src/scene/VNextScene.js');
+    for (const module of modules) {
+        assert.ok(scripts.indexOf(module) !== -1 && scripts.indexOf(module) < sceneIndex,
+            'Missing or late simulation dependency: ' + module);
+    }
+    const vm = require('node:vm');
+    for (const module of modules) {
+        const context = {};
+        vm.runInNewContext(fs.readFileSync(path.join(ROOT, module), 'utf8'), context);
+        const api = 'Overseer' + module.split('/').pop().replace(/\.js$/, '');
+        const method = module.endsWith('Simulation.js') ? 'step' : 'install';
+        assert.equal(typeof context[api]?.[method], 'function', api);
+    }
+});
