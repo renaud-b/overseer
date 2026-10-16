@@ -103,6 +103,7 @@ class VNextScene extends Phaser.Scene {
         this.zoneParticles=[];
         this.hoveredTile = null;
         this.tooltipObjects = [];
+        this.technologyTooltipObjects = [];
         this.waveTooltipObjects = [];
         this.waveClock = restored?.waveClock ??
             { number: 0, elapsedMs: 0, seed: Math.floor(Math.random() * 0x100000000) };
@@ -138,6 +139,7 @@ class VNextScene extends Phaser.Scene {
             this.actionEffects.clear();
             this.battleMask?.destroy();
             this.battleMask = null;
+            this.hideTechnologyTooltip();
             this.scale.off('resize', this.buildUi, this);
             if (typeof window !== 'undefined') window.removeEventListener?.('pagehide', this.onPageHide);
             this.input.keyboard.off('keydown', this.onKey, this);
@@ -165,6 +167,7 @@ class VNextScene extends Phaser.Scene {
         if (!this.model) return;
         if (this.dragGhost) { this.dragGhost.destroy(); this.dragGhost = null; }
         this.hideBuildingTooltip();
+        this.hideTechnologyTooltip();
         this.hideResourceTooltip();
         this.hideWaveTooltip();
         this.battleMask?.destroy();
@@ -415,6 +418,63 @@ class VNextScene extends Phaser.Scene {
         this.hoveredTile = null;
     }
 
+    hideTechnologyTooltip() {
+        for (const object of this.technologyTooltipObjects || []) object.destroy();
+        this.technologyTooltipObjects = [];
+    }
+
+    showTechnologyTooltip(type, anchorX, anchorY, depth = 220) {
+        this.hideTechnologyTooltip();
+        // Keep displayed numbers in sync with the simulation, not HUD estimates.
+        const { HEAL, BERSERK, STASIS } = OverseerVNextZones;
+        const descriptions = {
+            healing_field: {
+                title: 'RÉGÉNÉRATION', color: 0x69d9a0,
+                lines: [
+                    'Soigne les alliés dans une zone',
+                    `Rayon : ${HEAL.radius}`,
+                    `+${HEAL.amount} PV toutes les ${HEAL.intervalMs / 1000} s`,
+                    `Durée : ${HEAL.durationMs / 1000} s`
+                ]
+            },
+            berserk: {
+                title: 'BERSERK', color: 0xf4a261,
+                lines: [
+                    `Jusqu'à ${BERSERK.targets} alliés aléatoires`,
+                    `Cadence d'attaque : +${Math.round((BERSERK.attackMultiplier - 1) * 100)} %`,
+                    `Durée : ${BERSERK.durationMs / 1000} s`,
+                    'Sans effet si aucun allié vivant'
+                ]
+            },
+            stasis_field: {
+                title: 'STASE', color: 0x87b9e8,
+                lines: [
+                    'Ralentit les ennemis dans la zone',
+                    `Rayon : ${STASIS.radius}`,
+                    `Vitesse : -${Math.round((1 - STASIS.speedMultiplier) * 100)} %`,
+                    `Durée : ${STASIS.durationMs / 1000} s`
+                ]
+            }
+        };
+        const info = descriptions[type];
+        if (!info) return;
+        const width = 290, height = 176;
+        const x = Math.max(8, Math.min(this.scale.width - width - 8, anchorX));
+        const y = Math.max(72, Math.min(this.scale.height - height - 8, anchorY));
+        const keep = object => { this.technologyTooltipObjects.push(object); return object; };
+        const g = keep(this.add.graphics().setDepth(depth));
+        g.fillStyle(0x0b1d2b, 0.98).fillRoundedRect(x, y, width, height, 6);
+        g.lineStyle(1, info.color, 0.8).strokeRoundedRect(x, y, width, height, 6);
+        const label = (tx, ty, value, size, color) =>
+            keep(this.add.text(tx, ty, value, {
+                fontFamily: 'monospace', fontSize: `${size}px`, color
+            }).setDepth(depth + 1));
+        label(x + 14, y + 13, info.title, 15, '#e3f0f5');
+        info.lines.forEach((line, i) => label(x + 14, y + 44 + i * 23, line, 11, '#bed4df'));
+        label(x + 14, y + 149, depth > 300 ?
+            'CHOISIR POUR AJOUTER À L’INVENTAIRE' :
+            'GLISSER SUR LE CHAMP DE BATAILLE', 9, '#819eaf');
+    }
     showBuildingTooltip(index) {
         this.hideBuildingTooltip();
         const id = OverseerVNextPreview.buildingAt(this.model, index);
@@ -599,6 +659,7 @@ class VNextScene extends Phaser.Scene {
 
     onDragStart(pointer, object) {
         if (this.activeReward) return;
+        this.hideTechnologyTooltip();
         const technology=object.getData('technology');
         if(OverseerVNextTechnologies.TYPES.includes(technology)){this.techDrag=technology;this.dragGhost=this.add.graphics();this.dragGhost.lineStyle(2,0x69d9a0,1).strokeCircle(0,0,16);this.dragGhost.setPosition(pointer.x,pointer.y).setDepth(300);return;}
         const type = object.getData('palette');
@@ -813,7 +874,10 @@ class VNextScene extends Phaser.Scene {
             if(!count)continue;
             const label=this.text(x+3,y+28+row*32,`${name} ×${count}`,11,`#${color.toString(16).padStart(6,'0')}`);
             label.setPadding(3,5,3,5).setInteractive({useHandCursor:true});
-            label.setData('technology',type);this.input.setDraggable(label);row++;
+            label.setData('technology',type);
+            label.on('pointerover', () => this.showTechnologyTooltip(type, right ? l.rightX - 298 : x + 110, label.y - 8));
+            label.on('pointerout', () => this.hideTechnologyTooltip());
+            this.input.setDraggable(label);row++;
         }
         if(!row)this.text(x,y+28,'Aucune disponible',10,'#7898aa');
     }
@@ -1080,13 +1144,19 @@ class VNextScene extends Phaser.Scene {
                 .setInteractive({useHandCursor:true}).setDepth(302));
             zone.setData('reward', type);
             zone.on('pointerover', () => {
-                if (type.startsWith('tech:')) return;
+                if (type.startsWith('tech:')) {
+                    this.showTechnologyTooltip(type.slice(5), cx + cardW / 2 - 145, cy - 185, 310);
+                    return;
+                }
                 this.showCardTooltip(type, cx + cardW / 2, cy - 205);
                 // Reward selection overlay is above the game HUD (depth 300).
                 // Reuse the same building popup, but draw it over the overlay.
                 this.tooltipObjects.forEach(object => object.setDepth(310));
             });
-            zone.on('pointerout', () => this.hideBuildingTooltip());
+            zone.on('pointerout', () => {
+                this.hideBuildingTooltip();
+                this.hideTechnologyTooltip();
+            });
             zone.on('pointerdown', () => this.chooseReward(type));
         });
     }
