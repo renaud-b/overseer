@@ -2,7 +2,7 @@
 
 **Overseer** est un jeu de stratégie tactique / roguelite en navigateur : le joueur incarne une IA qui pilote une base de machines, oriente son attention pour en activer les bâtiments, produit des unités autonomes et survit à des vagues ennemies.
 
-> **État du projet : prototype jouable, nouvelle direction en conception.** Les règles, ressources et visuels actuels ne représentent pas encore le nouveau design minimaliste. Voir [Direction de jeu](docs/GAME_DIRECTION.md).
+> **État du projet : VNext est la seule version jouable.** Certaines statistiques de combat viennent encore du catalogue historique. Voir [Direction de jeu](docs/GAME_DIRECTION.md).
 
 ## Jouer en local
 
@@ -96,9 +96,7 @@ Le Brouilleur prévu est remplacé par l'**Amplificateur de perception**, dispon
 
 La **Cryopompe** peut être gagnée dans les récompenses de bâtiment. **Observée**, elle distribue instantanément du refroidissement à ses huit cases voisines (diagonales comprises, rayon d'une case sur la grille 5 × 5). Le refroidissement est une **capacité locale**, jamais un stock consommable : il ne figure pas dans le composant `Resources`. L'indicateur de droite affiche le nombre de bâtiments couverts et de Cryopompes actives.
 
-Chaque bâtiment observé accumule une chauffe expérimentale de **+5 points / 2 s simulées**, plafonnée à **100 %** ; une Cryopompe observée retire **15 points / 2 s** aux bâtiments couverts, y compris à elle-même. Hors observation, un bâtiment n'ajoute pas de chaleur. Les composants ECS `BuildingHeat` conservent la chauffe et la phase du tick en sauvegarde. Une barre discrète sur la grille l'affiche.
-
-**Invariant non négociable : la chauffe ne pénalise rien.** Une machine sans refroidissement conserve à 100 % son rendement, une recherche sans refroidissement reste à 30 s, et le rayon de détection du noyau reste au minimum de 350 unités. Sous refroidissement, les bâtiments observés gagnent jusqu'à **+20 %** de cadence de production ou de recherche ; l'Amplificateur de perception pulse jusqu'à 20 % plus vite. Le bonus diminue avec la chauffe de la machine ; même à 100 % de chaleur, il tombe simplement à zéro et n'est jamais négatif. Plusieurs Cryopompes proches ne cumulent pas les bonus.
+La **chaleur a été retirée** : elle n'apportait pas de décision utile et rendait l'avantage difficile à lire. Une Cryopompe observée accorde immédiatement **+20 % de cadence** aux bâtiments voisins **également observés** (diagonales comprises). Le bonus accélère production, recherche et pulsations de l'Amplificateur de perception. Deux Cryopompes ne cumulent pas leurs bonus. Sans refroidissement, aucun malus : les cadences de base sont intactes. La grille matérialise les connexions bleues discrètes et les infobulles affichent le bonus et la durée effective des cycles. Les anciennes sauvegardes portant `BuildingHeat` restent compatibles : ce composant est écarté au chargement.
 
 Ces nombres sont **des valeurs de playtest**, non des paramètres définitifs. Pas de température physique, d'endommagement, de maintenance imposée ni de mécanique de panne.
 
@@ -127,12 +125,12 @@ Chaque ligne indique composition, nombre d'ennemis apparus et morts, durée en *
 ## Architecture du prototype
 
 - `index.html`, `src/main.js` : chargement et démarrage Phaser.
-- `src/scene/GameScene.js` : orchestration du jeu existant.
+- `src/scene/VNextScene.js` et `src/scene/VNext*.js` : orchestration et adaptateurs Phaser de VNext.
 - `src/core/World.js` : registre ECS de données, entités, composants et hiérarchie.
 - `src/core/CombatSystem.js` : première tranche de simulation de combat indépendante de Phaser.
-- `src/scene/entities/` : éléments de gameplay et adaptateurs graphiques, encore partiellement historiques.
-- `src/scene/managers/` : construction, ressources, talents, sorts, vagues et HUD.
-- `assets/game_stats.json` : **configuration utilisée actuellement**, héritée de l'ancien contrat ; elle décrit huit ressources et 23 types de bâtiments, **pas** les cinq ressources proposées pour la refonte.
+- `src/scene/entities/Vision.js` : ancien modèle de motifs de vision, encore utilisé pour l'initialisation VNext.
+- `src/core/VNext*.js` : règles ECS de production, combat et progression, indépendantes du rendu.
+- `assets/game_stats.json` : **source historique encore utilisée par VNext pour les statistiques des unités et ennemis** ; son ancien catalogue de bâtiments et de ressources ne pilote pas la nouvelle économie.
 - `assets/game_texts_*.json` : textes localisés.
 - `tests/` : tests Node exécutés par `npm test`.
 
@@ -178,6 +176,13 @@ La collection est stockée dans le composant ECS `ArtifactCollection` et conserv
 ### Remplacement d'artefacts (modale)
 
 Lorsque les six emplacements sont remplis, les récompenses d'artefacts continuent d'apparaître avec leur fréquence habituelle. Après avoir choisi l'un des artefacts proposés, une modale affiche les **six artefacts équipés**, leurs descriptions et le nouvel artefact. Choisir un emplacement le remplace **à la même position** ; « CONSERVER LES SIX » refuse le nouvel artefact, sans perte. La simulation reste en pause pendant cette décision. Le choix en attente (`activeReward.pendingArtifact`) est sauvegardé et restauré par « Continuer » ; il ne modifie pas la collection avant confirmation. Pour éviter un pouvoir orphelin, Jugement du noyau ne peut pas être remplacé lorsque Surcharge terminale est équipée. Les effets déjà produits (unités, mutations, zones en cours) persistent ; seuls les futurs déclenchements dépendent de la collection actuelle.
+
+
+## Talents / Production (aperçu, non actif)
+
+La branche Fondations propose quatre talents de production : extraction d'énergie/matière (+20 %), rendement en composants (+25 %), efficacité des conversions (-15 % d'intrants) et automatisation économique (+10 % de cadence sous vision). Ces valeurs et coûts sont **provisoires**. Les talents sont visibles dans la scène, mais **non achetables** tant que leurs effets ECS et leur équilibrage ne sont pas implémentés. La convergence exige les talents « composants » et « efficacité ».
+
+Les identifiants historiques `starter_economy`, `extra_scrap` et `extra_alloy` restent reconnus dans les sauvegardes existantes (affichés seulement si déjà acquis), et remboursables via une réinitialisation ; ils ne sont plus proposés à l'achat. Aucune conversion silencieuse d'anciens achats et aucun changement de production ne sont introduits par cette PR.
 
 ### Signal vital du noyau
 

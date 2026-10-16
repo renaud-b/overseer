@@ -53,12 +53,7 @@
             label.setPadding(11, 5, 11, 5).setInteractive({ useHandCursor: true });
             label.on('pointerdown', () => this.selectSpeed(speed));
         });
-        const legacy = this.text(w - 183, 24, 'JEU ACTUEL ↗', 12, '#d4e4ee');
-        legacy.setPadding(5).setInteractive({ useHandCursor: true });
-        legacy.on('pointerdown', () => {
-            if (this.saveCurrentGame()) this.scene.start('GameScene');
-        });
-        const settings = this.text(w - 223, 24, '⚙', 16, '#7b9aad');
+        const settings = this.text(w - 155, 24, '⚙', 16, '#7b9aad');
         settings.setPadding(5).setInteractive({ useHandCursor: true });
         settings.on('pointerdown', () => this.openOptions());
         const menu = this.text(w - 59, 24, 'MENU', 12, '#7b9aad');
