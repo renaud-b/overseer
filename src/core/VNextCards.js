@@ -19,7 +19,7 @@
         return id;
     }
     // Rewards grant one new one-shot card, even if the hand has another of that type.
-    const REWARD_CARDS = Object.freeze([...STARTER_CARDS, 'ballistics', 'armor_forge', 'medical_center', 'laboratory', 'compute_node', 'perception_amplifier', 'cryopump']);
+    const REWARD_CARDS = Object.freeze([...STARTER_CARDS, 'ballistics', 'armor_forge', 'medical_center', 'laboratory', 'compute_node', 'perception_amplifier', 'cryopump', 'maintenance']);
     function grant(model, type) {
         if (!REWARD_CARDS.includes(type)) return false;
         initialize(model).cards.push(type);

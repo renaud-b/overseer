@@ -111,7 +111,7 @@ function relayCandidates(model,economy) {
   const type=world.get(id,'Building').type,index=world.get(id,'GridSlot').index;
   if(world.get(model.tiles[index],'Watched').active)return false;
   if(!economy.PROTOTYPE_RECIPES[type]&&
-     !['laboratory','cryopump','perception_amplifier'].includes(type))return false;
+     !['laboratory','cryopump','perception_amplifier','maintenance'].includes(type))return false;
   return watched.some(other=>Math.abs(index%5-other%5)+
    Math.abs(Math.floor(index/5)-Math.floor(other/5))===1);
  }).sort((a,b)=>world.get(a,'GridSlot').index-world.get(b,'GridSlot').index);

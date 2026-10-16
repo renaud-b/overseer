@@ -172,6 +172,10 @@
                 label(x + pad, y + 101, 'RADAR : BALAYAGE DU CHAMP ENTIER', 10, '#91ced1');
                 label(x + pad, y + 125, 'UNE ONDE / 5 S (PLUS VITE SI FROID)', 10, '#91ced1');
                 label(x + pad, y + 150, 'DÉTECTION 350 · MARQUE 2 S', 9, '#819eaf');
+            } else if (type === 'maintenance') {
+                label(x + pad, y + 101, 'RÉPARE : +2 PV / 30 S D’ACTIVATION', 10, '#69d9a0');
+                label(x + pad, y + 125, 'UNE SEULE STATION ACTIVE À LA FOIS', 9, '#f4ba58');
+                label(x + pad, y + 150, 'SANS MATÉRIAUX · MAX 100 PV', 9, '#819eaf');
             } else if (type === 'laboratory') {
                 label(x + pad, y + 105, 'PRODUIT : TECHNOLOGIE DE SOIN', 10, '#69d9a0');
                 label(x + pad, y + 128, `1 TECHNOLOGIE / ${(30/(1+rate)).toFixed(1)} S SOUS VISION`, 10, '#b58aff');
