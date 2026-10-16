@@ -1,542 +1,131 @@
+// VNext talent configuration. Rendering only; progression logic is in core.
 class TalentScene extends Phaser.Scene {
     constructor() {
         super('TalentScene');
-        this.talentTrees = OverseerTalentCatalog.trees
+        this.talentTrees = OverseerTalentCatalog.trees;
+        this.palette = {bg:0x08121c,panel:0x0b1d2b,border:0x294b5b,cyan:0x62e7e1,ink:'#e2eef3',muted:'#86a6ba',amber:'#f5b94f'};
     }
-
-
-    init(data) {
-        this.fromMenu = data.fromMenu ?? false;
-    }
-
+    init(data={}) { this.fromMenu = data.fromMenu !== false; }
     preload() {
-        const lang = window.selectedLanguage || 'en';
-        this.load.json('gameTexts', `assets/game_texts_${lang}.json`);
-
+        const lang = (typeof window !== 'undefined' && window.selectedLanguage) || 'en';
+        this.load.json('gameTexts', 'assets/game_texts_' + lang + '.json');
     }
-
+    storage() { try { return localStorage; } catch (_) { return null; } }
+    translate(key) { return this.gameTexts?.ui?.[key] || key; }
     create() {
-        this.cameras.main.fadeIn(500, 0, 0, 0);
-        this.gameTexts = this.cache.json.get('gameTexts');
-        this.memoryShards = parseInt(localStorage.getItem('memoryShards') || '0');
-        this.unlockedTalents = JSON.parse(localStorage.getItem('unlockedTalents') || '[]');
-
-        // Forcer root à être débloqué
-        if (!this.unlockedTalents.includes('root')) {
-            this.unlockedTalents.push('root');
-        }
+        this.gameTexts = this.cache.json.get('gameTexts') || {};
+        this.progress = OverseerTalentProgression.read(this.storage());
         this.activeTree = 'foundation';
-        this.centerX = this.scale.width / 2;
-        this.centerY = this.scale.height / 2;
-        this.createTalentTabs();
-
-        this.autoLayoutTree('foundation');
-        this.calculateTreeOffset();
-        this.createBackground();
-        this.drawConnections();
-        this.createNodes();
-        this.createShardDisplay();
-        this.createContinueButton();
-    }
-
-    translate(key, replacements = {}) {
-        const text = this.gameTexts?.ui?.[key] || key;
-        return Object.entries(replacements).reduce((acc, [k, v]) => {
-            return acc.replace(new RegExp(`{${k}}`, 'g'), v);
-        }, text);
-    }
-
-    autoLayoutTree(treeId) {
-        const spacingX = 300; // Espace horizontal entre branches principales
-        const spacingY = 180; // Espace vertical entre chaque "layer"
-        const startX = this.centerX - 450; // Décale un peu vers la gauche pour centrer
-        const startY = 150; // Départ vertical sous le titre
-
-        const tree = this.talentTrees[treeId] || [];
-
-        // 1. Indexer les talents par ID
-        const idToTalent = {};
-        tree.forEach(t => idToTalent[t.id] = t);
-
-        // 2. Trouver les racines immédiates sous root
-        const firstLayer = tree.filter(t => t.parent === 'root');
-
-        // 3. Layout chaque branche principale
-        firstLayer.forEach((rootTalent, branchIndex) => {
-            rootTalent.x = startX + branchIndex * spacingX;
-            rootTalent.y = startY + spacingY;
-
-            // Layout récursif pour les sous-branches
-            this.autoLayoutSubtree(rootTalent.id, rootTalent.x, rootTalent.y + spacingY, spacingY, idToTalent);
+        this.selectedId = null;
+        this.zoom = 1;
+        this.pan = {x:0,y:0};
+        this.dragging = null;
+        this.reducedMotion = !!(typeof window!=='undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+        this.cameras.main.fadeIn(250,8,18,28);
+        this.scale.on('resize', this.render, this);
+        this.input.on('wheel', this.onWheel, this);
+        this.events.once('shutdown', () => {
+            this.scale.off('resize',this.render,this);
+            this.input.off('wheel',this.onWheel,this);
         });
-
-        // Replace root lui-même
-        const rootTalent = tree.find(t => t.id === 'root');
-        if (rootTalent) {
-            rootTalent.x = this.centerX;
-            rootTalent.y = startY ;
+        this.render();
+    }
+    bounds() {
+        const w=this.scale.width,h=this.scale.height;
+        const side=Math.min(330,Math.max(235,w*.28));
+        return {w,h,side,area:{x:18,y:133,w:Math.max(190,w-side-58),h:Math.max(120,h-211)},panelX:w-side-22};
+    }
+    render() {
+        if(!this.scale?.width || !this.scale?.height)return;
+        if(this.layers) this.layers.forEach(o=>o.destroy());
+        this.layers=[];
+        const keep=o=>(this.layers.push(o),o);
+        const p=this.palette,b=this.bounds();
+        const g=keep(this.add.graphics());
+        g.fillStyle(p.bg,1).fillRect(0,0,b.w,b.h);
+        g.lineStyle(1,p.border,.9).lineBetween(18,19,b.w-18,19);
+        g.lineStyle(1,p.border,.7).lineBetween(18,b.h-20,b.w-18,b.h-20);
+        keep(this.add.text(25,32,'OVERSEER / CONFIGURATION',{fontFamily:'monospace',fontSize:'11px',color:p.muted}));
+        keep(this.add.text(25,54,'ÉVOLUTION DU NOYAU',{fontFamily:'monospace',fontSize:'24px',color:p.ink}));
+        keep(this.add.text(b.w-22,54,'✦ '+this.progress.shards+' ÉCLATS DE MÉMOIRE',{fontFamily:'monospace',fontSize:'13px',color:p.amber}).setOrigin(1,0));
+        const trees=['foundation','architecture','evolution','ascension'];
+        const labels=['FONDATIONS','ARCHITECTURE','ÉVOLUTION','ASCENSION'];
+        let tx=25;
+        trees.forEach((tree,i)=>{
+            const tw=Math.min(155,(b.w-60)/4);
+            const active=tree===this.activeTree;
+            const rect=keep(this.add.rectangle(tx+tw/2,107,tw-6,31,active?0x16404a:0x102532).setStrokeStyle(1,active?p.cyan:p.border).setInteractive({useHandCursor:true}));
+            keep(this.add.text(tx+tw/2,107,labels[i],{fontFamily:'monospace',fontSize:'11px',color:active?'#bdfaf4':p.muted}).setOrigin(.5));
+            rect.on('pointerdown',()=>{this.activeTree=tree;this.selectedId=null;this.pan={x:0,y:0};this.zoom=1;this.render();});
+            tx+=tw;
+        });
+        g.fillStyle(p.panel,1).fillRoundedRect(b.area.x,b.area.y,b.area.w,b.area.h,6);
+        g.lineStyle(1,p.border,1).strokeRoundedRect(b.area.x,b.area.y,b.area.w,b.area.h,6);
+        const area=b.area;
+        const nodes=this.layout(this.talentTrees[this.activeTree]||[]);
+        const position=new Map(nodes.map(n=>[n.id,this.toScreen(n,area)]));
+        g.lineStyle(1,0x3e7382,.8);
+        for(const n of nodes) {
+            const a=position.get(n.parent),c=position.get(n.id);
+            if(a&&c){const active=this.progress.unlocked.includes(n.id);g.lineStyle(active?2:1,active?p.cyan:0x3e7382,active?.85:.5);g.lineBetween(a.x,a.y,c.x,c.y);}
         }
-    }
-
-    autoLayoutSubtree(parentId, parentX, startY, spacingY, idToTalent) {
-        // Trouver tous les enfants directs
-        const children = Object.values(idToTalent).filter(t => t.parent === parentId);
-
-        if (children.length === 0) return;
-
-        // Centre horizontalement les enfants autour du parent
-        const totalWidth = (children.length - 1) * 100; // 100px entre frères/sœurs
-        const startX = parentX - totalWidth / 2;
-
-        children.forEach((child, index) => {
-            child.x = startX + index * 100;
-            child.y = startY;
-
-            // Appelle récursivement pour leurs enfants
-            this.autoLayoutSubtree(child.id, child.x, startY + spacingY, spacingY, idToTalent);
-        });
-    }
-
-
-    createTalentTabs() {
-        const tabs = ['foundation', 'architecture', 'evolution', 'ascension'];
-        const labels = {
-            foundation: this.translate('tab_foundations') || 'Fondations',
-            architecture: this.translate('tab_architecture') || 'Architecture',
-            evolution: this.translate('tab_evolution') || 'Évolution',
-            ascension: this.translate('tab_ascension') || 'Ascension'
-        };
-
-        this.tabButtons = [];
-
-        tabs.forEach((tree, index) => {
-            const x = this.centerX - 300 + index * 200;
-            const y = 100;
-
-            const isUnlocked = this.isTreeUnlocked(tree);
-
-            const button = this.add.text(x, y, labels[tree], {
-                fontSize: '20px',
-                fill: isUnlocked ? '#ffffff' : '#888888',
-                fontFamily: 'monospace'
-            })
-                .setOrigin(0.5)
-                .setInteractive();
-
-            if (isUnlocked) {
-                button.on('pointerdown', () => {
-                    this.switchTalentTree(tree);
-                });
-            }
-
-            this.tabButtons.push(button);
-        });
-    }
-
-    hasUnlockedFinalNode(tree) {
-        const treeData = this.talentTrees[tree] || [];
-        const finalNodes = treeData.filter(t => !treeData.some(other => other.parent === t.id));
-        return finalNodes.some(node => this.unlockedTalents.includes(node.id));
-    }
-
-    isTreeUnlocked(tree) {
-        if (tree === 'foundation') return true;
-        if (tree === 'architecture') return this.hasUnlockedFinalNode('foundation');
-        if (tree === 'evolution') return this.hasUnlockedFinalNode('architecture');
-        if (tree === 'ascension') return this.hasUnlockedFinalNode('evolution');
-        return false;
-    }
-
-    createBackground() {
-        this.add.text(this.centerX, 30, this.translate('overseer_core_title'), {
-            fontSize: '32px',
-            fill: '#00ffcc',
-            fontFamily: 'monospace'
-        }).setOrigin(0.5);
-    }
-
-    createContinueButton() {
-        const centerX = this.scale.width / 2;
-        const btnY = this.scale.height - 60;
-
-        const button = this.add.rectangle(centerX, btnY, 290, 50, 0x333333, 1)
-            .setStrokeStyle(2, 0xffffff)
-            .setOrigin(0.5)
-            .setInteractive();
-
-        let buttonTextValue = this.translate('restart_game_button')
-        if(this.fromMenu){
-            buttonTextValue = this.translate('return_to_menu_button')
+        for(const n of nodes) {
+            const v=position.get(n.id);
+            if(v.x<area.x+10||v.x>area.x+area.w-10||v.y<area.y+12||v.y>area.y+area.h-12)continue;
+            const unlocked=this.progress.unlocked.includes(n.id);
+            const available=OverseerTalentProgression.canUnlock(this.progress,n);
+            const selected=this.selectedId===n.id;
+            const color=unlocked?p.cyan:available?0xf5b94f:0x506d7c;
+            const circle=keep(this.add.circle(v.x,v.y,Math.max(12,23*this.zoom),unlocked?0x194850:0x172b38,1).setStrokeStyle(selected?3:1.5,color).setInteractive({useHandCursor:true}));
+            circle.on('pointerdown',(_,lx,ly,event)=>{event?.stopPropagation?.();this.selectedId=n.id;this.render();});
+            keep(this.add.text(v.x,v.y,this.glyph(n.id),{fontFamily:'monospace',fontSize:Math.max(9,13*this.zoom)+'px',color:unlocked?'#aef8ef':'#b5cbd5'}).setOrigin(.5));
+            keep(this.add.text(v.x,v.y+Math.max(22,29*this.zoom),this.shortName(n.id),{fontFamily:'monospace',fontSize:'10px',color:unlocked?'#d7e9ef':'#859eaf'}).setOrigin(.5));
         }
-
-        const buttonText = this.add.text(centerX, btnY, buttonTextValue, {
-            fontSize: '20px',
-            fill: '#00ff00',
-            fontFamily: 'monospace'
-        }).setOrigin(0.5);
-
-        // Effet visuel au survol
-        button.on('pointerover', () => {
-            button.setFillStyle(0x555555);
-        });
-        button.on('pointerout', () => {
-            button.setFillStyle(0x333333);
-        });
-
-        // Au clic ➔ relancer GameScene
-        button.on('pointerdown', () => {
-            if(this.fromMenu){
-                this.cameras.main.fadeOut(500, 0, 0, 0);
-                this.time.delayedCall(500, () => {
-                    this.scene.start('MainMenuScene');
-                });
-
-            } else {
-                this.cameras.main.fadeOut(500, 0, 0, 0);
-                this.time.delayedCall(500, () => {
-                    this.scene.start('GameScene');
-                });
-            }
-        });
+        const hit=keep(this.add.zone(area.x+area.w/2,area.y+area.h/2,area.w,area.h).setInteractive());
+        hit.setDepth(-1);
+        hit.on('pointerdown',pointer=>{this.dragging={x:pointer.x,y:pointer.y,px:this.pan.x,py:this.pan.y};});
+        hit.on('pointermove',pointer=>{if(this.dragging && pointer.isDown){this.pan={x:this.dragging.px+pointer.x-this.dragging.x,y:this.dragging.py+pointer.y-this.dragging.y};this.render();}});
+        hit.on('pointerup',()=>{this.dragging=null;});
+        hit.on('pointerout',()=>{this.dragging=null;});
+        this.renderDetails(keep,g,b);
+        keep(this.add.text(24,b.h-53,'MOLETTE : ZOOM   ·   GLISSER : DÉPLACER',{fontFamily:'monospace',fontSize:'10px',color:p.muted}));
+        const center=keep(this.add.text(area.x+area.w-10,b.h-53,'RECENTRER',{fontFamily:'monospace',fontSize:'11px',color:'#8ecacb'}).setOrigin(1,0).setInteractive({useHandCursor:true}));
+        center.on('pointerdown',()=>{this.zoom=1;this.pan={x:0,y:0};this.render();});
+        const back=keep(this.add.text(b.w-25,b.h-54,'RETOUR AU MENU  ›',{fontFamily:'monospace',fontSize:'12px',color:p.ink}).setOrigin(1,0).setInteractive({useHandCursor:true}));
+        back.on('pointerdown',()=>this.scene.start('MainMenuScene'));
     }
-
-
-    createShardDisplay() {
-        this.shardText = this.add.text(20, 20, this.translate('memory_shards_label', {count: this.memoryShards}), {
-            fontSize: '20px',
-            fill: '#ffffff',
-            fontFamily: 'monospace'
-        }).setOrigin(0, 0);
+    glyph(id) {return id==='root'?'◎':id.includes('vision')||id.includes('scanner')?'◇':id.includes('unit')||id.includes('guard')?'✚':id.includes('resource')||id.includes('scrap')?'▣':'✦';}
+    shortName(id){const s=this.translate('talent_'+id+'_label');return s==='talent_'+id+'_label'?id.replaceAll('_',' ').slice(0,20):s.slice(0,22);}
+    layout(tree) {
+        const nodes=tree.map(t=>({...t})),ids=new Map(nodes.map(n=>[n.id,n]));
+        const children=new Map();
+        nodes.forEach(n=>{if(n.parent&&ids.has(n.parent)){if(!children.has(n.parent))children.set(n.parent,[]);children.get(n.parent).push(n);}});
+        const roots=nodes.filter(n=>!n.parent||!ids.has(n.parent));
+        let index=0;const visit=(n,depth)=>{const cs=children.get(n.id)||[];cs.forEach(c=>visit(c,depth+1));n._depth=depth;n._x=cs.length?(cs[0]._x+cs[cs.length-1]._x)/2:index++*126;};
+        roots.forEach(r=>visit(r,0));
+        const min=Math.min(...nodes.map(n=>n._x),0),max=Math.max(...nodes.map(n=>n._x),0);
+        nodes.forEach(n=>{n._x-=(min+max)/2;n._y=n._depth*121;});
+        return nodes;
     }
-
-    calculateTreeOffset() {
-        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-
-        const currentTree = this.talentTrees[this.activeTree] || [];
-        currentTree.forEach(talent => {
-            minX = Math.min(minX, talent.x);
-            maxX = Math.max(maxX, talent.x);
-            minY = Math.min(minY, talent.y);
-            maxY = Math.max(maxY, talent.y);
-        });
-
-        const treeWidth = maxX - minX;
-        const treeHeight = maxY - minY;
-        const offsetX = this.centerX - (treeWidth / 2) - minX;
-        const offsetY = this.centerY - (treeHeight / 2) - minY;
-
-        this.treeOffset = { x: offsetX, y: offsetY };
+    toScreen(n,area){return {x:area.x+area.w/2+n._x*this.zoom+this.pan.x,y:area.y+65+n._y*this.zoom+this.pan.y};}
+    onWheel(pointer,objects,dx,dy){const a=this.bounds().area;if(pointer.x<a.x||pointer.x>a.x+a.w||pointer.y<a.y||pointer.y>a.y+a.h)return;this.zoom=Math.max(.55,Math.min(1.65,this.zoom+(dy>0?-.1:.1)));this.render();}
+    renderDetails(keep,g,b){
+        const p=this.palette,x=b.panelX,w=b.side,h=b.area.h;
+        g.fillStyle(p.panel,1).fillRoundedRect(x,b.area.y,w,h,6);
+        g.lineStyle(1,p.border).strokeRoundedRect(x,b.area.y,w,h,6);
+        keep(this.add.text(x+16,b.area.y+18,'ANALYSE DU TALENT',{fontFamily:'monospace',fontSize:'11px',color:'#62e7e1'}));
+        const talent=(this.talentTrees[this.activeTree]||[]).find(t=>t.id===this.selectedId);
+        if(!talent){keep(this.add.text(x+16,b.area.y+70,'SÉLECTIONNEZ UN NŒUD',{fontFamily:'monospace',fontSize:'13px',color:p.muted,wordWrap:{width:w-30}}));return;}
+        keep(this.add.text(x+16,b.area.y+49,this.shortName(talent.id),{fontFamily:'monospace',fontSize:'16px',color:p.ink,wordWrap:{width:w-32}}));
+        const key='talent_'+talent.id+'_description';
+        const desc=this.translate(key);
+        keep(this.add.text(x+16,b.area.y+100,desc===key?'Description à préciser lors de la migration VNext.':desc,{fontFamily:'monospace',fontSize:'12px',color:'#afc9d5',wordWrap:{width:w-32},lineSpacing:6}));
+        const unlocked=this.progress.unlocked.includes(talent.id);
+        const affordable=OverseerTalentProgression.canUnlock(this.progress,talent);
+        const by=b.area.y+h-79;
+        keep(this.add.text(x+16,by-33,unlocked?'DÉBLOQUÉ':('COÛT  '+talent.cost+' ÉCLATS'),{fontFamily:'monospace',fontSize:'12px',color:unlocked?'#62e7e1':p.amber}));
+        const button=keep(this.add.rectangle(x+w/2,by+14,w-32,41,affordable?0x164b55:0x203440).setStrokeStyle(1,affordable?p.cyan:p.border));
+        keep(this.add.text(x+w/2,by+14,unlocked?'ACTIF':affordable?'DÉBLOQUER':'INDISPONIBLE',{fontFamily:'monospace',fontSize:'12px',color:affordable?'#c4f9f4':p.muted}).setOrigin(.5));
+        if(affordable){button.setInteractive({useHandCursor:true}).on('pointerdown',()=>{const result=OverseerTalentProgression.purchase(this.storage(),talent);if(result.ok){this.progress=result.state;this.render();}});}
     }
-
-    drawConnections() {
-        this.connectionLines = []; // <- Stockage pour pouvoir les recolorer plus tard si besoin
-
-        const currentTree = this.talentTrees[this.activeTree] || [];
-        currentTree.forEach(talent => {
-            if (talent.parent) {
-                const parent = currentTree.find(t => t.id === talent.parent);
-                if (!parent) return;
-
-                const startX = parent.x + this.treeOffset.x;
-                const startY = parent.y + this.treeOffset.y;
-                const endX = talent.x + this.treeOffset.x;
-                const endY = talent.y + this.treeOffset.y;
-
-                const isUnlocked = this.unlockedTalents.includes(talent.id);
-
-
-
-                const color = isUnlocked ? 0x00ff00 : 0xaaaaaa;
-
-                const line = this.add.line(
-                    0, 0,
-                    startX, startY,
-                    endX, endY,
-                    color
-                ).setOrigin(0, 0).setLineWidth(2).setAlpha(0.7);
-                line.isTalentConnection = true;
-                this.connectionLines.push(line);
-            }
-        });
-    }
-
-    clearScene() {
-        if (this.connectionLines) this.connectionLines.forEach(l => l.destroy());
-        this.connectionLines = [];
-
-        if (this.infoBox) this.infoBox.destroy();
-        if (this.infoText) this.infoText.destroy();
-        this.infoBox = null;
-        this.infoText = null;
-
-        // 🚀 Collecter d'abord tous les enfants à détruire
-        const nodesToDestroy = this.children.list.filter(child =>
-            child.isTalentNode || child.isTalentConnection || child.isTalentLabel
-        );
-
-        nodesToDestroy.forEach(child => child.destroy());
-    }
-
-    switchTalentTree(name) {
-        if (!this.isTreeUnlocked(name)) return;
-
-        this.activeTree = name;
-        this.clearScene();        // ➔ Nettoyer les nodes/dessins existants
-        this.calculateTreeOffset();
-        this.drawConnections();
-        this.createNodes();
-    }
-
-    createNodes(skipAnimation = false) {
-        const currentTree = this.talentTrees[this.activeTree] || [];
-        const currentTreeId = this.activeTree;
-
-        currentTree.forEach(talent => {
-            const isUnlocked = this.unlockedTalents.includes(talent.id) || talent.unlocked;
-
-            const node = this.add.circle(
-                talent.x + this.treeOffset.x,
-                talent.y + this.treeOffset.y,
-                30,
-                isUnlocked ? 0x00ff00 : 0x555555
-            )
-                .setStrokeStyle(2, 0xffffff)
-                .setInteractive()
-
-            node.isTalentNode = true;
-
-            if(!skipAnimation){
-                node.setScale(0.5)
-                node.setAlpha(0)
-                this.tweens.add({
-                    targets: node,
-                    scale: 1,
-                    alpha: 1,
-                    duration: 1000,
-                    delay: 100 + Math.random() * 400, // petit décalage aléatoire pour effet organique
-                    ease: 'Cubic.easeOut',
-                    onComplete: () => {
-
-                        if (this.activeTree !== currentTreeId) return;
-
-                        const label = this.add.text(
-                            talent.x + this.treeOffset.x,
-                            talent.y + this.treeOffset.y + 40,
-                            this.translate(`talent_${talent.id}_label`),
-                            {
-                                fontSize: '14px',
-                                fill: '#ffffff',
-                                fontFamily: 'monospace'
-                            }
-                        ).setOrigin(0.5);
-                        label.isTalentLabel = true;
-
-                    }
-                });
-            } else {
-                const label = this.add.text(
-                    talent.x + this.treeOffset.x,
-                    talent.y + this.treeOffset.y + 40,
-                    this.translate(`talent_${talent.id}_label`),
-                    {
-                        fontSize: '14px',
-                        fill: '#ffffff',
-                        fontFamily: 'monospace'
-                    }
-                ).setOrigin(0.5);
-                label.isTalentLabel = true;
-
-            }
-
-            node.on('pointerover', () => this.showTalentInfo(talent));
-            node.on('pointerout', () => this.hideTalentInfo());
-            node.on('pointerdown', () => this.tryUnlockTalent(talent));
-        });
-    }
-
-
-    showTalentInfo(talent) {
-        this.hideTalentInfo();
-
-        const padding = 20;
-        const maxWidth = 350;
-
-        let infoString = `${this.translate(`talent_${talent.id}_label`)}\n\n${this.translate(`talent_${talent.id}_description`)}\n\n`;
-        if (!this.unlockedTalents.includes(talent.id)) {
-            infoString += this.translate('talent_cost_text', {cost: talent.cost});
-        } else {
-            infoString += this.translate('talent_unlocked_text');
-        }
-
-        // Crée le texte
-        this.infoText = this.add.text(this.centerX, this.scale.height - 200, infoString, {
-            fontSize: '16px',
-            fill: '#ffffff',
-            fontFamily: 'monospace',
-            align: 'center',
-            wordWrap: { width: maxWidth }
-        }).setOrigin(0.5, 0);
-
-        const textBounds = this.infoText.getBounds();
-
-        const panelWidth = textBounds.width + padding * 2;
-        const panelHeight = textBounds.height + padding * 2;
-
-        this.infoBox = this.add.rectangle(
-            this.centerX,
-            this.infoText.y + textBounds.height / 2,
-            Math.max(panelWidth, 300),
-            panelHeight,
-            0x222222,
-            0.9
-        ).setOrigin(0.5).setStrokeStyle(2, 0xffffff);
-
-        this.infoBox.setDepth(100);
-        this.infoText.setDepth(101);
-    }
-
-
-
-    hideTalentInfo() {
-        if (this.infoBox) this.infoBox.destroy();
-        if (this.infoText) this.infoText.destroy();
-    }
-
-    tryUnlockTalent(talent) {
-        if (this.unlockedTalents.includes(talent.id)) return;
-        if (talent.parent && !this.unlockedTalents.includes(talent.parent)) return;
-        if (talent.cost > this.memoryShards) return;
-
-        this.memoryShards -= talent.cost;
-
-        // 🔍 Sauvegarde l’état précédent
-        const oldStates = {
-            architecture: this.isTreeUnlocked('architecture'),
-            evolution: this.isTreeUnlocked('evolution'),
-            ascension: this.isTreeUnlocked('ascension')
-        };
-
-
-        this.unlockedTalents.push(talent.id);
-
-
-        // 🧠 Détection de changement ➔ rafraîchit les onglets si besoin
-        const newStates = {
-            architecture: this.isTreeUnlocked('architecture'),
-            evolution: this.isTreeUnlocked('evolution'),
-            ascension: this.isTreeUnlocked('ascension')
-        };
-
-        let changed = false;
-        for (const tree of ['architecture', 'evolution', 'ascension']) {
-            if (!oldStates[tree] && newStates[tree]) changed = true;
-        }
-
-        if (changed) {
-            this.updateTalentTabs();
-        }
-
-        localStorage.setItem('memoryShards', this.memoryShards.toString());
-        localStorage.setItem('unlockedTalents', JSON.stringify(this.unlockedTalents));
-
-
-
-        // 🛠️ Faire l'animation directement sur l'élément existant
-        this.animateTalentUnlock(talent);
-        this.animateConnectionUnlock(talent);
-
-
-        // 🛠️ Juste mettre à jour l'affichage du nombre de shards
-        if (this.shardText) {
-            this.shardText.setText(this.translate('memory_shards_label', { count: this.memoryShards }));
-        }
-
-        // ❌ Ne pas appeler tout de suite refreshTalentTreeDisplay() (sauf cas très spécifiques)
-    }
-
-    updateTalentTabs() {
-        const labels = {
-            foundation: this.translate('tab_foundations') || 'Fondations',
-            architecture: this.translate('tab_architecture') || 'Architecture',
-            evolution: this.translate('tab_evolution') || 'Évolution',
-            ascension: this.translate('tab_ascension') || 'Ascension'
-        };
-
-        this.tabButtons.forEach((button, index) => {
-            const tree = ['foundation', 'architecture', 'evolution', 'ascension'][index];
-            const isUnlocked = this.isTreeUnlocked(tree);
-
-            button.setText(labels[tree]);
-            button.setFill(isUnlocked ? '#ffffff' : '#888888');
-            button.removeAllListeners();
-
-            if (isUnlocked) {
-                button.setInteractive();
-                button.on('pointerdown', () => {
-                    this.switchTalentTree(tree);
-                });
-            } else {
-                button.disableInteractive();
-            }
-        });
-    }
-
-
-    animateConnectionUnlock(talent) {
-        const parent = this.talentTrees[this.activeTree].find(t => t.id === talent.parent);
-        if (!parent) return;
-
-        const startX = parent.x + this.treeOffset.x;
-        const startY = parent.y + this.treeOffset.y;
-        const endX = talent.x + this.treeOffset.x;
-        const endY = talent.y + this.treeOffset.y;
-
-        // Retrouver la ligne connectant parent ➔ talent
-        const matchingLine = this.connectionLines.find(line => {
-            return (line.geom.x1 === startX && line.geom.y1 === startY && line.geom.x2 === endX && line.geom.y2 === endY)
-                || (line.geom.x2 === startX && line.geom.y2 === startY && line.geom.x1 === endX && line.geom.y1 === endY);
-        });
-
-        if (!matchingLine) return;
-
-        this.tweens.add({
-            targets: matchingLine,
-            alpha: { from: 0, to: 1 },
-            duration: 300,
-            ease: 'Sine.easeOut',
-            yoyo: true,
-            repeat: 1,
-            onComplete: () => {
-                matchingLine.setStrokeStyle(2, 0x00ff00);
-                matchingLine.setAlpha(1);
-            }
-        });
-    }
-
-
-    animateTalentUnlock(talent) {
-        const nodeX = talent.x + this.treeOffset.x;
-        const nodeY = talent.y + this.treeOffset.y;
-
-        // Retrouver le node visuellement à ses coordonnées
-        const node = this.children.list.find(obj =>
-            obj.isTalentNode &&
-            Phaser.Math.Distance.Between(obj.x, obj.y, nodeX, nodeY) < 10
-        );
-
-        if (!node) return;
-
-        // Animation visuelle du node
-        this.tweens.add({
-            targets: node,
-            scale: { from: 1.2, to: 1 },
-            alpha: { from: 0.5, to: 1 },
-            duration: 400,
-            ease: 'Cubic.easeOut'
-        });
-
-        // Facultatif : changer temporairement la couleur pour le plaisir
-        node.setFillStyle(0x00ff00);
-    }
-
 }
