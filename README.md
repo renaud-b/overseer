@@ -59,6 +59,10 @@ Dans la scène **VNext**, **aucune ressource n'est dépensée pour placer un bâ
 
 Le jeu comprend également un système de talents et une progression entre les parties. **Ne pas présumer que l'ensemble de ces mécaniques est déjà migré dans le noyau ECS.**
 
+### Améliorations de vision dans VNext
+
+Le joueur débloque successivement **4, 5 puis 6 cases de vision** contre **30, 90 puis 240 Données** (360 au total). Le Nœud de calcul de la PR dédiée doit fournir les Données ; ce barème ne modifie ni la production de Données, ni la cadence des vagues. Les achats restent sauvegardés. Ces prix sont des valeurs d'équilibrage de prototype, à ajuster après des parties complètes.
+
 ## Architecture du prototype
 
 - `index.html`, `src/main.js` : chargement et démarrage Phaser.
