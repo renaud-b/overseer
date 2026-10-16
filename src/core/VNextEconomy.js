@@ -7,11 +7,11 @@
         reactor: Object.freeze({ cycleMs: 2000, produces: { energy: 2 }, consumes: {} }),
         extractor: Object.freeze({ cycleMs: 2000, produces: { matter: 2 }, consumes: {} }),
         factory: Object.freeze({ cycleMs: 3000, produces: { components: 1 }, consumes: { energy: 2, matter: 2 } }),
-        // No cadence specified yet: immediately build one base unit when observed and affordable.
-        barracks: Object.freeze({ cycleMs: 0, produces: { unit_guard: 1 }, consumes: { components: 25, energy: 15 } }),
-        ballistics: Object.freeze({ cycleMs: 0, produces: { unit_sniper: 1 }, consumes: { components: 35, energy: 20 } }),
-        armor_forge: Object.freeze({ cycleMs: 0, produces: { unit_mecha: 1 }, consumes: { components: 60, energy: 35 } }),
-        medical_center: Object.freeze({ cycleMs: 0, produces: { unit_dronoid: 1 }, consumes: { components: 40, energy: 25 } })
+        // One unit per completed observed cycle. Inputs are spent only when the unit exits.
+        barracks: Object.freeze({ cycleMs: 5000, produces: { unit_guard: 1 }, consumes: { components: 25, energy: 15 } }),
+        ballistics: Object.freeze({ cycleMs: 8000, produces: { unit_sniper: 1 }, consumes: { components: 35, energy: 20 } }),
+        armor_forge: Object.freeze({ cycleMs: 12000, produces: { unit_mecha: 1 }, consumes: { components: 60, energy: 35 } }),
+        medical_center: Object.freeze({ cycleMs: 10000, produces: { unit_dronoid: 1 }, consumes: { components: 40, energy: 25 } })
     });
 
     const MILITARY = Object.freeze({
@@ -38,8 +38,18 @@
         for (const id of model.world.query('Building')) {
             const type = model.world.get(id, 'Building').type;
             const recipe = PROTOTYPE_RECIPES[type];
-            if (recipe && !model.world.hasComponent(id, 'Production')) {
+            if (!recipe) continue;
+            if (!model.world.hasComponent(id, 'Production')) {
                 model.world.set(id, 'Production', { elapsedMs: 0, cooldownMs: recipe.cycleMs, blocked: false });
+            } else if (MILITARY[type]) {
+                const progress = model.world.get(id, 'Production');
+                if (progress.cooldownMs === 0) {
+                    // Pre-cadence saves accumulated arbitrary elapsed time: do not award
+                    // instant units from that legacy value when resuming a run.
+                    progress.elapsedMs = 0;
+                    progress.cooldownMs = recipe.cycleMs;
+                    progress.blocked = false;
+                }
             }
         }
     }
@@ -67,18 +77,24 @@
             progress.elapsedMs += deltaMs;
             progress.blocked = false;
             if (MILITARY[type]) {
-                // Alive units count against capacity; a dead unit immediately frees a slot.
-                // No resources are consumed when a military building is full.
-                if (aliveUnits(model, type) + events.filter(e => e.type === 'unit-produced' && e.buildingType === type).length >= unitCapacity(model, type)) {
-                    progress.blocked = true;
-                    continue;
+                // A completed cycle waits for materials/capacity. No resource reservation,
+                // no production while unobserved, and no backlog of blocked cycles.
+                while (progress.elapsedMs >= recipe.cycleMs) {
+                    const pending = events.filter(e =>
+                        e.type === 'unit-produced' && e.buildingType === type).length;
+                    if (aliveUnits(model, type) + pending >= unitCapacity(model, type) ||
+                        Object.entries(recipe.consumes).some(([key, qty]) => resources[key] < qty)) {
+                        progress.elapsedMs = recipe.cycleMs;
+                        progress.blocked = true;
+                        break;
+                    }
+                    for (const [key, qty] of Object.entries(recipe.consumes)) resources[key] -= qty;
+                    progress.elapsedMs -= recipe.cycleMs;
+                    events.push({
+                        type: 'unit-produced', building: id, buildingType: type,
+                        unitType: MILITARY[type].unitType
+                    });
                 }
-                if (Object.entries(recipe.consumes).some(([key, qty]) => resources[key] < qty)) {
-                    progress.blocked = true;
-                    continue;
-                }
-                for (const [key, qty] of Object.entries(recipe.consumes)) resources[key] -= qty;
-                events.push({ type: 'unit-produced', building: id, buildingType: type, unitType: MILITARY[type].unitType });
                 continue;
             }
             while (progress.elapsedMs >= recipe.cycleMs) {
