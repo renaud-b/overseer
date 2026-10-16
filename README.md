@@ -46,7 +46,7 @@ Le menu propose **Continuer** lorsqu'une sauvegarde VNext valide existe. **Nouve
 
 ### Construction et fabrication dans VNext (état actuel)
 
-Dans la scène **VNext**, poser un bâtiment **consomme une carte de la main, mais aucune ressource** : les coûts de construction en ressources ne sont pas encore définis. Les recettes militaires concernent **chaque unité fabriquée**, pas la pose du bâtiment.
+Dans la scène **VNext**, **aucune ressource n'est dépensée pour placer un bâtiment**. Jouer une carte la retire simplement de la main. Les quantités indiquées pour les bâtiments militaires correspondent à la **fabrication de chaque unité**, et non à leur construction.
 
 | Producteur | Unité | Composants par unité | Énergie par unité |
 |---|---|---:|---:|
