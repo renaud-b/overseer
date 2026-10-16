@@ -229,6 +229,8 @@ test('compute node shows Data stock, throughput, tooltip and floating production
     scene.create();
     assert.equal(scene.resourceLabels.data.value, '0');
     assert.equal(scene.resourceStatusLabels.data.value, '0.0/s');
+    // The compute node is now reward-only, so grant it explicitly for this focused test.
+    assert.equal(cards.grant(scene.model, 'compute_node'), true);
     scene.selectedType = 'compute_node';
     scene.clickTile(6);
     const id = preview.buildingAt(scene.model, 6);
@@ -264,6 +266,7 @@ test('Data from compute-node cycles pays a vision upgrade and survives Continue'
     savedEntries.clear();
     const running = new VNextScene();
     running.create();
+    assert.equal(cards.grant(running.model, 'compute_node'), true);
     running.selectedType = 'compute_node';
     running.clickTile(6);
     const resources = running.world.get(running.model.game, 'Resources');
