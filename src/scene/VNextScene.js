@@ -426,7 +426,7 @@ class VNextScene extends Phaser.Scene {
     showTechnologyTooltip(type, anchorX, anchorY, depth = 220) {
         this.hideTechnologyTooltip();
         // Keep displayed numbers in sync with the simulation, not HUD estimates.
-        const { HEAL, BERSERK, STASIS } = OverseerVNextZones;
+        const { HEAL, BERSERK, STASIS, OVERCLOCK, OVERLOAD } = OverseerVNextZones;
         const descriptions = {
             healing_field: {
                 title: 'RÉGÉNÉRATION', color: 0x69d9a0,
@@ -454,6 +454,24 @@ class VNextScene extends Phaser.Scene {
                     `Vitesse : -${Math.round((1 - STASIS.speedMultiplier) * 100)} %`,
                     `Durée : ${STASIS.durationMs / 1000} s`
                 ]
+            },
+            overclock: {
+                title: 'SURCADENCEMENT', color: 0x62e7e1,
+                lines: [
+                    'Accélère tous les alliés',
+                    `Déplacement : +${Math.round((OVERCLOCK.speedMultiplier - 1) * 100)} %`,
+                    `Durée : ${OVERCLOCK.durationMs / 1000} s`,
+                    'Sans bonus de cadence de tir'
+                ]
+            },
+            overload: {
+                title: 'SURCHARGE', color: 0xf5b94f,
+                lines: [
+                    'Bâtiments sous vision uniquement',
+                    `Production : ×${OVERLOAD.productionMultiplier}`,
+                    `Durée : ${OVERLOAD.durationMs / 1000} s`,
+                    'Laboratoire exclu'
+                ]
             }
         };
         const info = descriptions[type];
@@ -473,7 +491,7 @@ class VNextScene extends Phaser.Scene {
         info.lines.forEach((line, i) => label(x + 14, y + 44 + i * 23, line, 11, '#bed4df'));
         label(x + 14, y + 149, depth > 300 ?
             'CHOISIR POUR AJOUTER À L’INVENTAIRE' :
-            'GLISSER SUR LE CHAMP DE BATAILLE', 9, '#819eaf');
+            (type === 'overload' ? 'GLISSER SUR LA BASE' : 'GLISSER SUR LE CHAMP DE BATAILLE'), 9, '#819eaf');
     }
     showBuildingTooltip(index) {
         this.hideBuildingTooltip();
@@ -566,6 +584,10 @@ class VNextScene extends Phaser.Scene {
         const g = this.boardGraphics;
         g.clear();
         const { x, y, size, cell } = this.gridLayout;
+        if(OverseerVNextZones.active(this.model,'overload')) {
+            const title=this.boardHint;
+            if(title)title.setColor('#f5b94f');
+        } else if(this.boardHint)this.boardHint.setColor('#8eaaba');
         g.lineStyle(1, 0x214052, 0.32);
         for (let i = 0; i <= 5; i++) {
             g.lineBetween(x + cell * i, y, x + cell * i, y + size);
@@ -682,8 +704,9 @@ class VNextScene extends Phaser.Scene {
             return;
         }
         if(OverseerVNextTechnologies.TYPES.includes(object.getData('technology'))) {
-            const target=this.technologyTarget(pointer.x,pointer.y);
-            if(target && OverseerVNextTechnologies.consume(this.model,object.getData('technology'))) {
+            const technology=object.getData('technology');
+            const target=technology==='overload' ? this.baseTechnologyTarget(pointer.x,pointer.y) : this.technologyTarget(pointer.x,pointer.y);
+            if(target && OverseerVNextTechnologies.consume(this.model,technology)) {
                 this.castTechnology(object.getData('technology'),target);
                 this.saveCurrentGame();
             }
@@ -867,7 +890,7 @@ class VNextScene extends Phaser.Scene {
         const items=OverseerVNextTechnologies.inventory(this.model).items;
         if(!right && l.leftW<165)return;
         this.text(x,y,'TECHNOLOGIES',12,'#b58aff');
-        const styles=[['healing_field','✚ SOIN',0x69d9a0],['berserk','⚡ BERSERK',0xf4a261],['stasis_field','◌ STASE',0x87b9e8]];
+        const styles=[['healing_field','✚ SOIN',0x69d9a0],['berserk','⚡ BERSERK',0xf4a261],['stasis_field','◌ STASE',0x87b9e8],['overclock','» SURCAD.',0x62e7e1],['overload','↑ SURCHARGE',0xf5b94f]];
         let row=0;
         for(const [type,name,color] of styles){
             const count=items.filter(item=>item===type).length;
@@ -887,6 +910,12 @@ class VNextScene extends Phaser.Scene {
         const b=this.battleBounds;
         if(!b || x<b.x || y<b.y || x>b.x+b.w || y>b.y+b.h)return null;
         return {x:(x-b.x)*1000/b.w,y:(y-b.y)*600/b.h};
+    }
+
+    baseTechnologyTarget(x,y) {
+        const l=this.layout;
+        if(!l || x<l.boardX || x>l.boardX+l.boardW || y<l.mainTop || y>l.mainBottom)return null;
+        return {x:500,y:300}; // Global base effect; no positional simulation target.
     }
 
     resourceActivity(source) {
@@ -1126,7 +1155,9 @@ class VNextScene extends Phaser.Scene {
             const techStyles={
                 'tech:healing_field':{color:0x69d9a0,label:'Régénération'},
                 'tech:berserk':{color:0xf4a261,label:'Berserk'},
-                'tech:stasis_field':{color:0x87b9e8,label:'Stase'}
+                'tech:stasis_field':{color:0x87b9e8,label:'Stase'},
+                'tech:overclock':{color:0x62e7e1,label:'Surcadencement'},
+                'tech:overload':{color:0xf5b94f,label:'Surcharge'}
             };
             const building = techStyles[type] || OverseerVNextBuildings.getBuilding(type);
             const cardW = (width - 56) / 3, cx = x + 14 + i * (cardW + 14), cy = y + 113;
@@ -1359,6 +1390,9 @@ class VNextScene extends Phaser.Scene {
             const style = this.battleUnitStyle(id);
             const color = OverseerHitEffects.tintColor(style.color, visual.flash);
             const berserk=this.world.get(id,'TechnologyBuff')?.type==='berserk';
+            if(side==='player' && OverseerVNextZones.active(this.model,'overclock')) {
+                g.lineStyle(1,0x62e7e1,0.65).strokeCircle(q.x,q.y,r*1.45);
+            }
             if(berserk){g.lineStyle(1,0xf4a261,0.8).strokeCircle(q.x,q.y,r*1.5);}
             this.drawBattleUnit(g, style, q.x, q.y, (berserk ? r * 1.16 : r) * (style.size || 1), color);
             if (side === 'enemy' && this.world.get(id, 'ThreatMark')) {
@@ -1465,7 +1499,8 @@ class VNextScene extends Phaser.Scene {
                 base: side === 'enemy' && this.baseHp > 0 ? { x: 65, y: 300 } : null,
                 patrol: side === 'player' ? posts.get(id) : null,
                 allies: side === 'player' ? players : [],
-                centralDetection: side === 'player'
+                centralDetection: side === 'player',
+                allySpeedMultiplier: OverseerVNextZones.speedMultiplier(this.model)
             });
             for (const event of events) {
                 if (event.type === 'base-attack') {
