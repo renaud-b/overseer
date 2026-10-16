@@ -44,6 +44,17 @@ function stepUnit(world,id,delta,options={}){
  }
  return events;
 }
+// Stable, bounded guard posts on the battlefield-facing (right) side of the AI.
+function formationPosition(index, total, core = {x:65,y:300}) {
+ if (!Number.isInteger(index) || !Number.isInteger(total) || total<=0 || index<0 || index>=total)
+   throw new RangeError('Invalid formation slot');
+ const perRing=7;
+ const ring=Math.floor(index/perRing), slot=index%perRing;
+ const count=Math.min(perRing,total-ring*perRing);
+ const angle=count===1?0:-Math.PI/2+Math.PI*slot/(count-1);
+ const radius=85+ring*28;
+ return {x:core.x+Math.cos(angle)*radius+16,y:core.y+Math.sin(angle)*radius};
+}
 // Keep friendly units readable without changing attack decisions or combat stats.
 // A single pairwise pass is enough for the small VNext battle; positions live in ECS.
 function separateUnits(world, ids, minimumDistance = 22) {
@@ -67,5 +78,5 @@ function separateUnits(world, ids, minimumDistance = 22) {
   }
  }
 }
-const api={stepUnit,separateUnits};root.OverseerCombat=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+const api={stepUnit,separateUnits,formationPosition};root.OverseerCombat=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(globalThis);
