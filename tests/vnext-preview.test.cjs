@@ -55,3 +55,11 @@ test('main menu starts first, while VNext and legacy GameScene remain reachable'
     assert.match(scene, /this\.scene\.start\('GameScene'\)/);
     assert.match(scene, /OverseerCombat\.stepUnit/);
 });
+
+test('browser loads VNextVision before VNextScene references it', () => {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    const moduleIndex = html.indexOf('src/core/VNextVision.js');
+    const sceneIndex = html.indexOf('src/scene/VNextScene.js');
+    assert.ok(moduleIndex >= 0, 'vision module must be included');
+    assert.ok(sceneIndex > moduleIndex, 'vision module must load before the scene');
+});
