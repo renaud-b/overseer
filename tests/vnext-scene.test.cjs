@@ -585,6 +585,46 @@ test('invalid Continue returns to menu instead of silently starting a fresh game
     savedEntries.clear();
 });
 
+test('dead combat units are reclaimed without losing wave rewards or resumable saves', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    scene.create();
+    scene.waveClock.number = 1;
+    scene.triggerWave(waves.wave(1, scene.waveClock.seed));
+    const enemies = [...scene.waveMembers.get(1)];
+    const ally = scene.battleUnits.find(id => scene.world.get(id, 'Faction').side === 'player');
+    const originalUnitCount = scene.battleUnits.length;
+    scene.world.get(enemies[0], 'Health').hp = 0;
+    scene.world.get(ally, 'Health').hp = 0;
+
+    scene.update(0, 16);
+    assert.equal(scene.world.has(enemies[0]), false);
+    assert.equal(scene.world.has(ally), false);
+    assert.equal(scene.battleUnits.length, originalUnitCount - 2);
+    assert.deepEqual(scene.waveMembers.get(1), enemies.slice(1));
+    assert.equal(scene.activeReward, null, 'a partially defeated wave stays active');
+
+    assert.equal(scene.saveCurrentGame(), true);
+    const partialSave = saves.read(saveStorage);
+    assert.ok(partialSave, 'dead units must not leave dangling IDs in the save');
+    const partialRun = saves.restore(partialSave, World);
+    assert.deepEqual(partialRun.waveMembers.get(1), enemies.slice(1));
+    assert.equal(partialRun.model.world.has(enemies[0]), false);
+    assert.equal(partialRun.model.world.has(ally), false);
+
+    for (const id of enemies.slice(1)) scene.world.get(id, 'Health').hp = 0;
+    scene.update(16, 16);
+    assert.equal(scene.waveMembers.size, 0, 'empty membership means the wave is cleared');
+    assert.equal(scene.activeReward.number, 1);
+    assert.equal(scene.battleUnits.length, originalUnitCount - enemies.length - 1);
+    const completeSave = saves.read(saveStorage);
+    assert.ok(completeSave, 'the reward save contains no destroyed entity references');
+    assert.equal(saves.restore(completeSave, World).activeReward.number, 1);
+    scene.chooseReward(scene.activeReward.options[0]);
+    assert.equal(scene.activeReward, null);
+    savedEntries.clear();
+});
+
 test('base destruction clears only the run and prevents another autosave', () => {
     savedEntries.clear();
     saveStorage.setItem('unlockedTalents', '["root"]');
