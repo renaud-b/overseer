@@ -128,6 +128,8 @@ class VNextScene extends Phaser.Scene {
         this.events.once('shutdown', () => {
             this.hitEffects.clear();
             this.actionEffects.clear();
+            this.battleMask?.destroy();
+            this.battleMask = null;
             this.scale.off('resize', this.buildUi, this);
             if (typeof window !== 'undefined') window.removeEventListener?.('pagehide', this.onPageHide);
             this.input.keyboard.off('keydown', this.onKey, this);
@@ -157,6 +159,8 @@ class VNextScene extends Phaser.Scene {
         this.hideBuildingTooltip();
         this.hideResourceTooltip();
         this.hideWaveTooltip();
+        this.battleMask?.destroy();
+        this.battleMask = null;
         this.ui.forEach(object => object.destroy());
         this.clearProductionPopups();
         this.ui = [];
@@ -745,6 +749,17 @@ class VNextScene extends Phaser.Scene {
         this.battleGraphics = this.keep(this.add.graphics());
         this.battleParticleGraphics = this.keep(this.add.graphics());
         this.battleActionGraphics = this.keep(this.add.graphics());
+        // A geometry mask clips every battlefield effect, including large detection rings.
+        // Mask geometry is defined in screen coordinates and rebuilt on resize.
+        this.battleMaskGraphic = this.keep(this.add.graphics());
+        this.battleMaskGraphic.fillStyle(0xffffff, 1)
+            .fillRect(b.x, b.y, b.w, b.h)
+            .setVisible(false);
+        this.battleMask = this.battleMaskGraphic.createGeometryMask();
+        for (const graphics of [this.zoneGraphics, this.battleGraphics,
+            this.battleParticleGraphics, this.battleActionGraphics]) {
+            graphics.setMask(this.battleMask);
+        }
         this.battleStatus = this.text(l.battleX + 15, mainBottom - 38, '', 11, '#8eabbc');
     }
 
@@ -1177,6 +1192,13 @@ class VNextScene extends Phaser.Scene {
         }
     }
 
+    baseHealthColor() {
+        // Three readable states, intentionally without pulsing or decorative animation.
+        if (this.baseHp <= 25) return 0xff6674;
+        if (this.baseHp <= 60) return 0xf0ba60;
+        return 0x48b8c4;
+    }
+
     paintBattle() {
         if (!this.battleGraphics || !this.battleBounds) return;
         const g = this.battleGraphics, b = this.battleBounds;
@@ -1185,8 +1207,16 @@ class VNextScene extends Phaser.Scene {
         g.clear();
         const p = (x, y) => ({ x: b.x + b.w * x / 1000, y: b.y + b.h * y / 600 });
         const base = p(65, 300);
-        g.lineStyle(1, 0x48b8c4, 0.65).strokeCircle(base.x, base.y, 12);
-        g.lineStyle(1, 0x48b8c4, 0.3).strokeCircle(base.x, base.y, 21);
+        const coreColor = this.baseHealthColor();
+        g.lineStyle(2, coreColor, 0.82).strokeCircle(base.x, base.y, 12);
+        g.lineStyle(1, coreColor, 0.38).strokeCircle(base.x, base.y, 21);
+        const healthWidth = Math.min(62, b.w - 6);
+        const healthX = Math.max(b.x + 3, Math.min(base.x - healthWidth / 2,
+            b.x + b.w - healthWidth - 3));
+        const healthY = base.y - 37;
+        g.fillStyle(0x203b49, 1).fillRect(healthX, healthY, healthWidth, 5);
+        g.fillStyle(coreColor, 1).fillRect(healthX, healthY,
+            healthWidth * Math.max(0, Math.min(1, this.baseHp / 100)), 5);
         for (const id of this.battleUnits) {
             if (!this.world.has(id)) continue;
             const hp = this.world.get(id, 'Health');
@@ -1257,7 +1287,7 @@ class VNextScene extends Phaser.Scene {
         if (this.battleStatus) {
             const alive = side => this.battleUnits.filter(id => this.world.has(id) &&
                 this.world.get(id, 'Faction').side === side && this.world.get(id, 'Health').hp > 0).length;
-            this.battleStatus.setText(`Alliés ${alive('player')}   Menaces ${alive('enemy')}   Base ${this.baseHp}/100`);
+            this.battleStatus.setText(`Alliés ${alive('player')}   Menaces ${alive('enemy')}`);
         }
     }
 
