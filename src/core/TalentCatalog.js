@@ -6,9 +6,10 @@ const trees = {
                 { id: 'root', x: 700, y: 100, cost: 0, unlocked: true },
 
                 // Branche Défense
-                { id: 'starter_base_hp', parent: 'root', x: 250, y: 300, cost: 5 },
-                { id: 'starter_drone', parent: 'starter_base_hp', x: 250, y: 480, cost: 8 },
-                { id: 'starter_guard', parent: 'starter_drone', x: 250, y: 660, cost: 12 },
+                { id: 'starter_base_hp', parent: 'root', x: 250, y: 300, cost: 5, description: '+20 PV au noyau au début de chaque partie.' },
+                { id: 'starter_drone', parent: 'starter_base_hp', x: 250, y: 480, cost: 8, legacy: true },
+                { id: 'starter_reinforcement', parent: 'starter_base_hp', x: 250, y: 480, cost: 8, description: 'Commencer chaque partie avec un Soldat supplémentaire.' },
+                { id: 'starter_guard', parent: 'starter_drone', x: 250, y: 660, cost: 12, legacy: true },
 
                 // Branche Vision
                 { id: 'vision_boost', parent: 'root', x: 550, y: 300, cost: 5 },
