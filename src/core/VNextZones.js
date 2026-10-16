@@ -1,10 +1,20 @@
 (function(root) {
 'use strict';
+const BERSERK=Object.freeze({durationMs:8000,targets:2,attackMultiplier:1.5});
+const STASIS=Object.freeze({durationMs:10000,radius:110,speedMultiplier:0.5});
 const HEAL=Object.freeze({durationMs:10000,intervalMs:2000,radius:105,amount:1}); // provisional radius/amount.
 function cast(model,type,target) {
- if(type!=='healing_field'||!target||!Number.isFinite(target.x)||!Number.isFinite(target.y)||target.x<0||target.x>1000||target.y<0||target.y>600)return null;
+ if(!['healing_field','stasis_field','berserk'].includes(type)||!target||!Number.isFinite(target.x)||!Number.isFinite(target.y)||target.x<0||target.x>1000||target.y<0||target.y>600)return null;
+ if(type==='berserk') {
+  const allies=model.world.query('Faction','Health','Combat').filter(id=>model.world.get(id,'Faction').side==='player'&&model.world.get(id,'Health').hp>0);
+  const stock=model.world.get(model.game,'Technologies');
+  let seed=(stock?.seed??137)>>>0;
+  for(let i=allies.length-1;i>0;i--){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const j=seed%(i+1);[allies[i],allies[j]]=[allies[j],allies[i]];}
+  for(const id of allies.slice(0,BERSERK.targets))model.world.set(id,'TechnologyBuff',{type:'berserk',remainingMs:BERSERK.durationMs});
+  return allies.length?allies[0]:null;
+ }
  const id=model.world.create(model.game);
- model.world.set(id,'TechnologyZone',{type,x:target.x,y:target.y,radius:HEAL.radius,remainingMs:HEAL.durationMs,untilTickMs:HEAL.intervalMs});
+ model.world.set(id,'TechnologyZone',{type,x:target.x,y:target.y,radius:type==='stasis_field'?STASIS.radius:HEAL.radius,remainingMs:type==='stasis_field'?STASIS.durationMs:HEAL.durationMs,untilTickMs:HEAL.intervalMs});
  return id;
 }
 function step(model,delta) {
@@ -14,6 +24,7 @@ function step(model,delta) {
   const zone=model.world.get(id,'TechnologyZone');
   const effective=Math.min(delta,zone.remainingMs);
   zone.remainingMs-=effective;zone.untilTickMs-=effective;
+  if(zone.type==='stasis_field'){if(zone.remainingMs<=0)model.world.destroy(id);continue;}
   while(zone.untilTickMs<=0 && effective>0) {
    zone.untilTickMs+=HEAL.intervalMs;
    for(const ally of model.world.query('Position','Health','Faction')) {
@@ -28,5 +39,12 @@ function step(model,delta) {
  }
  return events;
 }
-const api={HEAL,cast,step};root.OverseerVNextZones=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+function stepBuffs(model,dt) {
+ if(!Number.isFinite(dt)||dt<0)throw Error('Invalid buff delta');
+ for(const id of model.world.query('TechnologyBuff')) {
+  const buff=model.world.get(id,'TechnologyBuff');buff.remainingMs-=dt;
+  if(buff.remainingMs<=0)model.world.remove(id,'TechnologyBuff');
+ }
+}
+const api={HEAL,BERSERK,STASIS,cast,step,stepBuffs};root.OverseerVNextZones=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(globalThis);
