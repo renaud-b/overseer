@@ -5,8 +5,14 @@ function moveTowards(p,target,speed,dt,stop=0){const d=distance(p,target);if(d<=
 function stepUnit(world,id,delta,options={}){
  const position=world.get(id,'Position'),health=world.get(id,'Health'),combat=world.get(id,'Combat'),movement=world.get(id,'Movement'),faction=world.get(id,'Faction');
  if(!position||!health||!combat||!movement||!faction||health.hp<=0)return [];
- combat.elapsedMs+=delta;
+ const berserk=world.get(id,'TechnologyBuff')?.type==='berserk';
+ combat.elapsedMs+=delta*(berserk?1.5:1);
  const opponents=(options.opponents||[]).filter(other=>world.has(other)&&world.get(other,'Health')?.hp>0).map(other=>({id:other,position:world.get(other,'Position')})).filter(o=>o.position);
+ let speed=movement.speed;
+ if(faction.side==='enemy')for(const zoneId of world.query('TechnologyZone')) {
+  const zone=world.get(zoneId,'TechnologyZone');
+  if(zone.type==='stasis_field'&&distance(position,zone)<=zone.radius){speed*=0.5;break;}
+ }
  const detection=combat.detectionRadius;
  const central=options.centralDetection && faction.side==='player';
  const eligible=opponents.filter(o=>central
@@ -22,13 +28,13 @@ function stepUnit(world,id,delta,options={}){
    const allies=(options.allies||[]).filter(other=>world.has(other) && other!==id && world.get(other,'Health')?.hp>0 && world.get(other,'Health').hp<world.get(other,'Health').maxHp && world.get(other,'Position'));
    allies.sort((a,b)=>distance(position,world.get(a,'Position'))-distance(position,world.get(b,'Position')));
    const ally=allies[0];
-   if(ally){const pos=world.get(ally,'Position');moveTowards(position,pos,movement.speed,delta,combat.range);if(distance(position,pos)<=combat.range && combat.elapsedMs>=combat.cooldownMs){const h=world.get(ally,'Health');const amount=Math.min(combat.damage,h.maxHp-h.hp);h.hp+=amount;combat.elapsedMs=0;events.push({type:'heal',healer:id,target:ally,amount});}}
-   else if(options.patrol)moveTowards(position,options.patrol,movement.speed,delta,5);
+   if(ally){const pos=world.get(ally,'Position');moveTowards(position,pos,speed,delta,combat.range);if(distance(position,pos)<=combat.range && combat.elapsedMs>=combat.cooldownMs){const h=world.get(ally,'Health');const amount=Math.min(combat.damage,h.maxHp-h.hp);h.hp+=amount;combat.elapsedMs=0;events.push({type:'heal',healer:id,target:ally,amount});}}
+   else if(options.patrol)moveTowards(position,options.patrol,speed,delta,5);
    return events;
  }
  if(target){
    const stop=combat.attackType==='ranged'?combat.range:10;
-   moveTowards(position,target.position,movement.speed,delta,stop);
+   moveTowards(position,target.position,speed,delta,stop);
    if(distance(position,target.position)< (combat.attackType==='ranged'?combat.range:20) && combat.elapsedMs>=combat.cooldownMs){
      world.get(target.id,'Health').hp-=combat.damage;
      combat.elapsedMs=0;
@@ -37,10 +43,10 @@ function stepUnit(world,id,delta,options={}){
  }else if(faction.side==='enemy'&&options.base){
    const base=options.base;
    const d=distance(position,base);
-   moveTowards(position,base,movement.speed,delta,combat.range);
+   moveTowards(position,base,speed,delta,combat.range);
    if(d<=combat.range&&combat.elapsedMs>=combat.cooldownMs){combat.elapsedMs=0;events.push({type:'base-attack',attacker:id,damage:combat.damage});}
  }else if(faction.side==='player'&&options.patrol){
-   moveTowards(position,options.patrol,movement.speed,delta,5);
+   moveTowards(position,options.patrol,speed,delta,5);
  }
  return events;
 }

@@ -799,12 +799,16 @@ class VNextScene extends Phaser.Scene {
         const items=OverseerVNextTechnologies.inventory(this.model).items;
         if(!right && l.leftW<165)return;
         this.text(x,y,'TECHNOLOGIES',12,'#b58aff');
-        const count=items.filter(t=>t==='healing_field').length;
-        if(!count){this.text(x,y+28,'Aucune disponible',10,'#7898aa');return;}
-        const label=this.text(x+8,y+32,`✚  SOIN ×${count}`,12,'#69d9a0');
-        label.setPadding(8,7,8,7).setInteractive({useHandCursor:true});
-        label.setData('technology','healing_field');
-        this.input.setDraggable(label);
+        const styles=[['healing_field','✚ SOIN',0x69d9a0],['berserk','⚡ BERSERK',0xf4a261],['stasis_field','◌ STASE',0x87b9e8]];
+        let row=0;
+        for(const [type,name,color] of styles){
+            const count=items.filter(item=>item===type).length;
+            if(!count)continue;
+            const label=this.text(x+3,y+28+row*32,`${name} ×${count}`,11,`#${color.toString(16).padStart(6,'0')}`);
+            label.setPadding(3,5,3,5).setInteractive({useHandCursor:true});
+            label.setData('technology',type);this.input.setDraggable(label);row++;
+        }
+        if(!row)this.text(x,y+28,'Aucune disponible',10,'#7898aa');
     }
 
     // Coordinates in the simulation's 1000×600 battlefield space.
@@ -942,15 +946,13 @@ class VNextScene extends Phaser.Scene {
 
     // Reward choices stay in the small, already-playable building catalog.
     // Generate once per cleared wave, never on each render.
-    rewardOptions(number) {
-        const pool = [...new Set([...OverseerVNextCards.REWARD_CARDS, ...OverseerVNextTechnologies.TYPES.map(type => `tech:${type}`)])];
-        let state = (this.waveClock.seed ^ Math.imul(number, 0x9e3779b1)) >>> 0;
-        for (let i = pool.length - 1; i > 0; i--) {
-            state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-            const j = state % (i + 1);
-            [pool[i], pool[j]] = [pool[j], pool[i]];
-        }
-        return pool.slice(0, 3);
+    rewardOptions(number, kind = 'building') {
+        return OverseerVNextRewards.options(number,this.waveClock.seed,kind,
+            OverseerVNextCards.REWARD_CARDS,OverseerVNextTechnologies.TYPES);
+    }
+    rewardForWave(number) {
+        return OverseerVNextRewards.create(number,this.waveClock.seed,
+            OverseerVNextCards.REWARD_CARDS,OverseerVNextTechnologies.TYPES);
     }
 
     checkWaveClears() {
@@ -959,7 +961,7 @@ class VNextScene extends Phaser.Scene {
             if (!members.length) continue;
             if (!members.every(id => !this.world.has(id) || this.world.get(id, 'Health').hp <= 0)) continue;
             this.waveMembers.delete(number);
-            this.rewardQueue.push({ number, options: this.rewardOptions(number) });
+            this.rewardQueue.push(this.rewardForWave(number));
             changed = true;
         }
         if (!this.activeReward && this.rewardQueue.length) {
@@ -992,12 +994,14 @@ class VNextScene extends Phaser.Scene {
 
     chooseReward(type) {
         if (!this.activeReward || !this.activeReward.options.includes(type)) return false;
+        const current=OverseerVNextRewards.current(this.activeReward);
+        if (current.kind==='building' && type.startsWith('tech:') || current.kind==='technology' && !type.startsWith('tech:')) return false;
         if (type.startsWith('tech:')) {
             const technology = type.slice(5);
             if (!OverseerVNextTechnologies.TYPES.includes(technology)) return false;
             OverseerVNextTechnologies.inventory(this.model).items.push(technology);
         } else if (!OverseerVNextCards.grant(this.model, type)) return false;
-        this.activeReward = this.rewardQueue.shift() || null;
+        if (!OverseerVNextRewards.advance(this.activeReward)) this.activeReward = this.rewardQueue.shift() || null;
         this.buildUi();
         this.saveCurrentGame();
         return true;
@@ -1010,8 +1014,8 @@ class VNextScene extends Phaser.Scene {
         const width = Math.min(590, w - 32), x = (w - width) / 2, y = Math.max(95, h / 2 - 115);
         const g = this.keep(this.add.graphics().setDepth(300));
         g.fillStyle(0x08121c, 0.88).fillRect(0, 0, w, h);
-        g.fillStyle(0x0b1d2b, 1).fillRoundedRect(x, y, width, 225, 8);
-        g.lineStyle(1, 0x62e7e1, 0.7).strokeRoundedRect(x, y, width, 225, 8);
+        g.fillStyle(0x0b1d2b, 1).fillRoundedRect(x, y, width, 245, 8);
+        g.lineStyle(1, 0x62e7e1, 0.7).strokeRoundedRect(x, y, width, 245, 8);
         // Full-screen hit target above the HUD, below the reward choices.
         // Phaser's default topOnly input dispatch keeps pointer events off the game.
         this.keep(this.add.zone(w / 2, h / 2, w, h)
@@ -1022,15 +1026,24 @@ class VNextScene extends Phaser.Scene {
         this.keep(this.add.text(x + 20, y + 48, 'Choisissez une carte · simulation en pause', {
             fontFamily:'monospace',fontSize:'11px',color:'#8daabb'
         }).setDepth(301));
+        const stage=OverseerVNextRewards.current(reward);
+        const breadcrumb=reward.stages?.map((part,i)=>i===reward.index?'[ '+(part.kind==='building'?'BÂTIMENT':'TECHNOLOGIE')+' ]':(part.kind==='building'?'BÂTIMENT ✓':'TECHNOLOGIE')).join('   →   ') ||
+            (stage.kind==='building'?'[ BÂTIMENT ]':stage.kind==='technology'?'[ TECHNOLOGIE ]':'[ CHOIX ]');
+        this.keep(this.add.text(x+width/2,y+68,breadcrumb,{
+            fontFamily:'monospace',fontSize:'11px',color:'#b58aff'
+        }).setOrigin(0.5,0).setDepth(301));
         reward.options.forEach((type, i) => {
-            const building = type === 'tech:healing_field'
-                ? { color: 0x69d9a0, label: 'Régénération', description: 'Technologie consommable' }
-                : OverseerVNextBuildings.getBuilding(type);
-            const cardW = (width - 56) / 3, cx = x + 14 + i * (cardW + 14), cy = y + 94;
+            const techStyles={
+                'tech:healing_field':{color:0x69d9a0,label:'Régénération'},
+                'tech:berserk':{color:0xf4a261,label:'Berserk'},
+                'tech:stasis_field':{color:0x87b9e8,label:'Stase'}
+            };
+            const building = techStyles[type] || OverseerVNextBuildings.getBuilding(type);
+            const cardW = (width - 56) / 3, cx = x + 14 + i * (cardW + 14), cy = y + 113;
             g.fillStyle(0x123047).fillRoundedRect(cx, cy, cardW, 108, 5);
             g.lineStyle(1, building.color, 0.7).strokeRoundedRect(cx, cy, cardW, 108, 5);
             const iconG = this.keep(this.add.graphics().setDepth(301));
-            if (type === 'tech:healing_field') {
+            if (type.startsWith('tech:')) {
                 iconG.lineStyle(2, building.color, 1).lineBetween(cx + cardW / 2 - 7, cy + 27, cx + cardW / 2 + 7, cy + 27);
                 iconG.lineBetween(cx + cardW / 2, cy + 20, cx + cardW / 2, cy + 34);
             } else this.drawGlyph(iconG, type, cx + cardW / 2, cy + 27, building.color, 13);
@@ -1184,8 +1197,10 @@ class VNextScene extends Phaser.Scene {
         for(const id of this.world.query('TechnologyZone')) {
             const zone=this.world.get(id,'TechnologyZone'),p=toScreen(zone.x,zone.y);
             const r=zone.radius*b.w/1000;
-            g.fillStyle(0x34bb79,0.09).fillCircle(p.x,p.y,r);
-            g.lineStyle(1.5,0x69d9a0,0.75).strokeCircle(p.x,p.y,r);
+            const stasis=zone.type==='stasis_field',color=stasis?0x87b9e8:0x69d9a0;
+            g.fillStyle(color,0.09).fillCircle(p.x,p.y,r);
+            g.lineStyle(1.5,color,0.75).strokeCircle(p.x,p.y,r);
+            if(stasis)continue;
             // Decorative plus particles are renderer-only, independent of healing ticks.
             if(dt>0 && this.zoneParticles.length<36) {
                 const angle=Math.random()*Math.PI*2,rad=Math.sqrt(Math.random())*r;
@@ -1242,7 +1257,9 @@ class VNextScene extends Phaser.Scene {
             q.y += visual.y * r;
             const style = this.battleUnitStyle(id);
             const color = OverseerHitEffects.tintColor(style.color, visual.flash);
-            this.drawBattleUnit(g, style, q.x, q.y, r, color);
+            const berserk=this.world.get(id,'TechnologyBuff')?.type==='berserk';
+            if(berserk){g.lineStyle(1,0xf4a261,0.8).strokeCircle(q.x,q.y,r*1.5);}
+            this.drawBattleUnit(g, style, q.x, q.y,berserk?r*1.16:r, color);
             if (side === 'enemy' && this.world.get(id, 'ThreatMark')) {
                 g.lineStyle(1.5, 0xff6674, 0.92).strokeRect(
                     q.x - r - 4, q.y - r - 4, (r + 4) * 2, (r + 4) * 2);
@@ -1375,6 +1392,7 @@ class VNextScene extends Phaser.Scene {
         // Wall-clock duration makes impacts readable at x1/x3/x5. Pause freezes them.
         this.hitEffects.update(Math.min(60, Math.max(0, delta)));
         this.actionEffects.update(Math.min(60, Math.max(0, delta)));
+        OverseerVNextZones.stepBuffs(this.model,dt);
         // Rewards must be computed before reclaiming dead ECS entities.
         this.checkWaveClears();
         this.cleanupDeadUnits();
