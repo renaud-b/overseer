@@ -32,6 +32,7 @@
         if (!unitType) return 0;
         return model.world.query('PreviewUnit', 'Health', 'Faction').filter(id =>
             model.world.get(id, 'Faction').side === 'player' &&
+            !model.world.hasComponent(id, 'TemporaryAlly') &&
             model.world.get(id, 'PreviewUnit').type === unitType &&
             model.world.get(id, 'Health').hp > 0).length;
     }

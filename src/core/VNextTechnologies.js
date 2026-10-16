@@ -1,6 +1,6 @@
 (function(root) {
 'use strict';
-const TYPES=Object.freeze(['berserk', 'stasis_field', 'overclock', 'overload', 'healing_field']); // Add more spells without changing inventory rules.
+const TYPES=Object.freeze(['berserk', 'stasis_field', 'overclock', 'overload', 'emp_field', 'reinforcements', 'healing_field']); // Add more spells without changing inventory rules.
 const RESEARCH_MS=30000; // Provisional, observed time.
 function inventory(model) {
  if(!model.world.hasComponent(model.game,'Technologies')) model.world.set(model.game,'Technologies',{items:[],seed:137});

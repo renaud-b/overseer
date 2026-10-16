@@ -69,3 +69,64 @@ test('Global technology recasting refreshes, never stacks, and time freezes at p
  zones.stepBuffs(m,8000);
  assert.equal(zones.active(m,'overload'),false);
 });
+
+
+test('EMP stops enemy movement only in its radius, but still allows attacks',()=>{
+ const m=preview.createModel(World),w=m.world;
+ const enemy=unit(m,'enemy',400),ally=unit(m,'player',406),outside=unit(m,'enemy',680);
+ const zone=zones.cast(m,'emp_field',{x:400,y:300});
+ assert.ok(zone);
+ const hits=combat.stepUnit(w,enemy,1000,{opponents:[ally]});
+ assert.equal(w.get(enemy,'Position').x,400);
+ assert.ok(hits.some(e=>e.type==='attack'&&e.target===ally));
+ combat.stepUnit(w,outside,1000,{base:{x:800,y:300}});
+ assert.equal(w.get(outside,'Position').x,700);
+ zones.step(m,2999);
+ assert.equal(w.has(zone),true);
+ zones.step(m,1);
+ assert.equal(w.has(zone),false);
+ combat.stepUnit(w,enemy,1000,{base:{x:800,y:300}});
+ assert.ok(w.get(enemy,'Position').x>400);
+});
+
+test('EMP takes priority over Stase without modifying movement stats',()=>{
+ const m=preview.createModel(World),w=m.world,enemy=unit(m,'enemy',400);
+ zones.cast(m,'stasis_field',center);
+ zones.cast(m,'emp_field',center);
+ combat.stepUnit(w,enemy,1000,{base:{x:800,y:300}});
+ assert.equal(w.get(enemy,'Position').x,400);
+ assert.equal(w.get(enemy,'Movement').speed,20);
+});
+
+test('Renforts produces a real ally independent of barracks capacity, then despawns',()=>{
+ const m=preview.createModel(World),w=m.world;
+ preview.placeBuilding(m,'barracks',6);economy.initialize(m);
+ const stats={id:'unit_guard',hp:7,speed:35,attack_damage:2,attack_range:20,attack_speed:1,attack_type:'melee'};
+ assert.equal(zones.cast(m,'reinforcements',center),null,'missing stats must not create an entity');
+ const soldier=zones.cast(m,'reinforcements',center,{unitConfig:stats});
+ assert.ok(soldier);
+ assert.deepEqual(w.get(soldier,'Position'),center);
+ assert.equal(w.get(soldier,'Faction').side,'player');
+ assert.equal(w.get(soldier,'PreviewUnit').type,'unit_guard');
+ assert.equal(w.get(soldier,'TemporaryAlly').remainingMs,25000);
+ assert.equal(economy.aliveUnits(m,'barracks'),0);
+ assert.equal(economy.unitCapacity(m,'barracks'),3);
+ const resumed={...m,world:World.restore(w.serialize())};
+ assert.equal(resumed.world.get(soldier,'TemporaryAlly').remainingMs,25000);
+ assert.deepEqual(zones.stepBuffs(resumed,24999),[]);
+ assert.equal(resumed.world.has(soldier),true);
+ assert.deepEqual(zones.stepBuffs(resumed,1),[soldier]);
+ assert.equal(resumed.world.has(soldier),false);
+ assert.equal(economy.aliveUnits(resumed,'barracks'),0);
+});
+
+test('Renforts soldier can fight normally and death does not retain a timed entity',()=>{
+ const m=preview.createModel(World),w=m.world,enemy=unit(m,'enemy',510);
+ const stats={id:'unit_guard',hp:7,speed:35,attack_damage:2,attack_range:20,attack_speed:1,attack_type:'melee'};
+ const soldier=zones.cast(m,'reinforcements',center,{unitConfig:stats});
+ const combatEvents=combat.stepUnit(w,soldier,1000,{opponents:[enemy]});
+ assert.ok(combatEvents.some(e=>e.type==='attack'));
+ assert.ok(w.get(enemy,'Health').hp<10);
+ w.destroy(soldier);
+ assert.deepEqual(zones.stepBuffs(m,25000),[]);
+});
