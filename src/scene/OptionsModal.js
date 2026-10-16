@@ -72,7 +72,7 @@ class OverseerOptionsModal {
         // Transparent hit-shield: keep the menu or battle visible behind the panel.
         this.keep(this.scene.add.zone(w / 2, h / 2, w, h).setInteractive().setDepth(501));
         g.fillStyle(0x0b1d2b, 1).fillRoundedRect(x, top, this.width, 410, 8);
-        g.lineStyle(1, 0x346274, 0.9).strokeRoundedRect(x, top, this.width, 550, 8);
+        g.lineStyle(1, 0x346274, 0.9).strokeRoundedRect(x, top, this.width, 410, 8);
         const left = x + 22, right = x + this.width - 150;
         this.text(left, top + 17, 'OVERSEER / CONFIGURATION', 11, '#62e7e1');
         this.action(x + this.width - 37, top + 17, '×', () => this.close());
