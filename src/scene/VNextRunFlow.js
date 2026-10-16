@@ -51,17 +51,18 @@
     rewardForWave(number) {
         return OverseerVNextRewards.create(number,this.waveClock.seed,
             OverseerVNextCards.REWARD_CARDS,OverseerVNextTechnologies.TYPES,
-            OverseerVNextArtifacts.available(this.model),OverseerVNextArtifacts.list(this.model));
+            OverseerVNextArtifacts.offerable(this.model),OverseerVNextArtifacts.list(this.model));
     },
 
     reconcileArtifactRewards() {
         // Queued waves may have chosen their options before an earlier award was picked.
-        // Avoid duplicate choices and skip artifact stages once the inventory is full.
+        // A full inventory still offers a replacement, never an automatic discard.
+        if (this.activeReward?.pendingArtifact) return;
         while (this.activeReward) {
             const stage = OverseerVNextRewards.current(this.activeReward);
             if (stage.kind !== 'artifact') break;
-            const available = OverseerVNextArtifacts.available(this.model);
-            if (!OverseerVNextArtifacts.hasCapacity(this.model) || !available.length) {
+            const available = OverseerVNextArtifacts.offerable(this.model);
+            if (!available.length) {
                 if (!OverseerVNextRewards.advance(this.activeReward))
                     this.activeReward = this.rewardQueue.shift() || null;
                 continue;
@@ -135,23 +136,55 @@
         return true;
     },
 
+    finishRewardStage() {
+        if (!OverseerVNextRewards.advance(this.activeReward))
+            this.activeReward = this.rewardQueue.shift() || null;
+        this.reconcileArtifactRewards();
+        this.buildUi();
+        this.saveCurrentGame();
+    },
+
     chooseReward(type) {
-        if (!this.activeReward || !this.activeReward.options.includes(type)) return false;
+        if (!this.activeReward || this.activeReward.pendingArtifact ||
+            !this.activeReward.options.includes(type)) return false;
         const current=OverseerVNextRewards.current(this.activeReward);
         if (current.kind==='building' && (type.startsWith('tech:') || type.startsWith('artifact:')) ||
             current.kind==='technology' && !type.startsWith('tech:') ||
             current.kind==='artifact' && !type.startsWith('artifact:')) return false;
         if (type.startsWith('artifact:')) {
-            if (!OverseerVNextArtifacts.add(this.model, type.slice(9))) return false;
+            const id = type.slice(9);
+            if (!OverseerVNextArtifacts.hasCapacity(this.model)) {
+                // No changes until the player explicitly chooses an old slot or declines.
+                this.activeReward.pendingArtifact = id;
+                this.buildUi();
+                this.saveCurrentGame();
+                return true;
+            }
+            if (!OverseerVNextArtifacts.add(this.model, id)) return false;
         } else if (type.startsWith('tech:')) {
             const technology = type.slice(5);
             if (!OverseerVNextTechnologies.TYPES.includes(technology)) return false;
             OverseerVNextTechnologies.inventory(this.model).items.push(technology);
         } else if (!OverseerVNextCards.grant(this.model, type)) return false;
-        if (!OverseerVNextRewards.advance(this.activeReward)) this.activeReward = this.rewardQueue.shift() || null;
-        this.reconcileArtifactRewards();
-        this.buildUi();
-        this.saveCurrentGame();
+        this.finishRewardStage();
+        return true;
+    },
+
+    replaceArtifactReward(index) {
+        const reward = this.activeReward, incoming = reward?.pendingArtifact;
+        if (!incoming || OverseerVNextRewards.current(reward).kind !== 'artifact' ||
+            !OverseerVNextArtifacts.replace(this.model,index,incoming)) return false;
+        delete reward.pendingArtifact;
+        this.finishRewardStage();
+        return true;
+    },
+
+    declineArtifactReward() {
+        const reward = this.activeReward;
+        if (!reward?.pendingArtifact ||
+            OverseerVNextRewards.current(reward).kind !== 'artifact') return false;
+        delete reward.pendingArtifact;
+        this.finishRewardStage();
         return true;
     },
 

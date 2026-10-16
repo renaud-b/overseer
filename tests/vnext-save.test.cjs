@@ -214,3 +214,23 @@ test('Continue rejects malformed manufacturing provenance', () => {
  assert.equal(save.read(slot),null);
  assert.throws(()=>save.restore(broken,World),/manufactured cost/);
 });
+
+test('Continue retains pending full-inventory replacement and rejects tampering',()=>{
+ const scene=runningScene(),slot=storage();
+ for(const id of artifacts.IDS.slice(0,6))assert.equal(artifacts.add(scene.model,id),true);
+ scene.waveClock.number=3;
+ scene.activeReward={number:3,stages:[{kind:'artifact',
+  options:['artifact:'+artifacts.IDS[6],'artifact:'+artifacts.IDS[7]]}],
+  index:0,options:['artifact:'+artifacts.IDS[6],'artifact:'+artifacts.IDS[7]],
+  pendingArtifact:artifacts.IDS[6]};
+ assert.equal(save.write(scene,slot),true);
+ const snapshot=save.read(slot);
+ assert.equal(snapshot.activeReward.pendingArtifact,artifacts.IDS[6]);
+ assert.deepEqual(artifacts.list(save.restore(snapshot,World).model),artifacts.IDS.slice(0,6));
+ const invalid=JSON.parse(JSON.stringify(snapshot));
+ invalid.activeReward.pendingArtifact=artifacts.IDS[0];
+ assert.throws(()=>save.restore(invalid,World),/pending artifact replacement/);
+ invalid.activeReward.pendingArtifact=artifacts.IDS[7];
+ invalid.activeReward.stages[0].kind='building';
+ assert.throws(()=>save.restore(invalid,World),/reward stage|pending artifact replacement/);
+});

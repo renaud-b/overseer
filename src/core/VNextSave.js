@@ -163,7 +163,7 @@
             waveMembers.set(pair[0], [...pair[1]]);
         }
 
-        function validatedReward(reward) {
+        function validatedReward(reward, isActive = false) {
             requireValid(reward && integer(reward.number,1,waveClock.number) &&
                 Array.isArray(reward.options) && reward.options.length>=1 && reward.options.length<=3 &&
                 new Set(reward.options).size===reward.options.length &&
@@ -191,11 +191,21 @@
                 ['building','technology','artifact'].indexOf(stage.kind)),'reward order');
             requireValid(stages[reward.index].options.length===reward.options.length &&
                 stages[reward.index].options.every((type,i)=>type===reward.options[i]),'reward current stage');
-            return {number:reward.number,stages,index:reward.index,options:[...reward.options]};
+            const pending = reward.pendingArtifact;
+            if (pending !== undefined) {
+                requireValid(isActive && stages[reward.index].kind === 'artifact' &&
+                    artifactCollection?.ids.length === artifacts.CAPACITY &&
+                    typeof pending === 'string' &&
+                    reward.options.includes('artifact:' + pending) &&
+                    !artifactCollection.ids.includes(pending) &&
+                    artifacts.get(pending) !== null, 'pending artifact replacement');
+            }
+            return {number:reward.number,stages,index:reward.index,options:[...reward.options],
+                ...(pending === undefined ? {} : {pendingArtifact:pending})};
         }
         requireValid(Array.isArray(data.rewardQueue), 'reward queue');
         const rewardQueue = data.rewardQueue.map(validatedReward);
-        const activeReward = data.activeReward === null ? null : validatedReward(data.activeReward);
+        const activeReward = data.activeReward === null ? null : validatedReward(data.activeReward,true);
 
         return {
             model: { world, game, grid, tiles: [...tiles] },

@@ -2323,3 +2323,106 @@ test('Instinct evolution emits a heal visual after a perfect wave and survives C
  assert.equal(resumed.world.get(unit,'Health').maxHp,hp+1);
  savedEntries.clear();
 });
+
+test('full artifact inventory opens replacement overlay, keeps inventory unchanged until selection',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ for(const id of artifacts.IDS.slice(0,6))artifacts.add(scene.model,id);
+ const incoming=artifacts.IDS[6],wave=5;
+ scene.waveClock.number=wave;
+ scene.activeReward={number:wave,stages:[{kind:'artifact',options:['artifact:'+incoming]}],
+  index:0,options:['artifact:'+incoming]};
+ scene.buildUi();
+ assert.equal(scene.chooseReward('artifact:'+incoming),true);
+ assert.equal(scene.activeReward.pendingArtifact,incoming);
+ assert.deepEqual(artifacts.list(scene.model),artifacts.IDS.slice(0,6));
+ assert.equal(scene.ui.filter(o=>Number.isInteger(o.getData?.('artifactReplacementSlot'))).length,6);
+ assert.equal(scene.ui.filter(o=>o.getData?.('declineArtifactReplacement')===true).length,1);
+ assert.ok(scene.ui.some(o=>o.value?.includes('NOUVEL ARTEFACT')));
+ const saved=saves.read(saveStorage);
+ assert.equal(saved.activeReward.pendingArtifact,incoming);
+ scene.update(0,2000);
+ assert.deepEqual(artifacts.list(scene.model),artifacts.IDS.slice(0,6));
+ const slot=scene.ui.find(o=>o.getData?.('artifactReplacementSlot')===2);
+ slot.handlers.pointerover();
+ assert.ok(scene.artifactTooltipObjects.some(o=>o.value===artifacts.get(artifacts.IDS[2]).label));
+ slot.handlers.pointerout();
+ slot.handlers.pointerdown();
+ assert.equal(scene.activeReward,null);
+ assert.equal(artifacts.list(scene.model).length,6);
+ assert.equal(artifacts.list(scene.model)[2],incoming);
+ assert.equal(artifacts.list(scene.model).includes(artifacts.IDS[2]),false);
+ assert.deepEqual(artifacts.list(saves.restore(saves.read(saveStorage),World).model),
+  artifacts.list(scene.model));
+ savedEntries.clear();
+});
+test('declining an artifact replacement advances the reward without changing six equipped items',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ for(const id of artifacts.IDS.slice(0,6))artifacts.add(scene.model,id);
+ scene.waveClock.number=6;
+ const before=artifacts.list(scene.model);
+ scene.activeReward={number:6,stages:[{kind:'artifact',options:['artifact:'+artifacts.IDS[6]]}],
+  index:0,options:['artifact:'+artifacts.IDS[6]]};
+ scene.chooseReward('artifact:'+artifacts.IDS[6]);
+ assert.equal(scene.chooseReward('artifact:'+artifacts.IDS[7]),false);
+ const cancel=scene.ui.find(o=>o.getData?.('declineArtifactReplacement')===true);
+ cancel.handlers.pointerdown();
+ assert.equal(scene.activeReward,null);
+ assert.deepEqual(artifacts.list(scene.model),before);
+ savedEntries.clear();
+});
+test('Continue resumes the same replacement choice, not a new random reward',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ for(const id of artifacts.IDS.slice(0,6))artifacts.add(scene.model,id);
+ scene.waveClock.number=7;
+ const offer='artifact:'+artifacts.IDS[6];
+ scene.activeReward={number:7,stages:[{kind:'artifact',options:[offer]}],index:0,options:[offer]};
+ scene.buildUi();
+ scene.chooseReward(offer);
+ const resumed=new VNextScene();resumed.init({resume:true});resumed.create();
+ assert.equal(resumed.activeReward.pendingArtifact,artifacts.IDS[6]);
+ assert.deepEqual(artifacts.list(resumed.model),artifacts.IDS.slice(0,6));
+ assert.equal(resumed.ui.filter(o=>Number.isInteger(o.getData?.('artifactReplacementSlot'))).length,6);
+ assert.equal(resumed.replaceArtifactReward(1),true);
+ assert.equal(resumed.activeReward,null);
+ assert.equal(artifacts.list(resumed.model)[1],artifacts.IDS[6]);
+ savedEntries.clear();
+});
+test('replacement UI disables removing core laser while terminal overload is equipped',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ for(const id of ['core_laser','terminal_overload','echo','shield','recovery','lingering'])
+  artifacts.add(scene.model,id);
+ scene.waveClock.number=8;
+ scene.activeReward={number:8,stages:[{kind:'artifact',options:['artifact:hyperfocus']}],
+  index:0,options:['artifact:hyperfocus']};
+ scene.chooseReward('artifact:hyperfocus');
+ const core=scene.ui.find(o=>o.getData?.('artifactReplacementSlot')===0);
+ assert.equal(core.handlers.pointerdown,undefined);
+ assert.equal(scene.replaceArtifactReward(0),false);
+ assert.equal(scene.activeReward.pendingArtifact,'hyperfocus');
+ assert.equal(scene.replaceArtifactReward(2),true);
+ assert.deepEqual(artifacts.list(scene.model),[
+  'core_laser','terminal_overload','hyperfocus','shield','recovery','lingering'
+ ]);
+ savedEntries.clear();
+});
+test('a full collection still gets rare artifact rewards after previous queued waves',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ for(const id of artifacts.IDS.slice(0,6))artifacts.add(scene.model,id);
+ scene.waveClock.seed=137;
+ const lucky=Array.from({length:100},(_,i)=>i+3).find(n=>rewards.artifactDrop(n,137));
+ scene.waveClock.number=lucky;
+ const reward=scene.rewardForWave(lucky);
+ assert.equal(reward.stages.at(-1).kind,'artifact');
+ scene.activeReward=reward;
+ while(rewards.current(scene.activeReward).kind!=='artifact')
+  scene.chooseReward(scene.activeReward.options[0]);
+ const option=scene.activeReward.options[0];
+ assert.equal(scene.chooseReward(option),true);
+ assert.equal(scene.activeReward.pendingArtifact,option.slice(9));
+ savedEntries.clear();
+});
