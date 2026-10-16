@@ -2571,3 +2571,29 @@ test('core sine-wave animation freezes in pause and resumes without an extra tim
         'the renderer reads the already persisted simulation clock');
     savedEntries.clear();
 });
+
+test('defense talents grant core HP and one free guard only on a fresh run',()=>{
+ savedEntries.clear();
+ savedEntries.set('unlockedTalents',JSON.stringify(['root','starter_base_hp','starter_reinforcement']));
+ const scene=new VNextScene();scene.create();
+ const guardCount=()=>scene.battleUnits.filter(id=>scene.world.get(id,'PreviewUnit')?.type==='unit_guard').length;
+ assert.equal(scene.baseHp,120);
+ assert.equal(guardCount(),2);
+ assert.equal(scene.world.get(scene.model.game,'DefenseTalents').extraGuard,true);
+ const raw=saves.capture(scene);
+ const restored=saves.restore(raw,World);
+ assert.equal(restored.baseHp,120);
+ assert.equal(restored.battleUnits.length,4);
+ scene.init({resume:true});
+ scene.create();
+ assert.equal(scene.baseHp,120);
+ assert.equal(guardCount(),2);
+ savedEntries.clear();
+});
+test('a fresh run without defense investments keeps the original lineup',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ assert.equal(scene.baseHp,100);
+ assert.equal(scene.battleUnits.length,3);
+ savedEntries.clear();
+});
