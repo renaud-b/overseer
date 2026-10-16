@@ -9,6 +9,7 @@ const preview = require('../src/core/VNextPreview.js');
 const catalog = require('../src/core/VNextBuildings.js');
 const cards = require('../src/core/VNextCards.js');
 const combat = require('../src/core/CombatSystem.js');
+const hitEffects = require('../src/scene/effects/HitEffects.js');
 const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
 const saves = require('../src/core/VNextSave.js');
@@ -76,7 +77,8 @@ const OverseerVNextBrand = vm.runInNewContext(brandSource + '\nOverseerVNextBran
 const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
 const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
-    OverseerECS: { World }, OverseerCombat: combat, OverseerVNextPreview: preview,
+    OverseerECS: { World }, OverseerCombat: combat, OverseerHitEffects: hitEffects,
+    OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
     OverseerVNextWaves: waves, OverseerVNextSave: saves, localStorage: saveStorage, Vision, OverseerVNextBrand
 });
@@ -602,4 +604,30 @@ test('base destruction clears only the run and prevents another autosave', () =>
     scene.update(16, saves.AUTOSAVE_MS);
     assert.equal(saves.read(saveStorage), null);
     savedEntries.clear();
+});
+
+test('combat hits drive a renderer-only recoil/flash and pause freezes the animation', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const defender = scene.battleUnits[0];
+    scene.spawnEnemyUnit('basic_monster', 0, 1);
+    const attacker = scene.battleUnits.at(-1);
+    const defenderPos = scene.world.get(defender, 'Position');
+    const initialPosition = { ...defenderPos };
+    const attackerPos = scene.world.get(attacker, 'Position');
+    attackerPos.x = defenderPos.x + 10;
+    attackerPos.y = defenderPos.y;
+    scene.world.get(attacker, 'Combat').elapsedMs = 1000;
+
+    scene.update(0, 16);
+    assert.ok(scene.world.get(defender, 'Health').hp < scene.world.get(defender, 'Health').maxHp);
+    assert.deepEqual(scene.world.get(defender, 'Position'), initialPosition);
+    const reaction = scene.hitEffects.view(defender);
+    assert.ok(reaction.x < 0, 'the defender recoils away from the attacker');
+    assert.ok(reaction.flash > 0);
+
+    scene.selectSpeed(0); // Rebuilds the Phaser Graphics panel, not transient FX state.
+    scene.update(0, 200);
+    assert.deepEqual(scene.hitEffects.view(defender), reaction);
+    assert.deepEqual(scene.world.get(defender, 'Position'), initialPosition);
 });

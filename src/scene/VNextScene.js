@@ -78,6 +78,7 @@ class VNextScene extends Phaser.Scene {
         this.runFinished = false;
         this.autosaveElapsed = 0;
         this.ui = [];
+        this.hitEffects = new OverseerHitEffects.HitEffects(); // Renderer-only state; never saved to ECS.
         this.types = OverseerVNextBuildings.BUILDINGS;
         // The resource HUD borrows glyphs and colors from the corresponding buildings.
         // Cooling and data are placeholders: they have no ECS balances or simulation yet.
@@ -118,6 +119,7 @@ class VNextScene extends Phaser.Scene {
         this.onPageHide = () => this.saveCurrentGame();
         if (typeof window !== 'undefined') window.addEventListener?.('pagehide', this.onPageHide);
         this.events.once('shutdown', () => {
+            this.hitEffects.clear();
             this.scale.off('resize', this.buildUi, this);
             if (typeof window !== 'undefined') window.removeEventListener?.('pagehide', this.onPageHide);
             this.input.keyboard.off('keydown', this.onKey, this);
@@ -904,9 +906,14 @@ class VNextScene extends Phaser.Scene {
             const pos = this.world.get(id, 'Position');
             const side = this.world.get(id, 'Faction').side;
             const q = p(pos.x, pos.y);
-            const color = side === 'player' ? 0x38d9f1 : 0xff5c79;
-            g.lineStyle(2, color, 0.98);
             const r = Math.min(12, Math.max(6, b.w * 0.024));
+            // One shared, dimensionless reaction can move a 2D glyph or a future 3D model.
+            const visual = this.hitEffects.view(id);
+            q.x += visual.x * r;
+            q.y += visual.y * r;
+            const baseColor = side === 'player' ? 0x38d9f1 : 0xff5c79;
+            const color = OverseerHitEffects.tintColor(baseColor, visual.flash);
+            g.lineStyle(2, color, 0.98);
             if (side === 'player') {
                 g.strokeTriangle(q.x, q.y - r, q.x + r, q.y + r, q.x - r, q.y + r);
             } else {
@@ -956,10 +963,19 @@ class VNextScene extends Phaser.Scene {
                 patrol: side === 'player' ? { x: 280, y: 300 } : null,
                 allies: side === 'player' ? players : []
             });
-            events.forEach(e => { if (e.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - e.damage); });
+            for (const event of events) {
+                if (event.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - event.damage);
+                if (event.type === 'attack' && this.world.has(event.attacker) && this.world.has(event.target)) {
+                    // Snapshot directions at impact time; simulation positions never receive recoil.
+                    this.hitEffects.hit(event.target,
+                        this.world.get(event.attacker, 'Position'), this.world.get(event.target, 'Position'));
+                }
+            }
         }
         if (this.baseHp <= 0) { this.finishRun(); return; }
         OverseerCombat.separateUnits(this.world, this.battleUnits);
+        // Wall-clock duration makes impacts readable at x1/x3/x5. Pause freezes them.
+        this.hitEffects.update(Math.min(60, Math.max(0, delta)));
         this.paintBattle();
         this.checkWaveClears();
     }
