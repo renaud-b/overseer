@@ -190,13 +190,13 @@ test('building tooltip distinguishes free placement from per-unit production cos
     scene.showBuildingTooltip(11);
     const labels = scene.tooltipObjects.filter(o => typeof o.value === 'string').map(o => o.value);
     assert.ok(labels.includes('Fabrique'));
-    assert.ok(labels.includes('POSE : 1 CARTE · 0 RESSOURCE'));
+    assert.ok(!labels.some(text => /COÛT DE CONSTRUCTION|COÛT DE POSE|POSE :/.test(text)));
     assert.ok(labels.includes('3s/cycle'));
-    assert.ok(scene.ui.some(o => o.value === 'Pose : 1 carte, 0 ressource'));
+    assert.ok(!scene.ui.some(o => typeof o.value === 'string' && /COÛT DE POSE|POSE :/.test(o.value)));
     const old = [...scene.tooltipObjects];
     scene.showBuildingTooltip(12);
     assert.ok(old.every(o => o.destroyed));
-    assert.ok(scene.tooltipObjects.some(o => o.value === 'POSE : 1 CARTE · 0 RESSOURCE'));
+    assert.ok(!scene.tooltipObjects.some(o => typeof o.value === 'string' && /COÛT DE CONSTRUCTION|COÛT DE POSE|POSE :/.test(o.value)));
     assert.ok(scene.tooltipObjects.some(o => o.value === 'COÛT PAR UNITÉ'));
     assert.ok(scene.tooltipObjects.some(o => o.value === '25'));
     assert.ok(scene.tooltipObjects.some(o => o.value === '15'));
