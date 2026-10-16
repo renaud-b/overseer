@@ -103,6 +103,7 @@ class VNextScene extends Phaser.Scene {
         this.zoneParticles=[];
         this.hoveredTile = null;
         this.tooltipObjects = [];
+        this.artifactTooltipObjects = [];
         this.technologyTooltipObjects = [];
         this.waveTooltipObjects = [];
         this.waveClock = restored?.waveClock ??
@@ -115,6 +116,7 @@ class VNextScene extends Phaser.Scene {
         // ECS-owned metrics are saved with the World. Previous saves can omit them.
         OverseerVNextWaveTelemetry.initialize(this.model);
 
+        OverseerVNextArtifacts.collection(this.model); // Optional in pre-artifact saves.
         if (restored) {
             OverseerVNextEconomy.initialize(this.model); // Backfill Data for old saves, preserve cycles.
             // No resetBattle(), production reset or re-grant: ECS is the restored truth.
@@ -126,6 +128,7 @@ class VNextScene extends Phaser.Scene {
             this.applyAttention();
             this.resetBattle();
         }
+        this.reconcileArtifactRewards();
         this.buildUi();
         this.input.keyboard.on('keydown', this.onKey, this);
         this.input.on('dragstart', this.onDragStart, this);
@@ -170,6 +173,7 @@ class VNextScene extends Phaser.Scene {
         this.hideTechnologyTooltip();
         this.hideResourceTooltip();
         this.hideWaveTooltip();
+        this.hideArtifactTooltip();
         this.battleMask?.destroy();
         this.battleMask = null;
         this.ui.forEach(object => object.destroy());
@@ -195,6 +199,7 @@ class VNextScene extends Phaser.Scene {
         g.lineStyle(1, 0x1d3644, 0.9).lineBetween(m, 65, w - m, 65);
         this.text(m + 6, 19, OverseerVNextBrand.title, 23, OverseerVNextBrand.titleColor);
         this.text(m + 7, 49, OverseerVNextBrand.subtitle, 10, OverseerVNextBrand.subtitleColor);
+        this.drawArtifactSlots(w);
         this.drawSpeedControls(w);
         this.panel(g, m, mainTop, leftW, mainBottom - mainTop);
         this.panel(g, centerX, mainTop, boardW, mainBottom - mainTop);
@@ -218,6 +223,67 @@ class VNextScene extends Phaser.Scene {
         if (this.runFinished) this.drawDefeatOverlay();
         else if (this.activeReward) this.drawRewardOverlay();
         if (this.hoveredTile !== null) this.showBuildingTooltip(this.hoveredTile);
+    }
+
+    drawArtifactSlots(w) {
+        const items = OverseerVNextArtifacts.list(this.model);
+        const speedX = Math.max(330, w - 472);
+        const size = Math.min(32, Math.max(18, Math.floor((speedX - 185 - 16 - 25) / 6)));
+        const gap = size < 26 ? 4 : 6;
+        const start = Math.max(165, Math.min(230, speedX - 6 * size - 5 * gap - 12));
+        this.artifactSlots = [];
+        const graphics = this.keep(this.add.graphics());
+        for (let i = 0; i < OverseerVNextArtifacts.CAPACITY; i++) {
+            const x = start + i * (size + gap), y = 21;
+            const artifact = OverseerVNextArtifacts.get(items[i]);
+            graphics.fillStyle(artifact ? 0x153044 : 0x0a202d, 1).fillRoundedRect(x, y, size, size, 4);
+            graphics.lineStyle(1, artifact ? artifact.color : 0x2d4858, 0.8)
+                .strokeRoundedRect(x, y, size, size, 4);
+            if (artifact) this.drawArtifactGlyph(graphics, artifact, x + size / 2, y + size / 2, size * 0.28);
+            const zone = this.keep(this.add.zone(x + size / 2, y + size / 2, size, size).setInteractive());
+            zone.setData('artifactSlot', i);
+            zone.on('pointerover', () => this.showArtifactTooltip(items[i] || null, x, 68));
+            zone.on('pointerout', () => this.hideArtifactTooltip());
+            this.artifactSlots.push(zone);
+        }
+    }
+
+    drawArtifactGlyph(g, artifact, x, y, r) {
+        g.lineStyle(2, artifact.color, 0.95);
+        if (artifact.symbol === 'triangle') g.strokeTriangle(x, y - r, x + r, y + r, x - r, y + r);
+        else if (artifact.symbol === 'diamond') g.strokePoints([
+            { x, y: y - r }, { x: x + r, y }, { x, y: y + r }, { x: x - r, y }
+        ], true);
+        else if (artifact.symbol === 'cross') {
+            g.lineBetween(x - r, y, x + r, y).lineBetween(x, y - r, x, y + r);
+        } else {
+            g.strokeCircle(x, y, r);
+            g.lineBetween(x - r * 1.4, y, x + r * 1.4, y);
+        }
+    }
+
+    hideArtifactTooltip() {
+        (this.artifactTooltipObjects || []).forEach(object => object.destroy());
+        this.artifactTooltipObjects = [];
+    }
+
+    showArtifactTooltip(id, anchorX, anchorY, depth = 240) {
+        this.hideArtifactTooltip();
+        const artifact = OverseerVNextArtifacts.get(id);
+        const width = 280, height = artifact ? 112 : 66;
+        const x = Math.max(8, Math.min(this.scale.width - width - 8, anchorX));
+        const y = Math.max(72, Math.min(this.scale.height - height - 8, anchorY));
+        const g = this.add.graphics().setDepth(depth);
+        g.fillStyle(0x0b1d2b, 1).fillRoundedRect(x, y, width, height, 6);
+        g.lineStyle(1, artifact ? artifact.color : 0x2d4858, 0.85)
+            .strokeRoundedRect(x, y, width, height, 6);
+        this.artifactTooltipObjects.push(g);
+        const label = (value, offset, size, color) => this.artifactTooltipObjects.push(
+            this.add.text(x + 13, y + offset, value, { fontFamily: 'monospace', fontSize: `${size}px`,
+                color, wordWrap: { width: width - 26 } }).setDepth(depth + 1));
+        label(artifact?.label || 'Emplacement vide', 12, 14, '#dfeaf0');
+        label(artifact?.description || 'Un artefact obtenu apparaîtra ici.', 37, 11, '#9cb9c9');
+        if (artifact) label('EFFET EN PRÉPARATION', 91, 10, '#f4ba58');
     }
 
     drawSpeedControls(w) {
@@ -1087,7 +1153,30 @@ class VNextScene extends Phaser.Scene {
     }
     rewardForWave(number) {
         return OverseerVNextRewards.create(number,this.waveClock.seed,
-            OverseerVNextCards.REWARD_CARDS,OverseerVNextTechnologies.TYPES);
+            OverseerVNextCards.REWARD_CARDS,OverseerVNextTechnologies.TYPES,
+            OverseerVNextArtifacts.IDS,OverseerVNextArtifacts.list(this.model));
+    }
+
+    reconcileArtifactRewards() {
+        // Queued waves may have chosen their options before an earlier award was picked.
+        // Avoid duplicate choices and skip artifact stages once the inventory is full.
+        while (this.activeReward) {
+            const stage = OverseerVNextRewards.current(this.activeReward);
+            if (stage.kind !== 'artifact') break;
+            const available = OverseerVNextArtifacts.available(this.model);
+            if (!OverseerVNextArtifacts.hasCapacity(this.model) || !available.length) {
+                if (!OverseerVNextRewards.advance(this.activeReward))
+                    this.activeReward = this.rewardQueue.shift() || null;
+                continue;
+            }
+            const fallback = OverseerVNextRewards.options(this.activeReward.number,
+                this.waveClock.seed, 'artifact', [], [], available);
+            const selections = [...new Set([...stage.options.filter(type =>
+                available.includes(type.slice(9))), ...fallback])].slice(0, 3);
+            stage.options = selections;
+            this.activeReward.options = [...selections];
+            break;
+        }
     }
 
     // Debug console: console.table(game.scene.getScene('VNextScene').waveReport())
@@ -1109,6 +1198,7 @@ class VNextScene extends Phaser.Scene {
         }
         if (!this.activeReward && this.rewardQueue.length) {
             this.activeReward = this.rewardQueue.shift();
+            this.reconcileArtifactRewards();
             this.buildUi();
             changed = true;
         }
@@ -1138,13 +1228,18 @@ class VNextScene extends Phaser.Scene {
     chooseReward(type) {
         if (!this.activeReward || !this.activeReward.options.includes(type)) return false;
         const current=OverseerVNextRewards.current(this.activeReward);
-        if (current.kind==='building' && type.startsWith('tech:') || current.kind==='technology' && !type.startsWith('tech:')) return false;
-        if (type.startsWith('tech:')) {
+        if (current.kind==='building' && (type.startsWith('tech:') || type.startsWith('artifact:')) ||
+            current.kind==='technology' && !type.startsWith('tech:') ||
+            current.kind==='artifact' && !type.startsWith('artifact:')) return false;
+        if (type.startsWith('artifact:')) {
+            if (!OverseerVNextArtifacts.add(this.model, type.slice(9))) return false;
+        } else if (type.startsWith('tech:')) {
             const technology = type.slice(5);
             if (!OverseerVNextTechnologies.TYPES.includes(technology)) return false;
             OverseerVNextTechnologies.inventory(this.model).items.push(technology);
         } else if (!OverseerVNextCards.grant(this.model, type)) return false;
         if (!OverseerVNextRewards.advance(this.activeReward)) this.activeReward = this.rewardQueue.shift() || null;
+        this.reconcileArtifactRewards();
         this.buildUi();
         this.saveCurrentGame();
         return true;
@@ -1170,8 +1265,9 @@ class VNextScene extends Phaser.Scene {
             fontFamily:'monospace',fontSize:'11px',color:'#8daabb'
         }).setDepth(301));
         const stage=OverseerVNextRewards.current(reward);
-        const breadcrumb=reward.stages?.map((part,i)=>i===reward.index?'[ '+(part.kind==='building'?'BÂTIMENT':'TECHNOLOGIE')+' ]':(part.kind==='building'?'BÂTIMENT ✓':'TECHNOLOGIE')).join('   →   ') ||
-            (stage.kind==='building'?'[ BÂTIMENT ]':stage.kind==='technology'?'[ TECHNOLOGIE ]':'[ CHOIX ]');
+        const stageNames = { building: 'BÂTIMENT', technology: 'TECHNOLOGIE', artifact: 'ARTEFACT' };
+        const breadcrumb=reward.stages?.map((part,i)=>i===reward.index?'[ '+stageNames[part.kind]+' ]':stageNames[part.kind]+' ✓').join('   →   ') ||
+            ('[ '+(stageNames[stage.kind]||'CHOIX')+' ]');
         this.keep(this.add.text(x+width/2,y+68,breadcrumb,{
             fontFamily:'monospace',fontSize:'11px',color:'#b58aff'
         }).setOrigin(0.5,0).setDepth(301));
@@ -1185,12 +1281,14 @@ class VNextScene extends Phaser.Scene {
                 'tech:emp_field':{color:0xb5a7ff,label:'Impulsion EMP'},
                 'tech:reinforcements':{color:0x44dc91,label:'Renforts'}
             };
-            const building = techStyles[type] || OverseerVNextBuildings.getBuilding(type);
+            const artifact = type.startsWith('artifact:') ? OverseerVNextArtifacts.get(type.slice(9)) : null;
+            const building = artifact || techStyles[type] || OverseerVNextBuildings.getBuilding(type);
             const cardW = (width - 56) / 3, cx = x + 14 + i * (cardW + 14), cy = y + 113;
             g.fillStyle(0x123047).fillRoundedRect(cx, cy, cardW, 108, 5);
             g.lineStyle(1, building.color, 0.7).strokeRoundedRect(cx, cy, cardW, 108, 5);
             const iconG = this.keep(this.add.graphics().setDepth(301));
-            if (type.startsWith('tech:')) {
+            if (artifact) this.drawArtifactGlyph(iconG, artifact, cx + cardW / 2, cy + 27, 13);
+            else if (type.startsWith('tech:')) {
                 iconG.lineStyle(2, building.color, 1).lineBetween(cx + cardW / 2 - 7, cy + 27, cx + cardW / 2 + 7, cy + 27);
                 iconG.lineBetween(cx + cardW / 2, cy + 20, cx + cardW / 2, cy + 34);
             } else this.drawGlyph(iconG, type, cx + cardW / 2, cy + 27, building.color, 13);
@@ -1201,6 +1299,10 @@ class VNextScene extends Phaser.Scene {
                 .setInteractive({useHandCursor:true}).setDepth(302));
             zone.setData('reward', type);
             zone.on('pointerover', () => {
+                if (artifact) {
+                    this.showArtifactTooltip(artifact.id, cx + cardW / 2, cy - 130, 310);
+                    return;
+                }
                 if (type.startsWith('tech:')) {
                     this.showTechnologyTooltip(type.slice(5), cx + cardW / 2 - 145, cy - 185, 310);
                     return;
@@ -1213,6 +1315,7 @@ class VNextScene extends Phaser.Scene {
             zone.on('pointerout', () => {
                 this.hideBuildingTooltip();
                 this.hideTechnologyTooltip();
+                this.hideArtifactTooltip();
             });
             zone.on('pointerdown', () => this.chooseReward(type));
         });

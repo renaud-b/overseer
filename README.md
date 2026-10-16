@@ -135,3 +135,9 @@ Priorités : conserver un jeu jouable ; un invariant par PR ; tests automatisés
 ## Licence et contributions
 
 Le dépôt ne précise pas ici de politique de contribution ou de licence d'exploitation ; ne présumez pas de droits de réutilisation externes. Demander l'accord du mainteneur avant toute publication ou réutilisation des assets existants.
+
+## Artefacts VNext (collection en cours)
+
+Six emplacements passifs sont affichés dans la barre supérieure, entre le titre et les contrôles de vitesse. Les artefacts sont des récompenses **supplémentaires** (probabilité provisoire de 20 % à partir de la vague 3), après les étapes bâtiment et/ou technologie. Trois choix au maximum sont proposés. Les doublons sont exclus ; une fois les six cases remplies, aucune récompense d'artefact n'est proposée.
+
+La collection est stockée dans le composant ECS `ArtifactCollection` et conservée par la sauvegarde locale existante. Les anciennes sauvegardes restent compatibles. **Cette première tranche implémente la collection, l'interface et le parcours de récompenses, pas encore les effets passifs.** Les descriptions affichent explicitement « Effet en préparation ». Les déclenchements automatiques et le remplacement des artefacts feront l'objet de PR distinctes.

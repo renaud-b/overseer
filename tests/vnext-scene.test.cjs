@@ -17,6 +17,7 @@ const waves = require('../src/core/VNextWaves.js');
 const telemetry = require('../src/core/VNextWaveTelemetry.js');
 const technologies = require('../src/core/VNextTechnologies.js');
 const rewards = require('../src/core/VNextRewards.js');
+const artifacts = require('../src/core/VNextArtifacts.js');
 const zones = require('../src/core/VNextZones.js');
 const threats = require('../src/core/VNextThreats.js');
 const saves = require('../src/core/VNextSave.js');
@@ -94,7 +95,7 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
+    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
     localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
@@ -725,7 +726,9 @@ test('clearing tenth-wave elite guarantees two reward choices in existing journe
     scene.triggerWave(wave);
     for(const id of scene.waveMembers.get(10))scene.world.get(id,'Health').hp=0;
     scene.checkWaveClears();
-    assert.deepEqual(scene.activeReward.stages.map(stage=>stage.kind),['building','technology']);
+    const kinds = scene.activeReward.stages.map(stage => stage.kind);
+    assert.deepEqual(kinds.slice(0,2), ['building','technology']);
+    assert.ok(kinds.length === 2 || (kinds.length === 3 && kinds[2] === 'artifact'));
     const cardBefore=cards.cards(scene.model).length;
     assert.equal(scene.chooseReward(scene.activeReward.options[0]),true);
     assert.equal(cards.cards(scene.model).length,cardBefore+1);
@@ -735,6 +738,10 @@ test('clearing tenth-wave elite guarantees two reward choices in existing journe
     const techBefore=technologies.inventory(scene.model).items.length;
     assert.equal(scene.chooseReward(scene.activeReward.options[0]),true);
     assert.equal(technologies.inventory(scene.model).items.length,techBefore+1);
+    if (scene.activeReward) {
+        assert.equal(rewards.current(scene.activeReward).kind, 'artifact');
+        assert.equal(scene.chooseReward(scene.activeReward.options[0]), true);
+    }
     assert.equal(scene.activeReward,null);
     savedEntries.clear();
 });
@@ -1483,4 +1490,71 @@ test('seven technology types are eligible for laboratory research and wave rewar
         assert.ok(scene.technologyTooltipObjects.length>0);
         card.handlers.pointerout();
     }
+});
+
+test('six artifact slots appear between title and speed controls, including on narrow screens', () => {
+    savedEntries.clear();
+    const scene = new VNextScene(); scene.create();
+    for (const width of [1366, 800]) {
+        scene.scale.width = width; scene.buildUi();
+        const slots = scene.ui.filter(object => Number.isInteger(object.getData?.('artifactSlot')));
+        assert.equal(slots.length, 6);
+        assert.ok(slots[0].x > 140 && slots[5].x < Math.max(330, width - 472));
+        slots[0].handlers.pointerover();
+        assert.ok(scene.artifactTooltipObjects.some(item => item.value === 'Emplacement vide'));
+        slots[0].handlers.pointerout();
+        assert.equal(scene.artifactTooltipObjects.length, 0);
+    }
+    savedEntries.clear();
+});
+
+test('artifact reward follows building/technology, is saved, and hides when inventory fills', () => {
+    savedEntries.clear();
+    const scene = new VNextScene(); scene.create();
+    const seed = 812;
+    const wave = Array.from({length:120}, (_,i)=>i+3).find(n=>rewards.artifactDrop(n, seed));
+    scene.waveClock.seed = seed;
+    scene.waveClock.number = wave;
+    scene.activeReward = scene.rewardForWave(wave);
+    assert.equal(scene.activeReward.stages.at(-1).kind, 'artifact');
+    while(rewards.current(scene.activeReward).kind !== 'artifact')
+        assert.equal(scene.chooseReward(scene.activeReward.options[0]), true);
+    const type = scene.activeReward.options[0];
+    const artifactId = type.slice(9);
+    assert.equal(scene.chooseReward(type), true);
+    assert.deepEqual(artifacts.list(scene.model), [artifactId]);
+    const slot = scene.ui.find(item=>item.getData?.('artifactSlot')===0);
+    slot.handlers.pointerover();
+    assert.ok(scene.artifactTooltipObjects.some(item => item.value === artifacts.get(artifactId).label));
+    assert.equal(scene.chooseReward(type), false);
+    const resumed = new VNextScene();
+    resumed.init({resume:true}); resumed.create();
+    assert.deepEqual(artifacts.list(resumed.model), [artifactId]);
+
+    for(const id of artifacts.IDS) artifacts.add(resumed.model,id);
+    assert.equal(artifacts.list(resumed.model).length, 6);
+    for(let n=3;n<130;n++) assert.ok(resumed.rewardForWave(n).stages.every(s=>s.kind!=='artifact'));
+    savedEntries.clear();
+});
+
+test('an artifact offered by queued rewards is replaced or skipped when previously collected', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();scene.create();
+    const seed = 813;
+    scene.waveClock.seed=seed;
+    const wavesWithArtifacts=Array.from({length:120}, (_,i)=>i+3).filter(n=>rewards.artifactDrop(n,seed));
+    scene.waveClock.number=wavesWithArtifacts.at(-1);
+    const first=scene.rewardForWave(wavesWithArtifacts[0]);
+    const second=scene.rewardForWave(wavesWithArtifacts[1]);
+    scene.activeReward=first;scene.rewardQueue=[second];
+    while(scene.activeReward?.number===first.number)
+        scene.chooseReward(scene.activeReward.options[0]);
+    while(rewards.current(scene.activeReward).kind !== 'artifact')
+        scene.chooseReward(scene.activeReward.options[0]);
+    const options=scene.activeReward.options;
+    assert.ok(options.every(type=>!artifacts.list(scene.model).includes(type.slice(9))));
+    for(const id of artifacts.IDS) artifacts.add(scene.model,id);
+    scene.reconcileArtifactRewards();
+    assert.equal(scene.activeReward,null);
+    savedEntries.clear();
 });
