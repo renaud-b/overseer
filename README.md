@@ -55,7 +55,7 @@ Dans la scène **VNext**, **aucune ressource n'est dépensée pour placer un bâ
 | Forge blindée | Tank | 60 | 35 |
 | Centre médical | Drone soigneur | 40 | 25 |
 
-La production nécessite que le bâtiment soit observé, des ressources suffisantes et une place disponible (trois unités vivantes maximum par producteur). **Les cadences de fabrication approuvées ne sont pas encore implémentées** : elles feront l'objet d'une PR séparée.
+**Cadences militaires :** Caserne **5 s**, Centre balistique **8 s**, Forge blindée **12 s**, Centre médical **10 s** (temps de simulation, à vitesse ×1). Chaque bâtiment progresse uniquement lorsqu'il est observé ; sortir de la vision fige le cycle en cours, qui reprend à sa réactivation. Les ressources sont débitées **seulement lorsque l'unité est produite**. Un cycle achevé attend sans nouvelle dépense lorsque les ressources ou la capacité manquent ; la capacité est de **trois unités vivantes par bâtiment militaire**. Les sauvegardes conservent l'avancement du cycle.
 
 Le jeu comprend également un système de talents et une progression entre les parties. **Ne pas présumer que l'ensemble de ces mécaniques est déjà migré dans le noyau ECS.**
 
