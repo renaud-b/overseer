@@ -106,6 +106,9 @@ class VNextScene extends Phaser.Scene {
         this.artifactTooltipObjects = [];
         this.technologyTooltipObjects = [];
         this.waveTooltipObjects = [];
+        this.battleHoverPointer = null;
+        this.battleTooltipObjects = [];
+        this.battleTooltipId = null;
         this.waveClock = restored?.waveClock ??
             { number: 0, elapsedMs: 0, seed: Math.floor(Math.random() * 0x100000000) };
         this.previewWaves = OverseerVNextWaves.preview(8, this.waveClock.seed, this.waveClock.number);
@@ -144,6 +147,7 @@ class VNextScene extends Phaser.Scene {
             this.battleMask?.destroy();
             this.battleMask = null;
             this.hideTechnologyTooltip();
+            this.hideBattleUnitTooltip();
             this.scale.off('resize', this.buildUi, this);
             if (typeof window !== 'undefined') window.removeEventListener?.('pagehide', this.onPageHide);
             this.input.keyboard.off('keydown', this.onKey, this);
@@ -175,6 +179,7 @@ class VNextScene extends Phaser.Scene {
         this.hideResourceTooltip();
         this.hideWaveTooltip();
         this.hideArtifactTooltip();
+        this.hideBattleUnitTooltip();
         this.battleMask?.destroy();
         this.battleMask = null;
         this.ui.forEach(object => object.destroy());
@@ -806,6 +811,7 @@ class VNextScene extends Phaser.Scene {
     onDragStart(pointer, object) {
         if (this.activeReward) return;
         this.hideTechnologyTooltip();
+        this.hideBattleUnitTooltip();
         const technology=object.getData('technology');
         if(OverseerVNextTechnologies.TYPES.includes(technology)){this.techDrag=technology;this.dragGhost=this.add.graphics();this.dragGhost.lineStyle(2,0x69d9a0,1).strokeCircle(0,0,16);this.dragGhost.setPosition(pointer.x,pointer.y).setDepth(300);return;}
         const type = object.getData('palette');
@@ -1011,6 +1017,12 @@ class VNextScene extends Phaser.Scene {
             this.battleParticleGraphics, this.battleActionGraphics]) {
             graphics.setMask(this.battleMask);
         }
+        // One interactive input surface, not one Phaser hit area per moving ECS unit.
+        this.battleHoverZone = this.keep(this.add.zone(b.x + b.w / 2, b.y + b.h / 2, b.w, b.h)
+            .setInteractive().setDepth(100));
+        this.battleHoverZone.on('pointerover', pointer => this.onBattleUnitPointer(pointer));
+        this.battleHoverZone.on('pointermove', pointer => this.onBattleUnitPointer(pointer));
+        this.battleHoverZone.on('pointerout', () => this.hideBattleUnitTooltip());
         this.battleStatus = this.text(l.battleX + 15, mainBottom - 38, '', 11, '#8eabbc');
     }
 
@@ -1332,6 +1344,7 @@ class VNextScene extends Phaser.Scene {
     }
 
     drawRewardOverlay() {
+        this.hideBattleUnitTooltip();
         const reward = this.activeReward;
         if (!reward) return;
         const w = this.scale.width, h = this.scale.height;
@@ -1806,6 +1819,7 @@ class VNextScene extends Phaser.Scene {
                 this.world.get(id, 'Faction').side === side && this.world.get(id, 'Health').hp > 0).length;
             this.battleStatus.setText(`Alliés ${alive('player')}   Menaces ${alive('enemy')}`);
         }
+        this.refreshBattleUnitTooltip();
     }
 
     update(time, delta) {
