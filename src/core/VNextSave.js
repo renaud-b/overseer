@@ -11,8 +11,11 @@
             (typeof require === 'function' ? require('./VNextCards.js') : null);
         const technologies = root.OverseerVNextTechnologies ||
             (typeof require === 'function' ? require('./VNextTechnologies.js') : null);
+        const artifacts = root.OverseerVNextArtifacts ||
+            (typeof require === 'function' ? require('./VNextArtifacts.js') : null);
         return [...(cards?.REWARD_CARDS || cards?.STARTER_CARDS || []),
-            ...(technologies?.TYPES || []).map(type => `tech:${type}`)];
+            ...(technologies?.TYPES || []).map(type => `tech:${type}`),
+            ...(artifacts?.IDS || []).map(id => `artifact:${id}`)];
     }
 
     function storageOrNull(storage) {
@@ -78,6 +81,10 @@
         requireValid(resources && ['energy', 'matter', 'components'].every(id =>
             number(resources[id])) &&
             (resources.data === undefined || number(resources.data)), 'resources');
+        const artifacts = root.OverseerVNextArtifacts ||
+            (typeof require === 'function' ? require('./VNextArtifacts.js') : null);
+        const artifactCollection = world.get(game, 'ArtifactCollection');
+        requireValid(!artifactCollection || artifacts.valid(artifactCollection.ids), 'artifact collection');
         const hand = world.get(game, 'BuildingHand');
         requireValid(hand && Array.isArray(hand.cards) &&
             hand.cards.every(card => rewardTypes().includes(card)), 'building hand');
@@ -123,24 +130,32 @@
 
         function validatedReward(reward) {
             requireValid(reward && integer(reward.number,1,waveClock.number) &&
-                Array.isArray(reward.options) && reward.options.length===3 &&
-                new Set(reward.options).size===3 &&
+                Array.isArray(reward.options) && reward.options.length>=1 && reward.options.length<=3 &&
+                new Set(reward.options).size===reward.options.length &&
                 reward.options.every(type=>rewardTypes().includes(type)),'reward');
-            if(!reward.stages) return {number:reward.number,options:[...reward.options]}; // Older saves.
-            requireValid(Array.isArray(reward.stages) && reward.stages.length>=1 && reward.stages.length<=2 &&
+            if(!reward.stages) {
+                requireValid(reward.options.length===3 && !reward.options.some(type=>type.startsWith('artifact:')), 'legacy reward');
+                return {number:reward.number,options:[...reward.options]}; // Older saves.
+            }
+            requireValid(Array.isArray(reward.stages) && reward.stages.length>=1 && reward.stages.length<=3 &&
                 integer(reward.index,0,reward.stages.length-1),'reward journey');
             const seen=[];
             const stages=reward.stages.map(stage=>{
-                requireValid(stage && ['building','technology'].includes(stage.kind) && !seen.includes(stage.kind) &&
-                    Array.isArray(stage.options) && stage.options.length===3 &&
-                    new Set(stage.options).size===3 &&
+                requireValid(stage && ['building','technology','artifact'].includes(stage.kind) && !seen.includes(stage.kind) &&
+                    Array.isArray(stage.options) && stage.options.length>=1 &&
+                    stage.options.length<=(stage.kind==='artifact'?3:3) &&
+                    (stage.kind==='artifact'||stage.options.length===3) &&
+                    new Set(stage.options).size===stage.options.length &&
                     stage.options.every(type=>rewardTypes().includes(type) &&
-                        (stage.kind==='technology')===type.startsWith('tech:')),'reward stage');
+                        (stage.kind==='technology')===type.startsWith('tech:') &&
+                        (stage.kind==='artifact')===type.startsWith('artifact:')),'reward stage');
                 seen.push(stage.kind);
                 return {kind:stage.kind,options:[...stage.options]};
             });
-            requireValid(stages.length!==2 || stages[0].kind==='building' && stages[1].kind==='technology','reward order');
-            requireValid(stages[reward.index].options.every((type,i)=>type===reward.options[i]),'reward current stage');
+            requireValid(stages.every((stage,i)=>i===0||['building','technology','artifact'].indexOf(stages[i-1].kind)<
+                ['building','technology','artifact'].indexOf(stage.kind)),'reward order');
+            requireValid(stages[reward.index].options.length===reward.options.length &&
+                stages[reward.index].options.every((type,i)=>type===reward.options[i]),'reward current stage');
             return {number:reward.number,stages,index:reward.index,options:[...reward.options]};
         }
         requireValid(Array.isArray(data.rewardQueue), 'reward queue');

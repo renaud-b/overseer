@@ -7,6 +7,7 @@ const preview = require('../src/core/VNextPreview.js');
 const cards = require('../src/core/VNextCards.js');
 const economy = require('../src/core/VNextEconomy.js');
 const save = require('../src/core/VNextSave.js');
+const artifacts = require('../src/core/VNextArtifacts.js');
 
 function storage() {
     const items = new Map();
@@ -161,4 +162,22 @@ test('save accepts specialized VNext military rewards and cards in hand', () => 
     const restored = save.restore(raw, World);
     assert.ok(cards.cards(restored.model).includes('armor_forge'));
     assert.deepEqual(restored.activeReward.options, ['ballistics', 'armor_forge', 'medical_center']);
+});
+
+test('artifacts persist in ECS saves, reject invalid inventories and old saves remain valid', () => {
+    const scene = runningScene(), slot = storage();
+    assert.equal(artifacts.add(scene.model, 'echo'), true);
+    assert.equal(artifacts.add(scene.model, 'core_laser'), true);
+    scene.activeReward = { number: 2, stages: [
+        { kind: 'building', options: ['factory', 'barracks', 'reactor'] },
+        { kind: 'artifact', options: ['artifact:spontaneous', 'artifact:shield'] }
+    ], index: 1, options: ['artifact:spontaneous', 'artifact:shield'] };
+    assert.equal(save.write(scene, slot), true);
+    const read = save.read(slot);
+    assert.deepEqual(artifacts.list(save.restore(read, World).model), ['echo', 'core_laser']);
+    const bad = JSON.parse(JSON.stringify(read));
+    const game = bad.world.entities.find(entity => entity.id === scene.model.game);
+    game.components.find(([kind]) => kind === 'ArtifactCollection')[1].ids.push('echo');
+    assert.throws(() => save.restore(bad, World), /artifact collection/);
+    assert.ok(save.restore(save.capture(runningScene()), World)); // Previous saves omit artifacts.
 });
