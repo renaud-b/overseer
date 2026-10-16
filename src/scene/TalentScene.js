@@ -80,6 +80,14 @@ class TalentScene extends Phaser.Scene {
         g.lineStyle(1,p.border,.95).strokeRoundedRect(box.x,box.y,box.w,box.h,6);
         g.lineStyle(2,box.color,.8).lineBetween(box.x+13,box.y+14,box.x+36,box.y+14);
         this.text(keep,box.x+43,box.y+9,box.label,11,'#dcebf1');
+        if(box.id==='ascension'){
+            g.fillStyle(0x081722,.82).fillRoundedRect(box.x+7,box.y+30,box.w-14,box.h-37,5);
+            g.lineStyle(1,0x496071,.5).strokeRoundedRect(box.x+7,box.y+30,box.w-14,box.h-37,5);
+            this.text(keep,box.x+box.w/2,box.y+box.h*.43,'◇',28,'#637c8c').setOrigin(.5);
+            this.text(keep,box.x+box.w/2,box.y+box.h*.60,'SIGNAL INCONNU',12,'#8496a7').setOrigin(.5);
+            this.text(keep,box.x+box.w/2,box.y+box.h*.73,'DÉBLOCAGE ULTÉRIEUR',10,'#667e8d').setOrigin(.5);
+            return;
+        }
         const tree=(this.talentTrees[box.id]||[]).filter(t=>t.id!=='root');
         const positions=this.domainPositions(tree,box);
         // Connections are strictly inside each domain, with a small root hub per panel.
