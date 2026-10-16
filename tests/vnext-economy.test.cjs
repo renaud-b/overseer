@@ -256,7 +256,7 @@ test('all specialized producers complete their own cadences before charging cost
         assert.equal(economy.PROTOTYPE_RECIPES[type].cycleMs, cycleMs);
         assert.equal(model.world.get(id, 'Production').cooldownMs, cycleMs);
         assert.deepEqual(economy.step(model, cycleMs - 1), []);
-        assert.deepEqual({ ...resources }, { energy, matter: 0, components });
+        assert.deepEqual({ ...resources }, { energy, matter: 0, components, data: 0 });
         const events = economy.step(model, 1);
         assert.equal(events.length, 1);
         assert.equal(events[0].unitType, unit);
