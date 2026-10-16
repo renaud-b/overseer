@@ -87,7 +87,7 @@ function network(model,events,economy) {
  }
  return activated;
 }
-function production(model,dt,economy) {
+function production(model,dt,economy,coolingBonuses={}) {
  if(!Number.isFinite(dt)||dt<0)throw new Error('Invalid artifact delta');
  const s=state(model);
  syncAttention(model);
@@ -98,7 +98,7 @@ function production(model,dt,economy) {
   s.grace[id]=Math.max(0,remaining-dt);
   if(s.grace[id]===0)delete s.grace[id];
  }
- const events=economy.step(model,dt,extra,focusedBuilding(model,economy));
+ const events=economy.step(model,dt,extra,focusedBuilding(model,economy),coolingBonuses);
  // Only genuine observed completions propagate, never echoes or duplicate outputs.
  const pulses=network(model,events,economy);
  if(owns(model,'echo')) {
@@ -174,7 +174,7 @@ function clearWave(model,number,baseHp) {
  const healed=Math.min(RECOVERY_HP,100-baseHp);
  return {hp:baseHp+healed,healed};
 }
-function laser(model,dt) {
+function laser(model,dt,perceptionRadius=LASER_RADIUS) {
  if(!owns(model,'core_laser'))return null;
  const s=state(model);
  s.laserMs=Math.min(LASER_MS,s.laserMs+dt);
@@ -183,7 +183,7 @@ function laser(model,dt) {
  const target=world.query('Faction','Position','Health').filter(id=>{
   const h=world.get(id,'Health'),p=world.get(id,'Position');
   return world.get(id,'Faction').side==='enemy'&&h.hp>0&&
-   Math.hypot(p.x-CORE.x,p.y-CORE.y)<=LASER_RADIUS;
+   Math.hypot(p.x-CORE.x,p.y-CORE.y)<=perceptionRadius;
  }).sort((a,b)=>{
   const pa=world.get(a,'Position'),pb=world.get(b,'Position');
   return Math.hypot(pa.x-CORE.x,pa.y-CORE.y)-Math.hypot(pb.x-CORE.x,pb.y-CORE.y)||a-b;

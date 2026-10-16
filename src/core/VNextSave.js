@@ -101,6 +101,22 @@
             occupied.add(slot);
         }
 
+        // Optional heat components backfill on load. Reject non-finite ticks before
+        // stepping the simulation (Infinity would never leave the tick loop).
+        const cooling = root.OverseerVNextCooling ||
+            (typeof require === 'function' ? require('./VNextCooling.js') : null);
+        const heatTickMs = cooling.RULES.tickMs;
+        for (const id of world.query('BuildingHeat')) {
+            const heat = world.get(id, 'BuildingHeat');
+            requireValid(world.hasComponent(id, 'Building') &&
+                number(heat.percent, 0, cooling.RULES.maxHeat) &&
+                number(heat.elapsedMs, 0, heatTickMs) &&
+                heat.elapsedMs < heatTickMs, 'building heat');
+        }
+        const perception = world.get(game, 'PerceptionPulse');
+        requireValid(!perception || (number(perception.phaseMs, 0, 5000) &&
+            perception.phaseMs < 5000), 'perception pulse');
+
         const attention = data.attention;
         requireValid(attention && integer(attention.x, 0, 4) &&
             integer(attention.y, 0, 4) && integer(attention.patternIndex, 0, 3) &&

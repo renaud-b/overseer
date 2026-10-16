@@ -87,7 +87,7 @@
         return { type: 'production', building: id, buildingType: building.type };
     }
 
-    function step(model, deltaMs, extraActivationMs = {}, focusedBuildingId = null) {
+    function step(model, deltaMs, extraActivationMs = {}, focusedBuildingId = null, coolingBonuses = {}) {
         if (!Number.isFinite(deltaMs) || deltaMs < 0) throw new Error('Invalid simulation delta');
         const resources = initialize(model);
         if (deltaMs === 0) return [];
@@ -107,7 +107,9 @@
             const acceleratedMs = activeMs + Math.min(activeMs, Math.max(0, extra));
             // Hyperfocus stacks additively with Surcharge, never boosts grace or Echo.
             const focusBonus = watched && id === focusedBuildingId ? activeMs * 0.4 : 0;
-            progress.elapsedMs += acceleratedMs + focusBonus;
+            const coolingBonus = watched ? Math.max(0, coolingBonuses[id] || 0) : 0;
+            // Bonus from cooling stacks additively with Hyperfocus and Surcharge.
+            progress.elapsedMs += acceleratedMs + focusBonus + activeMs * coolingBonus;
             progress.blocked = false;
             if (MILITARY[type]) {
                 // A completed cycle waits for materials/capacity. No resource reservation,

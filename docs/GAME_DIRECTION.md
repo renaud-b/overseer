@@ -62,9 +62,13 @@ La barre supérieure, si nécessaire, ne contient que le strict minimum (vie de 
 
 Ces ressources remplaceraient les huit ressources **actuellement dans `assets/game_stats.json`**. Elles sont **une proposition de remplacement**, pas un renommage mécanique. La chaîne matière → composants doit apporter des décisions utiles ; sinon réexaminer sa raison d'être.
 
-### Refroidissement : intention, pas protocole fixé
+### Refroidissement : tranche VNext bonifiante (valeurs provisoires)
 
-Hypothèse à tester : un bâtiment observé produit, chauffe éventuellement et peut être soutenu par le refroidissement ; hors vision, il pourrait dissiper sa chaleur. Mais nous n'avons **pas encore décidé** : stock ou débit, production conditionnée par la vision, chaleur par bâtiment, seuils, consommation, bonus/malus, surchauffe ni interaction avec ×2/×5. Ne pas inventer ces règles silencieusement.
+**Invariant décidé : le refroidissement est une capacité locale et instantanée, non stockable, qui ne pénalise jamais les bâtiments.** Sans Cryopompe active, toutes les productions et recherches conservent exactement leur cadence de base même à 100 % de chauffe. Une Cryopompe **observée** couvre les huit cases voisines (diagonales incluses), réduit la chauffe de chaque bâtiment couvert et lui donne éventuellement un bonus de vitesse. Les effets n'exigent aucun stock et s'arrêtent dès que la Cryopompe n'est plus observée.
+
+**Prototype à éprouver :** les bâtiments observés prennent +5 points de chauffe toutes les 2 secondes simulées (maximum 100), les Cryopompes observées retirent 15 points par tick aux bâtiments à portée ; bonus de cadence de production/recherche et de pulsation perceptive de 0 à +20 % suivant la chaleur. Plusieurs pompes ne cumulent pas le bonus. Chaleur et tick persistent dans l'ECS. Les vitesses de simulation ne changent pas les règles.
+
+**Limites assumées :** pas de températures physiques, pas de malus ni pannes, pas de stock, pas de consommation d'énergie de Cryopompe, pas d'effet sur le combat direct, pas encore d'intégration au Relais d'attention. Coûts et valeurs à recalibrer après playtest.
 
 ### Données / protocoles
 
@@ -105,5 +109,5 @@ Critère de réussite : une partie courte jouable où le joueur comprend l'activ
 - **Direction forte, non implémentée :** cinq ressources Énergie / Matière / Refroidissement / Composants / Données.
 - **Décision VNext :** la pose d'un bâtiment consomme une carte, mais aucune ressource ; les recettes militaires sont dépensées **par unité produite**, pas lors de la pose. Pour la Caserne : 25 composants et 15 énergie par soldat.
 - **Implémenté dans VNext :** une unité militaire demande un cycle complet sous vision, conserve sa progression hors vision, et ne consomme ses ressources qu'à la fin du cycle. Durées : Caserne 5 s, Centre balistique 8 s, Forge blindée 12 s, Centre médical 10 s. À capacité pleine ou sans ressources, un cycle terminé attend (aucun cycle supplémentaire ne s'accumule). Ces valeurs restent celles du prototype, pas un équilibrage définitif.
-- **À trancher :** mécanique exacte du refroidissement ; autres coûts et rendements ; contrats producteurs/consommateurs ; mutations en partie vs persistantes ; détail responsive HUD ; migration progressive vs tranche VNext.
+- **À trancher :** équilibrage chiffré du refroidissement local ; autres coûts et rendements ; contrats producteurs/consommateurs ; mutations en partie vs persistantes ; détail responsive HUD ; migration progressive vs tranche VNext.
 - **Hors périmètre :** blockchain, wallet, replays, snapshots, anti-triche, MMO, refonte réseau.

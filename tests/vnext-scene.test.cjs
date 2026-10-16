@@ -21,6 +21,7 @@ const artifacts = require('../src/core/VNextArtifacts.js');
 const artifactEffects = require('../src/core/VNextArtifactEffects.js');
 const zones = require('../src/core/VNextZones.js');
 const threats = require('../src/core/VNextThreats.js');
+const cooling = require('../src/core/VNextCooling.js');
 const saves = require('../src/core/VNextSave.js');
 const visionUpgrades = require('../src/core/VNextVision.js');
 const savedEntries = new Map();
@@ -96,7 +97,7 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextArtifactEffects: artifactEffects, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
+    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextArtifactEffects: artifactEffects, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextCooling: cooling, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
     localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
@@ -1793,4 +1794,107 @@ test('terminal overload is absent from reward proposals until core laser is equi
  }
  assert.equal(after.has('artifact:terminal_overload'),true);
  savedEntries.clear();
+});
+
+test('perception amplifier draws its simulated pulse and triggers only when observed',()=>{
+    const scene=new VNextScene();scene.create();
+    const baseRadius=threats.radius(scene.model);
+    assert.equal(baseRadius,350);
+    assert.ok(cards.REWARD_CARDS.includes('perception_amplifier'));
+    cards.grant(scene.model,'perception_amplifier');
+    const id=preview.placeBuilding(scene.model,'perception_amplifier',6);
+    preview.setObserved(scene.model,[6]);
+    scene.buildUi();
+    const radiusDrawn=()=>scene.battleGraphics.drawCalls.find(call=>
+        call.type==='strokeCircle'&&call.color===0x91ced1 &&
+        Math.abs(call.x-(scene.battleBounds.x+scene.battleBounds.w*65/1000))<0.1)?.r;
+    assert.ok(Math.abs(radiusDrawn()-350*scene.battleBounds.w/1000)<1e-6);
+    scene.world.set(scene.model.game,'PerceptionPulse',{phaseMs:2500});
+    scene.paintBattle();
+    assert.ok(Math.abs(radiusDrawn()-500*scene.battleBounds.w/1000)<1e-6);
+    scene.selectSpeed(0);
+    const phase=scene.world.get(scene.model.game,'PerceptionPulse').phaseMs;
+    scene.update(0,300);
+    assert.equal(scene.world.get(scene.model.game,'PerceptionPulse').phaseMs,phase);
+    scene.selectSpeed(1);
+    preview.setObserved(scene.model,[]);
+    scene.paintBattle();
+    assert.equal(threats.radius(scene.model),350);
+    assert.ok(scene.world.has(id));
+    const saved=saves.restore(saves.capture(scene),World);
+    assert.equal(saved.model.world.get(saved.model.game,'PerceptionPulse').phaseMs,phase);
+});
+
+test('amplifier can be chosen in wave building rewards and describes the pulse',()=>{
+    const scene=new VNextScene();scene.create();
+    scene.waveClock.number=1;
+    scene.activeReward={number:1,options:['reactor','perception_amplifier','factory']};
+    scene.buildUi();
+    const card=scene.ui.find(o=>o.getData?.('reward')==='perception_amplifier');
+    assert.ok(card);
+    card.handlers.pointerover();
+    assert.ok(scene.tooltipObjects.some(o=>o.value==='RAYON : 350 → 500'));
+    card.handlers.pointerout();
+    assert.equal(scene.chooseReward('perception_amplifier'),true);
+    assert.ok(cards.cards(scene.model).includes('perception_amplifier'));
+});
+
+test('Cryopump shows active proximity coverage, non-punitive heat and a cooling tooltip',()=>{
+ const scene=new VNextScene();scene.create();
+ const pump=preview.placeBuilding(scene.model,'cryopump',7);
+ const reactor=preview.placeBuilding(scene.model,'reactor',6);
+ preview.setObserved(scene.model,[6,7]);
+ scene.buildUi();
+ const coverage=cooling.coverage(scene.model);
+ assert.deepEqual(coverage,{pumps:1,buildings:1});
+ assert.equal(scene.resourceLabels.cooling.value,'1');
+ assert.equal(scene.resourceStatusLabels.cooling.value,'1 CRYO');
+ cooling.step(scene.model,2000);
+ scene.paintBoard();
+ assert.equal(cooling.heat(scene.model,reactor),0);
+ assert.equal(cooling.heat(scene.model,pump),0);
+ scene.showBuildingTooltip(7);
+ assert.ok(scene.tooltipObjects.some(o=>o.value==='PORTÉE : 8 CASES VOISINES'));
+ scene.hideBuildingTooltip();
+ preview.setObserved(scene.model,[6]);
+ scene.updateResourceHud();
+ assert.equal(scene.resourceLabels.cooling.value,'0');
+ assert.equal(scene.resourceStatusLabels.cooling.value,'0 CRYO');
+ assert.equal(cooling.bonus(scene.model,reactor),0);
+ scene.selectSpeed(0);
+ const heat=cooling.heat(scene.model,reactor);
+ scene.update(0,500);
+ assert.equal(cooling.heat(scene.model,reactor),heat);
+ const resumed=saves.restore(saves.capture(scene),World);
+ assert.equal(resumed.model.world.get(reactor,'BuildingHeat').percent,heat);
+});
+
+test('Cryopump appears in building reward choices but does not change the starter hand',()=>{
+ const scene=new VNextScene();scene.create();
+ assert.ok(cards.REWARD_CARDS.includes('cryopump'));
+ assert.ok(!cards.STARTER_CARDS.includes('cryopump'));
+ scene.waveClock.number=1;
+ scene.activeReward={number:1,options:['cryopump','reactor','factory']};
+ scene.buildUi();
+ const item=scene.ui.find(o=>o.getData?.('reward')==='cryopump');
+ assert.ok(item);
+ assert.equal(scene.chooseReward('cryopump'),true);
+ assert.ok(cards.cards(scene.model).includes('cryopump'));
+});
+
+test('Cryopump makes observed perception pulse faster without changing baseline detection',()=>{
+ const scene=new VNextScene();scene.create();
+ const pump=preview.placeBuilding(scene.model,'cryopump',7);
+ const amp=preview.placeBuilding(scene.model,'perception_amplifier',6);
+ preview.setObserved(scene.model,[6,7]);
+ const old=threats.radius(scene.model);
+ scene.update(0,60);
+ const phase=scene.world.get(scene.model.game,'PerceptionPulse').phaseMs;
+ assert.equal(phase,72);
+ assert.ok(threats.radius(scene.model)>old);
+ preview.setObserved(scene.model,[6]);
+ scene.update(0,60);
+ assert.equal(scene.world.get(scene.model.game,'PerceptionPulse').phaseMs,132);
+ assert.equal(scene.world.has(pump),true);
+ assert.equal(scene.world.has(amp),true);
 });

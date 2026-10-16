@@ -7,7 +7,7 @@ function inventory(model) {
  return model.world.get(model.game,'Technologies');
 }
 function next(seed) {let x=seed>>>0;x^=x<<13;x^=x>>>17;x^=x<<5;return x>>>0;}
-function step(model,dt,focusedBuildingId=null) {
+function step(model,dt,focusedBuildingId=null,coolingBonuses={}) {
  if(!Number.isFinite(dt)||dt<0) throw Error('Invalid technology delta');
  const stock=inventory(model),events=[];
  if(!dt)return events;
@@ -17,7 +17,7 @@ function step(model,dt,focusedBuildingId=null) {
   if(!model.world.get(model.tiles[slot],'Watched').active)continue;
   if(!model.world.hasComponent(id,'Research'))model.world.set(id,'Research',{elapsedMs:0});
   const state=model.world.get(id,'Research');
-  state.elapsedMs+=dt*(id===focusedBuildingId?1.4:1);
+  state.elapsedMs+=dt*(1+(id===focusedBuildingId?0.4:0)+Math.max(0,coolingBonuses[id]||0));
   while(state.elapsedMs>=RESEARCH_MS) {
    state.elapsedMs-=RESEARCH_MS;stock.seed=next(stock.seed);const kind=TYPES[stock.seed%TYPES.length];
    stock.items.push(kind);events.push({type:'technology-researched',building:id,technology:kind});

@@ -79,6 +79,20 @@ Les durées utilisent le temps de simulation : pause et écran de récompense fi
 
 Le jeu comprend également un système de talents et une progression entre les parties. **Ne pas présumer que l'ensemble de ces mécaniques est déjà migré dans le noyau ECS.**
 
+### Amplificateur de perception (prototype VNext)
+
+Le Brouilleur prévu est remplacé par l'**Amplificateur de perception**, disponible dans les récompenses de bâtiment (pas dans la main initiale). **Observé**, il fait pulser le rayon de détection du noyau entre **350 et 500 unités** toutes les **5 s de simulation**. Hors vision, le rayon revient à 350 et le cycle est figé ; la mémoire de marquage des cibles reste à 2 s. La portée réelle de détection et le dessin du cercle sont issus du même état ECS, conservé dans la sauvegarde. Les pulsations ne réduisent jamais la portée de base, et leur amplitude et cadence sont provisoires.
+
+### Refroidissement de proximité (prototype VNext)
+
+La **Cryopompe** peut être gagnée dans les récompenses de bâtiment. **Observée**, elle distribue instantanément du refroidissement à ses huit cases voisines (diagonales comprises, rayon d'une case sur la grille 5 × 5). Le refroidissement est une **capacité locale**, jamais un stock consommable : il ne figure pas dans le composant `Resources`. L'indicateur de droite affiche le nombre de bâtiments couverts et de Cryopompes actives.
+
+Chaque bâtiment observé accumule une chauffe expérimentale de **+5 points / 2 s simulées**, plafonnée à **100 %** ; une Cryopompe observée retire **15 points / 2 s** aux bâtiments couverts, y compris à elle-même. Hors observation, un bâtiment n'ajoute pas de chaleur. Les composants ECS `BuildingHeat` conservent la chauffe et la phase du tick en sauvegarde. Une barre discrète sur la grille l'affiche.
+
+**Invariant non négociable : la chauffe ne pénalise rien.** Une machine sans refroidissement conserve à 100 % son rendement, une recherche sans refroidissement reste à 30 s, et le rayon de détection du noyau reste au minimum de 350 unités. Sous refroidissement, les bâtiments observés gagnent jusqu'à **+20 %** de cadence de production ou de recherche ; l'Amplificateur de perception pulse jusqu'à 20 % plus vite. Le bonus diminue avec la chauffe de la machine ; même à 100 % de chaleur, il tombe simplement à zéro et n'est jamais négatif. Plusieurs Cryopompes proches ne cumulent pas les bonus.
+
+Ces nombres sont **des valeurs de playtest**, non des paramètres définitifs. Pas de température physique, d'endommagement, de maintenance imposée ni de mécanique de panne.
+
 ### Améliorations de vision dans VNext
 
 Le joueur débloque successivement **4, 5 puis 6 cases de vision** contre **30, 90 puis 240 Données** (360 au total). Le Nœud de calcul de la PR dédiée doit fournir les Données ; ce barème ne modifie ni la production de Données, ni la cadence des vagues. Les achats restent sauvegardés. Ces prix sont des valeurs d'équilibrage de prototype, à ajuster après des parties complètes.
