@@ -15,6 +15,7 @@ const battleActions = require('../src/scene/effects/BattleActionEffects.js');
 const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
 const technologies = require('../src/core/VNextTechnologies.js');
+const rewards = require('../src/core/VNextRewards.js');
 const zones = require('../src/core/VNextZones.js');
 const threats = require('../src/core/VNextThreats.js');
 const saves = require('../src/core/VNextSave.js');
@@ -92,7 +93,7 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
+    OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
     localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
@@ -655,6 +656,7 @@ test('battle starts without enemies and first timeline wave adds them', () => {
 test('a defeated wave offers three unique cards and pauses until one is selected', () => {
     const scene = new VNextScene();
     scene.create();
+    scene.waveClock.seed = Array.from({length:100},(_,i)=>i).find(seed=>rewards.mode(1,seed).join()==='building');
     const wave = waves.wave(1, scene.waveClock.seed);
     scene.triggerWave(wave);
     assert.equal(scene.activeReward, null);
@@ -691,9 +693,9 @@ test('two cleared overlapping waves queue rewards without duplication', () => {
     assert.equal(scene.rewardQueue.length, 1);
     scene.checkWaveClears();
     assert.equal(scene.rewardQueue.length, 1);
-    scene.chooseReward(scene.activeReward.options[0]);
+    while (scene.activeReward?.number===1) scene.chooseReward(scene.activeReward.options[0]);
     assert.equal(scene.activeReward.number, 2);
-    scene.chooseReward(scene.activeReward.options[0]);
+    while (scene.activeReward) scene.chooseReward(scene.activeReward.options[0]);
     assert.equal(scene.activeReward, null);
 });
 
@@ -833,7 +835,7 @@ test('pending reward is resumed without replaying the cleared wave', () => {
     savedEntries.clear();
     const running = new VNextScene();
     running.create();
-    running.waveClock.seed = 137;
+    running.waveClock.seed = Array.from({length:100},(_,i)=>i).find(seed=>rewards.mode(1,seed).join()==='building');
     const wave = waves.wave(1, running.waveClock.seed);
     running.waveClock.number = 1;
     running.waveClock.elapsedMs = wave.dueAtMs;
@@ -1042,6 +1044,7 @@ test('dead combat units are reclaimed without losing wave rewards or resumable s
     savedEntries.clear();
     const scene = new VNextScene();
     scene.create();
+    scene.waveClock.seed = Array.from({length:100},(_,i)=>i).find(seed=>rewards.mode(1,seed).join()==='building');
     scene.waveClock.number = 1;
     scene.triggerWave(waves.wave(1, scene.waveClock.seed));
     const enemies = [...scene.waveMembers.get(1)];
@@ -1137,7 +1140,8 @@ test('observed laboratory displays live research progress and a technology after
 test('wave rewards mix one-shot technology and buildings, preserve save/restore',()=>{
  const scene=new VNextScene();scene.create();
  const choices=new Set();for(let n=1;n<=80;n++)for(const type of scene.rewardOptions(n))choices.add(type);
- assert.ok(choices.has('tech:healing_field'));
+ assert.ok(scene.rewardOptions(1,'technology').includes('tech:healing_field'));
+  assert.ok(choices.has('reactor'));
  scene.waveClock.number=1;scene.activeReward={number:1,options:['reactor','factory','tech:healing_field']};
  assert.doesNotThrow(()=>saves.restore(saves.capture(scene),World));
  const before=technologies.inventory(scene.model).items.length;
@@ -1146,3 +1150,42 @@ test('wave rewards mix one-shot technology and buildings, preserve save/restore'
  assert.equal(scene.chooseReward('tech:healing_field'),false);
 });
 
+
+test('mixed legacy reward save can still choose either a building or a technology', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.waveClock.number = 1;
+    scene.activeReward = { number: 1, options: ['reactor', 'factory', 'tech:healing_field'] };
+    const legacy = saves.restore(saves.capture(scene), World);
+    assert.deepEqual(legacy.activeReward.options, scene.activeReward.options);
+    assert.equal(rewards.current(scene.activeReward).kind, 'mixed');
+    const before = cards.cards(scene.model).length;
+    assert.equal(scene.chooseReward('reactor'), true);
+    assert.equal(cards.cards(scene.model).length, before + 1);
+    assert.equal(scene.activeReward, null);
+});
+
+test('reward journey routes building then technology without resuming between stages',()=>{
+ const scene=new VNextScene();scene.create();scene.waveClock.number=1;
+ const reward={number:1,stages:[{kind:'building',options:['reactor','factory','barracks']},{kind:'technology',options:['tech:healing_field','tech:berserk','tech:stasis_field']}],index:0,options:['reactor','factory','barracks']};
+ scene.activeReward=reward;
+ const before=cards.cards(scene.model).length;
+ assert.equal(scene.chooseReward('reactor'),true);
+ assert.equal(cards.cards(scene.model).length,before+1);
+ assert.equal(scene.activeReward.index,1);
+ assert.equal(scene.chooseReward('factory'),false);
+ const saved=saves.capture(scene);
+ const restored=saves.restore(saved,World);
+ assert.equal(restored.activeReward.index,1);
+ assert.equal(restored.activeReward.options[0],'tech:healing_field');
+ assert.equal(scene.chooseReward('tech:berserk'),true);
+ assert.equal(scene.activeReward,null);
+ assert.equal(technologies.inventory(scene.model).items.includes('berserk'),true);
+});
+test('reward distribution approximates 40/40/20 deterministically',()=>{
+ const rewardSystem=require('../src/core/VNextRewards.js'),count={building:0,technology:0,both:0};
+ for(let n=1;n<=1000;n++){const mode=rewardSystem.mode(n,137);count[mode.length===2?'both':mode[0]]++;}
+ assert.ok(Math.abs(count.building-400)<80);
+ assert.ok(Math.abs(count.technology-400)<80);
+ assert.ok(Math.abs(count.both-200)<70);
+});

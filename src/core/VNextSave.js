@@ -21,6 +21,7 @@
     }
 
     function capture(scene, savedAt = Date.now()) {
+        const copyReward = reward => reward ? JSON.parse(JSON.stringify(reward)) : null;
         return {
             version: VERSION,
             savedAt,
@@ -33,9 +34,8 @@
             },
             waveClock: { ...scene.waveClock },
             waveMembers: [...scene.waveMembers].map(([number, ids]) => [number, [...ids]]),
-            rewardQueue: scene.rewardQueue.map(reward => ({ number: reward.number, options: [...reward.options] })),
-            activeReward: scene.activeReward
-                ? { number: scene.activeReward.number, options: [...scene.activeReward.options] } : null,
+            rewardQueue: scene.rewardQueue.map(copyReward),
+            activeReward: copyReward(scene.activeReward),
             battleUnits: [...scene.battleUnits],
             baseHp: scene.baseHp,
             speed: scene.speed,
@@ -122,11 +122,26 @@
         }
 
         function validatedReward(reward) {
-            requireValid(reward && integer(reward.number, 1, waveClock.number) &&
-                Array.isArray(reward.options) && reward.options.length === 3 &&
-                new Set(reward.options).size === 3 &&
-                reward.options.every(type => rewardTypes().includes(type)), 'reward');
-            return { number: reward.number, options: [...reward.options] };
+            requireValid(reward && integer(reward.number,1,waveClock.number) &&
+                Array.isArray(reward.options) && reward.options.length===3 &&
+                new Set(reward.options).size===3 &&
+                reward.options.every(type=>rewardTypes().includes(type)),'reward');
+            if(!reward.stages) return {number:reward.number,options:[...reward.options]}; // Older saves.
+            requireValid(Array.isArray(reward.stages) && reward.stages.length>=1 && reward.stages.length<=2 &&
+                integer(reward.index,0,reward.stages.length-1),'reward journey');
+            const seen=[];
+            const stages=reward.stages.map(stage=>{
+                requireValid(stage && ['building','technology'].includes(stage.kind) && !seen.includes(stage.kind) &&
+                    Array.isArray(stage.options) && stage.options.length===3 &&
+                    new Set(stage.options).size===3 &&
+                    stage.options.every(type=>rewardTypes().includes(type) &&
+                        (stage.kind==='technology')===type.startsWith('tech:')),'reward stage');
+                seen.push(stage.kind);
+                return {kind:stage.kind,options:[...stage.options]};
+            });
+            requireValid(stages.length!==2 || stages[0].kind==='building' && stages[1].kind==='technology','reward order');
+            requireValid(stages[reward.index].options.every((type,i)=>type===reward.options[i]),'reward current stage');
+            return {number:reward.number,stages,index:reward.index,options:[...reward.options]};
         }
         requireValid(Array.isArray(data.rewardQueue), 'reward queue');
         const rewardQueue = data.rewardQueue.map(validatedReward);
