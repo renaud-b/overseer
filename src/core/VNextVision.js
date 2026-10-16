@@ -15,10 +15,12 @@
         const xs = pattern.map(offset => offset.x);
         const ys = pattern.map(offset => offset.y);
         if (![...xs, ...ys].every(Number.isInteger)) return null;
-        const minX = -Math.min(...xs);
-        const maxX = gridSize - 1 - Math.max(...xs);
-        const minY = -Math.min(...ys);
-        const maxY = gridSize - 1 - Math.max(...ys);
+        // The attention anchor itself is a grid cell and must remain in bounds,
+        // even if a malformed future pattern could be translated onto the board.
+        const minX = Math.max(0, -Math.min(...xs));
+        const maxX = Math.min(gridSize - 1, gridSize - 1 - Math.max(...xs));
+        const minY = Math.max(0, -Math.min(...ys));
+        const maxY = Math.min(gridSize - 1, gridSize - 1 - Math.max(...ys));
         if (minX > maxX || minY > maxY) return null;
         // Keep the current rotation and move only as far as necessary.
         return {
