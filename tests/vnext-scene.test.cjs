@@ -667,6 +667,31 @@ test('wave telemetry tolerates multiple concurrent waves and resumed legacy runs
     savedEntries.clear();
 });
 
+test('timeline tooltip and spawner already accept multi-type wave descriptors', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const wave = {
+        number: 1, dueAtMs: 90000,
+        enemies: [{ type: 'basic_monster', count: 2 },
+            { type: 'ranged_monster', count: 2 }, { type: 'base_rusher', count: 1 }]
+    };
+    scene.previewWaves[0] = wave;
+    scene.showWaveTooltip(0, 500, 710);
+    const labels = scene.waveTooltipObjects.filter(o => typeof o.value === 'string').map(o => o.value);
+    assert.ok(labels.some(s => s.includes('×2') && s.includes('Ennemi de base')));
+    assert.ok(labels.some(s => s.includes('×2') && s.includes('Tireur distant')));
+    assert.ok(labels.some(s => s.includes('×1') && s.includes('Percuteur')));
+    scene.waveClock.number = 1;
+    scene.waveClock.elapsedMs = 90000;
+    scene.triggerWave(wave);
+    assert.equal(scene.waveMembers.get(1).length, 5);
+    const types = scene.waveMembers.get(1).map(id => scene.world.get(id, 'PreviewUnit').type);
+    assert.deepEqual(Array.from(types).sort(), [
+        'basic_monster', 'basic_monster', 'ranged_monster', 'ranged_monster', 'base_rusher'
+    ].sort());
+    assert.equal(scene.waveReport()[0].spawned, 5);
+});
+
 test('wave timer spawns enemies at simulation interval and pauses', () => {
  const scene = new VNextScene();
  scene.create();
