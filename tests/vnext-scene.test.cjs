@@ -1644,3 +1644,63 @@ test('artifact shield ring is only visible when the shield has charge', () => {
   c.type==='strokeCircle'&&c.color===0x69d9a0));
  savedEntries.clear();
 });
+
+test('manufactured soldiers record costs; Recyclage refunds exactly once while starter allies do not', () => {
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ scene.selectedType='barracks';scene.clickTile(6);
+ const stock=scene.world.get(scene.model.game,'Resources');
+ stock.energy=15;stock.components=25;
+ for(let i=0;i<84;i++)scene.update(0,60);
+ const paid=scene.battleUnits.find(id=>scene.world.hasComponent(id,'ManufacturedCost'));
+ assert.ok(paid,'real military production must retain its paid provenance');
+ assert.deepEqual(scene.world.get(paid,'ManufacturedCost').resources,{components:25,energy:15});
+ assert.equal(stock.components,0);
+ assert.equal(artifacts.add(scene.model,'recycle'),true);
+ scene.world.get(paid,'Health').hp=0;
+ const count=scene.battleUnits.length;
+ assert.equal(scene.cleanupDeadUnits(),true);
+ assert.equal(scene.battleUnits.length,count-1);
+ assert.equal(stock.components,6.25);
+ assert.equal(stock.energy,3.75);
+ assert.equal(scene.cleanupDeadUnits(),false);
+ assert.equal(stock.energy,3.75);
+ const starter=scene.battleUnits[0];
+ scene.world.get(starter,'Health').hp=0;
+ scene.cleanupDeadUnits();
+ assert.equal(stock.components,6.25);
+ savedEntries.clear();
+});
+test('a manufactured unit keeps its refund provenance through Continue', () => {
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ const id=scene.spawnFriendlyUnit('unit_guard',{type:'unit-produced',unitType:'unit_guard',
+  spent:{components:25,energy:15}});
+ assert.ok(scene.world.hasComponent(id,'ManufacturedCost'));
+ artifacts.add(scene.model,'recycle');
+ assert.equal(scene.saveCurrentGame(),true);
+ const resumed=new VNextScene();resumed.init({resume:true});resumed.create();
+ assert.deepEqual(resumed.world.get(id,'ManufacturedCost').resources,{components:25,energy:15});
+ resumed.world.get(id,'Health').hp=0;
+ resumed.cleanupDeadUnits();
+ const resources=resumed.world.get(resumed.model.game,'Resources');
+ assert.equal(resources.components,6.25);
+ assert.equal(resources.energy,3.75);
+ savedEntries.clear();
+});
+test('a marked enemy killed during combat transfers designation before ECS cleanup', () => {
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ artifacts.add(scene.model,'mark_chain');
+ scene.spawnEnemyUnit('basic_monster',0,1);
+ scene.spawnEnemyUnit('basic_monster',1,1);
+ const [victim,next]=scene.battleUnits.filter(id=>scene.world.get(id,'Faction').side==='enemy');
+ scene.world.get(victim,'Position').x=800;
+ scene.world.get(next,'Position').x=810;
+ scene.world.set(victim,'ThreatMark',{remainingMs:800});
+ scene.world.get(victim,'Health').hp=0;
+ scene.cleanupDeadUnits();
+ assert.equal(scene.world.has(victim),false);
+ assert.equal(scene.world.get(next,'ThreatMark').remainingMs,2000);
+ savedEntries.clear();
+});

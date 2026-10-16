@@ -153,3 +153,115 @@ test('inventory and effect runtime survive ECS round-trip and corrupted effect s
  corrupt.grace[28]=-5000;
  assert.equal(effects.valid(corrupt),false);
 });
+
+test('Hyperfocalisation adds 40% progress only when one productive building is observed', () => {
+ const m=model();const reactor=preview.placeBuilding(m,'reactor',6);
+ preview.placeBuilding(m,'extractor',7);
+ artifacts.add(m,'hyperfocus');
+ preview.setObserved(m,[6,11,12]); // Two empty observed tiles do not break focus.
+ assert.equal(effects.focusedBuilding(m,economy),reactor);
+ assert.deepEqual(effects.production(m,1000,economy),[]);
+ assert.equal(m.world.get(reactor,'Production').elapsedMs,1400);
+ // A second observed producer cancels the boost immediately.
+ preview.setObserved(m,[6,7]);
+ assert.equal(effects.focusedBuilding(m,economy),null);
+ effects.production(m,500,economy);
+ assert.equal(m.world.get(reactor,'Production').elapsedMs,1900);
+ // Focus resumes without any sudden catch-up.
+ preview.setObserved(m,[6]);
+ effects.production(m,100,economy);
+ assert.equal(resources(m).energy,2);
+ assert.ok(Math.abs(m.world.get(reactor,'Production').elapsedMs-40)<0.0001);
+ preview.setObserved(m,[]);
+ effects.production(m,2000,economy);
+ assert.ok(Math.abs(m.world.get(reactor,'Production').elapsedMs-40)<0.0001);
+});
+test('Hyperfocalisation also accelerates research, not a separate unobserved lab', () => {
+ const technologies=require('../src/core/VNextTechnologies.js');
+ const m=model(),lab=preview.placeBuilding(m,'laboratory',6);
+ artifacts.add(m,'hyperfocus');preview.setObserved(m,[6]);
+ const focus=effects.focusedBuilding(m,economy);
+ assert.equal(focus,lab);
+ assert.deepEqual(technologies.step(m,20000,focus),[]);
+ assert.equal(m.world.get(lab,'Research').elapsedMs,28000);
+ assert.equal(technologies.step(m,0,focus).length,0);
+ assert.equal(technologies.step(m,2000,focus).length,1);
+ // Observing a second building removes the research multiplier.
+ preview.placeBuilding(m,'reactor',7);preview.setObserved(m,[6,7]);
+ assert.equal(effects.focusedBuilding(m,economy),null);
+ const before=m.world.get(lab,'Research').elapsedMs;
+ technologies.step(m,1000,effects.focusedBuilding(m,economy));
+ assert.equal(m.world.get(lab,'Research').elapsedMs,before+1000);
+});
+test('Hyperfocalisation and Surcharge stack additively without accelerating grace time', () => {
+ const m=model(),id=preview.placeBuilding(m,'reactor',6);
+ artifacts.add(m,'hyperfocus');artifacts.add(m,'lingering');
+ preview.setObserved(m,[6]);effects.syncAttention(m);
+ m.world.set(m.game,'TechnologyEffects',{overloadMs:3000});
+ effects.production(m,1000,economy);
+ assert.equal(m.world.get(id,'Production').elapsedMs,400); // 2.4s work, one completed cycle.
+ preview.setObserved(m,[]);
+ effects.production(m,1000,economy);
+ assert.equal(m.world.get(id,'Production').elapsedMs,1400); // Only 1s of grace work.
+});
+test('Recyclage neuronal returns 25% of a paid unit recipe only once', () => {
+ const m=model();artifacts.add(m,'recycle');
+ const dead=unit(m,'player',100,100,0);
+ m.world.set(dead,'ManufacturedCost',{resources:{components:25,energy:15}});
+ const free=unit(m,'player',110,100,0);
+ assert.equal(effects.recycle(m,[free,dead]).length,1);
+ assert.equal(resources(m).components,6.25);
+ assert.equal(resources(m).energy,3.75);
+ assert.equal(m.world.hasComponent(dead,'ManufacturedCost'),false);
+ assert.deepEqual(effects.recycle(m,[dead,free]),[]);
+ assert.equal(resources(m).energy,3.75);
+ const alive=unit(m,'player',120,100,6);
+ m.world.set(alive,'ManufacturedCost',{resources:{components:25}});
+ assert.deepEqual(effects.recycle(m,[alive]),[]);
+ assert.equal(resources(m).components,6.25);
+});
+test('Propagation de conscience targets nearest LIVING enemy and expires outside detection', () => {
+ const threats=require('../src/core/VNextThreats.js');
+ const m=model();artifacts.add(m,'mark_chain');
+ const victim=unit(m,'enemy',850,300,0);
+ m.world.set(victim,'ThreatMark',{remainingMs:300});
+ const deadNear=unit(m,'enemy',853,300,0);
+ const closest=unit(m,'enemy',860,300,5);
+ const far=unit(m,'enemy',930,300,5);
+ assert.deepEqual(effects.propagate(m,[deadNear]),[]);
+ const events=effects.propagate(m,[victim,deadNear]);
+ assert.equal(events.length,1);
+ assert.equal(events[0].target,closest);
+ assert.equal(m.world.get(closest,'ThreatMark').remainingMs,effects.MARK_MS);
+ assert.equal(m.world.get(far,'ThreatMark'),undefined);
+ assert.equal(m.world.get(victim,'ThreatMark'),undefined);
+ assert.deepEqual(effects.propagate(m,[victim]),[]);
+ threats.update(m.world,[closest],1000);
+ assert.equal(m.world.get(closest,'ThreatMark').remainingMs,1000);
+ threats.update(m.world,[closest],1000);
+ assert.equal(m.world.get(closest,'ThreatMark'),undefined);
+});
+test('Propagation keeps a longer pre-existing mark and ignores unmarked victims', () => {
+ const m=model();artifacts.add(m,'mark_chain');
+ const victim=unit(m,'enemy',700,100,0),target=unit(m,'enemy',705,100,10);
+ assert.deepEqual(effects.propagate(m,[victim]),[]);
+ m.world.set(victim,'ThreatMark',{remainingMs:100});
+ m.world.set(target,'ThreatMark',{remainingMs:3500});
+ const ev=effects.propagate(m,[victim]);
+ assert.equal(ev.length,1);
+ assert.equal(m.world.get(target,'ThreatMark').remainingMs,3500);
+});
+test('catalogue and deterministic artifact offerings include the three new ids', () => {
+ const reward=require('../src/core/VNextRewards.js');
+ for(const id of ['hyperfocus','recycle','mark_chain']){
+  assert.ok(artifacts.IDS.includes(id));
+  assert.ok(artifacts.get(id)?.description);
+ }
+ const offering=new Set();
+ for(let n=3;n<180;n++){
+  const r=reward.create(n,93,['reactor','factory','barracks'],['berserk','stasis_field','healing_field'],artifacts.IDS,[]);
+  const stage=r.stages.find(s=>s.kind==='artifact');
+  if(stage)for(const opt of stage.options)offering.add(opt);
+ }
+ for(const id of ['hyperfocus','recycle','mark_chain'])assert.ok(offering.has('artifact:'+id));
+});

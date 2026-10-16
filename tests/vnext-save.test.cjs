@@ -196,3 +196,21 @@ test('malformed persisted artifact effect timers cannot offer Continue', () => {
  assert.equal(save.read(slot),null);
  assert.throws(()=>save.restore(bad,World),/artifact effects/);
 });
+
+test('Continue rejects malformed manufacturing provenance', () => {
+ const scene=runningScene(),slot=storage();
+ const manufactured=scene.battleUnits[0];
+ scene.world.get(manufactured,'Faction').side='player';
+ scene.waveMembers=new Map();
+ scene.world.set(manufactured,'ManufacturedCost',{resources:{components:25,energy:15}});
+ assert.equal(save.write(scene,slot),true);
+ const raw=save.read(slot);
+ assert.deepEqual(save.restore(raw,World).model.world.get(manufactured,'ManufacturedCost').resources,
+  {components:25,energy:15});
+ const broken=JSON.parse(JSON.stringify(raw));
+ const soldier=broken.world.entities.find(e=>e.id===manufactured);
+ soldier.components.find(c=>c[0]==='ManufacturedCost')[1].resources.components=-10;
+ slot.setItem(save.KEY,JSON.stringify(broken));
+ assert.equal(save.read(slot),null);
+ assert.throws(()=>save.restore(broken,World),/manufactured cost/);
+});

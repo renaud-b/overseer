@@ -18,7 +18,13 @@
         { id: 'recovery', label: 'Protocole de récupération', symbol: 'cross', color: 0x69d9a0,
           description: 'Après une vague où le noyau a perdu de la vie, il récupère jusqu’à 5 PV.' },
         { id: 'duplicate', label: 'Parallélisme quantique', symbol: 'diamond', color: 0xf4ba58,
-          description: 'Toutes les 30 s, la prochaine production industrielle accorde un second résultat gratuit.' }
+          description: 'Toutes les 30 s, la prochaine production industrielle accorde un second résultat gratuit.' },
+        { id: 'hyperfocus', label: 'Hyperfocalisation', symbol: 'orbit', color: 0xb58aff,
+          description: 'Si un seul bâtiment productif est observé, son cycle est accéléré de 40 % (recherche comprise).' },
+        { id: 'recycle', label: 'Recyclage neuronal', symbol: 'diamond', color: 0x69d9a0,
+          description: 'À la mort d’une unité fabriquée, récupère 25 % des ressources réellement dépensées.' },
+        { id: 'mark_chain', label: 'Propagation de conscience', symbol: 'cross', color: 0xff6674,
+          description: 'À la mort d’un ennemi marqué, transfère la marque à l’ennemi vivant le plus proche pour 2 s.' }
     ].map(entry => Object.freeze(entry)));
     const IDS = Object.freeze(CATALOG.map(entry => entry.id));
     function get(id) { return CATALOG.find(artifact => artifact.id === id) || null; }

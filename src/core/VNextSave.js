@@ -121,6 +121,17 @@
         }
         requireValid(world.query('PreviewUnit').length === data.battleUnits.length,
             'battle unit ownership');
+        // Refund provenance is saveable ECS data, never a renderer-derived cost.
+        for (const id of world.query('ManufacturedCost')) {
+            const spent = world.get(id, 'ManufacturedCost')?.resources;
+            requireValid(data.battleUnits.includes(id) &&
+                world.get(id, 'Faction')?.side === 'player' &&
+                spent && typeof spent === 'object' && !Array.isArray(spent) &&
+                Object.keys(spent).length > 0 &&
+                Object.entries(spent).every(([key,amount]) =>
+                    ['energy','matter','components','data'].includes(key) &&
+                    number(amount, 0, 100000)), 'manufactured cost');
+        }
         requireValid(Array.isArray(data.waveMembers), 'wave membership');
         const waveMembers = new Map();
         for (const pair of data.waveMembers) {
