@@ -111,7 +111,7 @@ function relayCandidates(model,economy) {
   const type=world.get(id,'Building').type,index=world.get(id,'GridSlot').index;
   if(world.get(model.tiles[index],'Watched').active)return false;
   if(!economy.PROTOTYPE_RECIPES[type]&&
-     !['laboratory','cryopump','perception_amplifier'].includes(type))return false;
+     !['laboratory','cryopump','perception_amplifier','maintenance'].includes(type))return false;
   return watched.some(other=>Math.abs(index%5-other%5)+
    Math.abs(Math.floor(index/5)-Math.floor(other/5))===1);
  }).sort((a,b)=>world.get(a,'GridSlot').index-world.get(b,'GridSlot').index);
@@ -264,8 +264,13 @@ function clearWave(model,number,baseHp) {
    world.set(evolved,'Evolved',{stacks});
   }
  }
- const healed=owns(model,'recovery')&&startingHp!==undefined&&baseHp<startingHp&&baseHp>0?
+ // The old recovery refunds a damaged wave; pristine repair rewards the
+ // opposite outcome. A restored HP total never erases the waveDamaged flag.
+ const recovery=owns(model,'recovery')&&startingHp!==undefined&&baseHp<startingHp&&baseHp>0?
   Math.min(RECOVERY_HP,100-baseHp):0;
+ const pristineRepair=owns(model,'pristine_repair')&&pristine&&baseHp>0?
+  Math.min(RECOVERY_HP,100-baseHp-recovery):0;
+ const healed=recovery+pristineRepair;
  return evolved===null ? {hp:baseHp+healed,healed} : {hp:baseHp+healed,healed,evolved};
 }
 function laser(model,dt,perceptionRadius=LASER_RADIUS) {

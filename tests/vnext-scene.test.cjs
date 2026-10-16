@@ -23,6 +23,7 @@ const artifactEffects = require('../src/core/VNextArtifactEffects.js');
 const zones = require('../src/core/VNextZones.js');
 const threats = require('../src/core/VNextThreats.js');
 const cooling = require('../src/core/VNextCooling.js');
+const maintenance = require('../src/core/VNextMaintenance.js');
 const saves = require('../src/core/VNextSave.js');
 const visionUpgrades = require('../src/core/VNextVision.js');
 const savedEntries = new Map();
@@ -72,7 +73,7 @@ class Display {
     strokeEllipse(x, y, width, height) { this.drawCalls.push({type:'strokeEllipse',x,y,width,height,color:this.lineColor}); return this; }
     strokeRect() { return this; }
     strokePoints(points) { this.drawCalls.push({ type: 'strokePoints', points, color: this.lineColor }); return this; }
-    fillRect() { return this; }
+    fillRect(x,y,width,height) { this.drawCalls.push({type:'fillRect',x,y,width,height}); return this; }
     strokeTriangle() { return this; }
     fillTriangle() { return this; }
     clear() { this.drawCalls = []; return this; }
@@ -107,7 +108,7 @@ const VNextScene = vm.runInNewContext(tooltipSource + '\n' + boardSource + '\n' 
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextMemoryShards: shards, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextArtifactEffects: artifactEffects, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextCooling: cooling, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
+    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextMemoryShards: shards, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextArtifactEffects: artifactEffects, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextCooling: cooling, OverseerVNextMaintenance: maintenance, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
     localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
@@ -2569,4 +2570,91 @@ test('core sine-wave animation freezes in pause and resumes without an extra tim
     assert.equal(saved.waveClock.elapsedMs,scene.waveClock.elapsedMs,
         'the renderer reads the already persisted simulation clock');
     savedEntries.clear();
+});
+
+test('Intégrité préservée restores the core on real wave clear, plays healing effect and persists',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ assert.equal(artifacts.add(scene.model,'pristine_repair'),true);
+ scene.baseHp=91;scene.waveClock.number=1;
+ scene.triggerWave(waves.wave(1,scene.waveClock.seed));
+ const members=scene.waveMembers.get(1);
+ members.forEach(id=>{scene.world.get(id,'Health').hp=0;});
+ scene.checkWaveClears();
+ assert.equal(scene.baseHp,96);
+ assert.ok(scene.actionEffects.visuals().some(v=>v.kind==='heal'));
+ scene.checkWaveClears();
+ assert.equal(scene.waveMembers.has(1),false,'cleared waves are removed once');
+ assert.equal(scene.baseHp,96,'wave completion is not paid twice');
+ const snapshot=saves.restore(saves.capture(scene),World);
+ assert.equal(snapshot.baseHp,96);
+ assert.ok(artifacts.list(snapshot.model).includes('pristine_repair'));
+ savedEntries.clear();
+});
+
+test('Centre de maintenance becomes a reward card and describes its limited repair',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ assert.ok(cards.REWARD_CARDS.includes('maintenance'));
+ assert.ok(!cards.STARTER_CARDS.includes('maintenance'));
+ scene.waveClock.number=1;
+ scene.activeReward={number:1,options:['maintenance','reactor','factory']};
+ scene.buildUi();
+ const card=scene.ui.find(o=>o.getData?.('reward')==='maintenance');
+ assert.ok(card,'maintenance card offered in building reward');
+ card.handlers.pointerover();
+ assert.ok(scene.tooltipObjects.some(o=>o.value==='RÉPARE : +2 PV / 30 S D’ACTIVATION'));
+ card.handlers.pointerout();
+ assert.equal(scene.chooseReward('maintenance'),true);
+ assert.ok(cards.cards(scene.model).includes('maintenance'));
+ scene.selectedType='maintenance';
+ scene.clickTile(6);
+ assert.ok(preview.buildingAt(scene.model,6)!==null);
+ savedEntries.clear();
+});
+test('maintenance heals exactly two HP at cycle end with a visible effect and resumable progress',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ const building=preview.placeBuilding(scene.model,'maintenance',6);
+ preview.setObserved(scene.model,[6]);
+ scene.baseHp=87;
+ maintenance.ensure(scene.model);
+ scene.world.get(building,'MaintenanceCycle').elapsedMs=29500;
+ scene.paintBoard();
+ assert.ok(scene.boardGraphics.drawCalls.some(o=>o.type==='fillRect'),
+  'progress bar uses the ECS timer');
+ scene.update(0,60);
+ assert.equal(scene.baseHp,87);
+ assert.equal(scene.world.get(building,'MaintenanceCycle').elapsedMs,29560);
+ scene.selectSpeed(0);scene.update(0,3000);
+ assert.equal(scene.world.get(building,'MaintenanceCycle').elapsedMs,29560);
+ scene.selectSpeed(1);
+ for(let i=0;i<7;i++)scene.update(0,60);
+ scene.update(0,20);
+ assert.equal(scene.baseHp,89,'two actual HP after thirty seconds of observed progress');
+ assert.ok(scene.actionEffects.visuals().some(v=>v.kind==='heal'));
+ assert.equal(scene.world.get(building,'MaintenanceCycle').elapsedMs,0);
+ scene.world.get(building,'MaintenanceCycle').elapsedMs=17200;
+ assert.equal(scene.saveCurrentGame(),true);
+ const resumed=new VNextScene();resumed.init({resume:true});resumed.create();
+ assert.equal(resumed.world.get(building,'MaintenanceCycle').elapsedMs,17200);
+ assert.equal(resumed.baseHp,89);
+ savedEntries.clear();
+});
+test('maintenance will not store healing at full HP and stops after attention moves away',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ const id=preview.placeBuilding(scene.model,'maintenance',6);
+ maintenance.ensure(scene.model);
+ preview.setObserved(scene.model,[6]);scene.baseHp=99;
+ scene.world.get(id,'MaintenanceCycle').elapsedMs=29980;
+ scene.update(0,60);
+ assert.equal(scene.baseHp,100,'heal capped to missing HP');
+ assert.equal(scene.world.get(id,'MaintenanceCycle').elapsedMs,0);
+ scene.update(0,60);
+ assert.equal(scene.world.get(id,'MaintenanceCycle').elapsedMs,0);
+ scene.baseHp=93;preview.setObserved(scene.model,[]);
+ scene.update(0,60);
+ assert.equal(scene.world.get(id,'MaintenanceCycle').elapsedMs,0,'out of vision stays idle');
+ savedEntries.clear();
 });

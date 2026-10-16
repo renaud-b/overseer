@@ -18,6 +18,7 @@
             this.text(x + 53, y + 38, typeId === 'laboratory' ? 'RECHERCHE : 30 S / TECHNO' :
                 typeId === 'cryopump' ? 'REFROIDIT LES VOISINS' :
                 typeId === 'perception_amplifier' ? 'VISION PULSANTE' :
+                typeId === 'maintenance' ? 'RÉPARATION : +2 PV / 30 S' :
                 recipe ? 'PRODUCTION EXPÉRIMENTALE' : 'À IMPLÉMENTER', 10, '#7393a8');
             const hit = this.keep(this.add.zone(x + cw / 2, y + 32, cw, 65).setInteractive({ useHandCursor: true }));
             hit.setData('palette', typeId);
@@ -130,6 +131,10 @@
             g.lineBetween(x + r * 0.65, y, x + r, y);
         } else if (type === 'laboratory') {
             g.strokePoints([{ x, y: y - r }, { x: x + r, y }, { x, y: y + r }, { x: x - r, y }], true);
+        } else if (type === 'maintenance') {
+            g.strokeCircle(x,y,r*0.78);
+            g.lineBetween(x-r*0.4,y,x+r*0.4,y);
+            g.lineBetween(x,y-r*0.4,x,y+r*0.4);
         } else {
             g.strokeRect(x - r * 0.7, y - r * 0.7, r * 1.4, r * 1.4);
         }
@@ -207,8 +212,11 @@
             this.drawGlyph(g, type, p.x, p.y, active ? style.color : 0x5b7687, cell * 0.18);
             if(OverseerVNextCooling.bonus(this.model,id)>0)
                 g.lineStyle(1,0x87b9e8,0.65).strokeCircle(p.x,p.y,cell*0.34);
-            const progress = this.world.get(id, 'Production') || (type === 'laboratory' ? this.world.get(id, 'Research') : null);
-            const progressDuration = type === 'laboratory' ? OverseerVNextTechnologies.RESEARCH_MS : progress?.cooldownMs;
+            const progress = this.world.get(id, 'Production') ||
+                (type === 'laboratory' ? this.world.get(id, 'Research') :
+                 type === 'maintenance' ? this.world.get(id,'MaintenanceCycle') : null);
+            const progressDuration = type === 'laboratory' ? OverseerVNextTechnologies.RESEARCH_MS :
+                type === 'maintenance' ? OverseerVNextMaintenance.CYCLE_MS : progress?.cooldownMs;
             if ((active || relayed) && progress && progressDuration > 0) {
                 // Small progress indicator, driven by ECS state, not a Phaser timer.
                 const px = p.x - cell * 0.25, py = p.y + cell * 0.36, pw = cell * 0.5;
