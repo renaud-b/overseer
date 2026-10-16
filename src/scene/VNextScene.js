@@ -24,6 +24,11 @@ class VNextScene extends Phaser.Scene {
 
     finishRun() {
         if (this.runFinished) return;
+        if (this.model) {
+            OverseerVNextWaveTelemetry.casualties(this.model, this.battleUnits || []);
+            OverseerVNextWaveTelemetry.endActive(this.model, this.waveClock.elapsedMs,
+                this.baseHp, this.visionRules.level);
+        }
         this.runFinished = true;
         OverseerVNextSave.clear(this.saveStorage()); // Never touch persistent talents.
         this.buildUi();
@@ -99,6 +104,7 @@ class VNextScene extends Phaser.Scene {
         this.hoveredTile = null;
         this.tooltipObjects = [];
         this.artifactTooltipObjects = [];
+        this.technologyTooltipObjects = [];
         this.waveTooltipObjects = [];
         this.waveClock = restored?.waveClock ??
             { number: 0, elapsedMs: 0, seed: Math.floor(Math.random() * 0x100000000) };
@@ -107,6 +113,8 @@ class VNextScene extends Phaser.Scene {
         this.rewardQueue = restored?.rewardQueue ?? [];
         this.activeReward = restored?.activeReward ?? null;
         this.rewardSerial = 0;
+        // ECS-owned metrics are saved with the World. Previous saves can omit them.
+        OverseerVNextWaveTelemetry.initialize(this.model);
 
         OverseerVNextArtifacts.collection(this.model); // Optional in pre-artifact saves.
         if (restored) {
@@ -134,6 +142,7 @@ class VNextScene extends Phaser.Scene {
             this.actionEffects.clear();
             this.battleMask?.destroy();
             this.battleMask = null;
+            this.hideTechnologyTooltip();
             this.scale.off('resize', this.buildUi, this);
             if (typeof window !== 'undefined') window.removeEventListener?.('pagehide', this.onPageHide);
             this.input.keyboard.off('keydown', this.onKey, this);
@@ -161,6 +170,7 @@ class VNextScene extends Phaser.Scene {
         if (!this.model) return;
         if (this.dragGhost) { this.dragGhost.destroy(); this.dragGhost = null; }
         this.hideBuildingTooltip();
+        this.hideTechnologyTooltip();
         this.hideResourceTooltip();
         this.hideWaveTooltip();
         this.hideArtifactTooltip();
@@ -474,6 +484,99 @@ class VNextScene extends Phaser.Scene {
         this.hoveredTile = null;
     }
 
+    hideTechnologyTooltip() {
+        for (const object of this.technologyTooltipObjects || []) object.destroy();
+        this.technologyTooltipObjects = [];
+    }
+
+    showTechnologyTooltip(type, anchorX, anchorY, depth = 220) {
+        this.hideTechnologyTooltip();
+        // Keep displayed numbers in sync with the simulation, not HUD estimates.
+        const { HEAL, BERSERK, STASIS, OVERCLOCK, OVERLOAD, EMP, REINFORCEMENTS } = OverseerVNextZones;
+        const descriptions = {
+            healing_field: {
+                title: 'RÉGÉNÉRATION', color: 0x69d9a0,
+                lines: [
+                    'Soigne les alliés dans une zone',
+                    `Rayon : ${HEAL.radius}`,
+                    `+${HEAL.amount} PV toutes les ${HEAL.intervalMs / 1000} s`,
+                    `Durée : ${HEAL.durationMs / 1000} s`
+                ]
+            },
+            berserk: {
+                title: 'BERSERK', color: 0xf4a261,
+                lines: [
+                    `Jusqu'à ${BERSERK.targets} alliés aléatoires`,
+                    `Cadence d'attaque : +${Math.round((BERSERK.attackMultiplier - 1) * 100)} %`,
+                    `Durée : ${BERSERK.durationMs / 1000} s`,
+                    'Sans effet si aucun allié vivant'
+                ]
+            },
+            stasis_field: {
+                title: 'STASE', color: 0x87b9e8,
+                lines: [
+                    'Ralentit les ennemis dans la zone',
+                    `Rayon : ${STASIS.radius}`,
+                    `Vitesse : -${Math.round((1 - STASIS.speedMultiplier) * 100)} %`,
+                    `Durée : ${STASIS.durationMs / 1000} s`
+                ]
+            },
+            overclock: {
+                title: 'SURCADENCEMENT', color: 0x62e7e1,
+                lines: [
+                    'Accélère tous les alliés',
+                    `Déplacement : +${Math.round((OVERCLOCK.speedMultiplier - 1) * 100)} %`,
+                    `Durée : ${OVERCLOCK.durationMs / 1000} s`,
+                    'Sans bonus de cadence de tir'
+                ]
+            },
+            overload: {
+                title: 'SURCHARGE', color: 0xf5b94f,
+                lines: [
+                    'Bâtiments sous vision uniquement',
+                    `Production : ×${OVERLOAD.productionMultiplier}`,
+                    `Durée : ${OVERLOAD.durationMs / 1000} s`,
+                    'Laboratoire exclu'
+                ]
+            },
+            emp_field: {
+                title: 'IMPULSION ÉLECTROMAGNÉTIQUE', color: 0xb5a7ff,
+                lines: [
+                    'Immobilise les ennemis dans la zone',
+                    `Rayon : ${EMP.radius}`,
+                    `Durée : ${EMP.durationMs / 1000} s`,
+                    'Les ennemis peuvent toujours attaquer'
+                ]
+            },
+            reinforcements: {
+                title: 'RENFORTS', color: 0x44dc91,
+                lines: [
+                    'Invoque 1 soldat allié sur la zone',
+                    `Durée : ${REINFORCEMENTS.durationMs / 1000} s`,
+                    'Sans coût en ressources',
+                    'Sans occuper une place de Caserne'
+                ]
+            }
+        };
+        const info = descriptions[type];
+        if (!info) return;
+        const width = 290, height = 176;
+        const x = Math.max(8, Math.min(this.scale.width - width - 8, anchorX));
+        const y = Math.max(72, Math.min(this.scale.height - height - 8, anchorY));
+        const keep = object => { this.technologyTooltipObjects.push(object); return object; };
+        const g = keep(this.add.graphics().setDepth(depth));
+        g.fillStyle(0x0b1d2b, 0.98).fillRoundedRect(x, y, width, height, 6);
+        g.lineStyle(1, info.color, 0.8).strokeRoundedRect(x, y, width, height, 6);
+        const label = (tx, ty, value, size, color) =>
+            keep(this.add.text(tx, ty, value, {
+                fontFamily: 'monospace', fontSize: `${size}px`, color
+            }).setDepth(depth + 1));
+        label(x + 14, y + 13, info.title, 15, '#e3f0f5');
+        info.lines.forEach((line, i) => label(x + 14, y + 44 + i * 23, line, 11, '#bed4df'));
+        label(x + 14, y + 149, depth > 300 ?
+            'CHOISIR POUR AJOUTER À L’INVENTAIRE' :
+            (type === 'overload' ? 'GLISSER SUR LA BASE' : 'GLISSER SUR LE CHAMP DE BATAILLE'), 9, '#819eaf');
+    }
     showBuildingTooltip(index) {
         this.hideBuildingTooltip();
         const id = OverseerVNextPreview.buildingAt(this.model, index);
@@ -565,6 +668,10 @@ class VNextScene extends Phaser.Scene {
         const g = this.boardGraphics;
         g.clear();
         const { x, y, size, cell } = this.gridLayout;
+        if(OverseerVNextZones.active(this.model,'overload')) {
+            const title=this.boardHint;
+            if(title)title.setColor('#f5b94f');
+        } else if(this.boardHint)this.boardHint.setColor('#8eaaba');
         g.lineStyle(1, 0x214052, 0.32);
         for (let i = 0; i <= 5; i++) {
             g.lineBetween(x + cell * i, y, x + cell * i, y + size);
@@ -658,6 +765,7 @@ class VNextScene extends Phaser.Scene {
 
     onDragStart(pointer, object) {
         if (this.activeReward) return;
+        this.hideTechnologyTooltip();
         const technology=object.getData('technology');
         if(OverseerVNextTechnologies.TYPES.includes(technology)){this.techDrag=technology;this.dragGhost=this.add.graphics();this.dragGhost.lineStyle(2,0x69d9a0,1).strokeCircle(0,0,16);this.dragGhost.setPosition(pointer.x,pointer.y).setDepth(300);return;}
         const type = object.getData('palette');
@@ -680,8 +788,9 @@ class VNextScene extends Phaser.Scene {
             return;
         }
         if(OverseerVNextTechnologies.TYPES.includes(object.getData('technology'))) {
-            const target=this.technologyTarget(pointer.x,pointer.y);
-            if(target && OverseerVNextTechnologies.consume(this.model,object.getData('technology'))) {
+            const technology=object.getData('technology');
+            const target=technology==='overload' ? this.baseTechnologyTarget(pointer.x,pointer.y) : this.technologyTarget(pointer.x,pointer.y);
+            if(target && OverseerVNextTechnologies.consume(this.model,technology)) {
                 this.castTechnology(object.getData('technology'),target);
                 this.saveCurrentGame();
             }
@@ -808,6 +917,12 @@ class VNextScene extends Phaser.Scene {
     }
 
     castTechnology(type,target) {
+        if(type==='reinforcements') {
+            const config=this.cache.json.get('vnextLegacyStats')?.units?.find(unit=>unit.id==='unit_guard');
+            const summoned=OverseerVNextZones.cast(this.model,type,target,{unitConfig:config});
+            if(summoned!==null)this.battleUnits.push(summoned);
+            return summoned;
+        }
         return OverseerVNextZones.cast(this.model,type,target);
     }
 
@@ -865,14 +980,17 @@ class VNextScene extends Phaser.Scene {
         const items=OverseerVNextTechnologies.inventory(this.model).items;
         if(!right && l.leftW<165)return;
         this.text(x,y,'TECHNOLOGIES',12,'#b58aff');
-        const styles=[['healing_field','✚ SOIN',0x69d9a0],['berserk','⚡ BERSERK',0xf4a261],['stasis_field','◌ STASE',0x87b9e8]];
+        const styles=[['healing_field','✚ SOIN',0x69d9a0],['berserk','⚡ BERSERK',0xf4a261],['stasis_field','◌ STASE',0x87b9e8],['overclock','» SURCAD.',0x62e7e1],['overload','↑ SURCHARGE',0xf5b94f],['emp_field','◇ EMP',0xb5a7ff],['reinforcements','+ RENFORTS',0x44dc91]];
         let row=0;
         for(const [type,name,color] of styles){
             const count=items.filter(item=>item===type).length;
             if(!count)continue;
             const label=this.text(x+3,y+28+row*32,`${name} ×${count}`,11,`#${color.toString(16).padStart(6,'0')}`);
             label.setPadding(3,5,3,5).setInteractive({useHandCursor:true});
-            label.setData('technology',type);this.input.setDraggable(label);row++;
+            label.setData('technology',type);
+            label.on('pointerover', () => this.showTechnologyTooltip(type, right ? l.rightX - 298 : x + 110, label.y - 8));
+            label.on('pointerout', () => this.hideTechnologyTooltip());
+            this.input.setDraggable(label);row++;
         }
         if(!row)this.text(x,y+28,'Aucune disponible',10,'#7898aa');
     }
@@ -882,6 +1000,12 @@ class VNextScene extends Phaser.Scene {
         const b=this.battleBounds;
         if(!b || x<b.x || y<b.y || x>b.x+b.w || y>b.y+b.h)return null;
         return {x:(x-b.x)*1000/b.w,y:(y-b.y)*600/b.h};
+    }
+
+    baseTechnologyTarget(x,y) {
+        const l=this.layout;
+        if(!l || x<l.boardX || x>l.boardX+l.boardW || y<l.mainTop || y>l.mainBottom)return null;
+        return {x:500,y:300}; // Global base effect; no positional simulation target.
     }
 
     resourceActivity(source) {
@@ -952,21 +1076,30 @@ class VNextScene extends Phaser.Scene {
         this.hideWaveTooltip();
         const wave = this.previewWaves[index];
         if (!wave) return;
-        const width = 214, height = 105;
+        const groups = wave.enemies.filter(group => group.count > 0);
+        const threat = OverseerVNextWaves.danger(wave);
+        const elite = OverseerVNextWaves.elite(wave.number);
+        const width = 242, height = (elite ? 116 : 104) + groups.length * 20;
         const tx = Math.max(8, Math.min(this.scale.width - width - 8, x - width / 2));
         const ty = Math.max(72, y - height - 15);
         const g = this.add.graphics().setDepth(230);
         g.fillStyle(0x0b1d2b, 0.98).fillRoundedRect(tx, ty, width, height, 6);
-        g.lineStyle(1, 0xff6674, 0.7).strokeRoundedRect(tx, ty, width, height, 6);
-        g.lineStyle(2, 0xff6674).strokeCircle(tx + 23, ty + 57, 8);
+        g.lineStyle(1, elite ? 0xf4ba58 : 0xff6674, 0.7).strokeRoundedRect(tx, ty, width, height, 6);
         this.waveTooltipObjects.push(g);
         const text = (dx, dy, str, size = 12, color = '#dfeaf0') =>
             this.waveTooltipObjects.push(this.add.text(tx + dx, ty + dy, str, {
                 fontFamily: 'monospace', fontSize: `${size}px`, color
             }).setDepth(231));
-        text(13, 12, `VAGUE ${wave.number}`, 15);
-        text(42, 49, `×${wave.enemies[0].count} · Ennemi de base`, 11, '#e9b6bf');
-        text(13, 80, 'Composition prévisionnelle', 10, '#819eaf');
+        text(13, 12, `VAGUE ${wave.number}${elite ? ' · ÉLITE' : ''}`, 15,
+            elite ? '#f4ba58' : '#dfeaf0');
+        text(13, 38, `MENACE ESTIMÉE  ${'●'.repeat(threat.level)}`, 11,
+            elite ? '#f4ba58' : '#e9b6bf');
+        if(elite) text(13, 57, 'RÉCOMPENSE : BÂTIMENT + TECHNO', 10, '#f4ba58');
+        text(13, elite ? 78 : 66, 'COMPOSITION PRÉVISIONNELLE', 10, '#819eaf');
+        groups.forEach((group, i) => {
+            text(13, (elite ? 96 : 84) + i * 20,
+                `×${group.count} · ${OverseerBattleUnitStyles.enemyLabel(group.type)}`, 11, '#e9b6bf');
+        });
     }
 
     updateWaveTimeline() {
@@ -1004,6 +1137,8 @@ class VNextScene extends Phaser.Scene {
         for (const group of wave.enemies) {
             for (let i = 0; i < group.count; i++) this.spawnEnemyUnit(group.type, i, group.count, wave.number);
         }
+        OverseerVNextWaveTelemetry.begin(this.model, wave, this.waveClock.elapsedMs,
+            this.baseHp, this.visionRules.level, this.waveMembers.get(wave.number).length);
         // Preview markers slide forward; the wave plan itself remains deterministic.
         this.previewWaves = OverseerVNextWaves.preview(8, this.waveClock.seed, this.waveClock.number);
         this.buildUi();
@@ -1044,11 +1179,19 @@ class VNextScene extends Phaser.Scene {
         }
     }
 
+    // Debug console: console.table(game.scene.getScene('VNextScene').waveReport())
+    waveReport() {
+        return OverseerVNextWaveTelemetry.report(this.model);
+    }
+
     checkWaveClears() {
+        OverseerVNextWaveTelemetry.casualties(this.model, this.battleUnits);
         let changed = false;
         for (const [number, members] of this.waveMembers) {
             if (!members.length) continue;
             if (!members.every(id => !this.world.has(id) || this.world.get(id, 'Health').hp <= 0)) continue;
+            OverseerVNextWaveTelemetry.end(this.model, number, this.waveClock.elapsedMs,
+                this.baseHp, this.visionRules.level);
             this.waveMembers.delete(number);
             this.rewardQueue.push(this.rewardForWave(number));
             changed = true;
@@ -1132,7 +1275,11 @@ class VNextScene extends Phaser.Scene {
             const techStyles={
                 'tech:healing_field':{color:0x69d9a0,label:'Régénération'},
                 'tech:berserk':{color:0xf4a261,label:'Berserk'},
-                'tech:stasis_field':{color:0x87b9e8,label:'Stase'}
+                'tech:stasis_field':{color:0x87b9e8,label:'Stase'},
+                'tech:overclock':{color:0x62e7e1,label:'Surcadencement'},
+                'tech:overload':{color:0xf5b94f,label:'Surcharge'},
+                'tech:emp_field':{color:0xb5a7ff,label:'Impulsion EMP'},
+                'tech:reinforcements':{color:0x44dc91,label:'Renforts'}
             };
             const artifact = type.startsWith('artifact:') ? OverseerVNextArtifacts.get(type.slice(9)) : null;
             const building = artifact || techStyles[type] || OverseerVNextBuildings.getBuilding(type);
@@ -1156,13 +1303,20 @@ class VNextScene extends Phaser.Scene {
                     this.showArtifactTooltip(artifact.id, cx + cardW / 2, cy - 130, 310);
                     return;
                 }
-                if (type.startsWith('tech:')) return;
+                if (type.startsWith('tech:')) {
+                    this.showTechnologyTooltip(type.slice(5), cx + cardW / 2 - 145, cy - 185, 310);
+                    return;
+                }
                 this.showCardTooltip(type, cx + cardW / 2, cy - 205);
                 // Reward selection overlay is above the game HUD (depth 300).
                 // Reuse the same building popup, but draw it over the overlay.
                 this.tooltipObjects.forEach(object => object.setDepth(310));
             });
-            zone.on('pointerout', () => { this.hideBuildingTooltip(); this.hideArtifactTooltip(); });
+            zone.on('pointerout', () => {
+                this.hideBuildingTooltip();
+                this.hideTechnologyTooltip();
+                this.hideArtifactTooltip();
+            });
             zone.on('pointerdown', () => this.chooseReward(type));
         });
     }
@@ -1179,8 +1333,13 @@ class VNextScene extends Phaser.Scene {
             marker.zone.setPosition(visible?x:-100,visible?y:-100);
             marker.label.setPosition(visible?x-4:-100,visible?y-16:-100);
             if(visible){
-                g.fillStyle(0xff6674,0.94).fillCircle(x,y,5);
-                g.lineStyle(1,0xff6674,0.55).strokeCircle(x,y,9);
+                const count=OverseerVNextWaves.danger(wave).level;
+                const special=OverseerVNextWaves.elite(wave.number);
+                const color=special?0xf4ba58:0xff6674;
+                g.fillStyle(color,0.94);
+                for(let n=0;n<count;n++)g.fillCircle(x+(n-(count-1)/2)*7,y,3);
+                if(special)g.lineStyle(1.2,color,0.65)
+                    .strokeCircle(x,y,19);
             }
         });
     }
@@ -1195,7 +1354,7 @@ class VNextScene extends Phaser.Scene {
         this.waveGraphics = this.keep(this.add.graphics());
         this.waveMarkers = this.previewWaves.map((wave, i) => {
             const label = this.text(-100, -100, String(wave.number), 10, '#e9b6bf');
-            const zone = this.keep(this.add.zone(-100, -100, 25, 35).setInteractive({ useHandCursor: true }));
+            const zone = this.keep(this.add.zone(-100, -100, 44, 36).setInteractive({ useHandCursor: true }));
             zone.setData('wave', i);
             zone.on('pointerover', () => this.showWaveTooltip(i, zone.x, y));
             zone.on('pointerout', () => this.hideWaveTooltip());
@@ -1299,10 +1458,12 @@ class VNextScene extends Phaser.Scene {
         for(const id of this.world.query('TechnologyZone')) {
             const zone=this.world.get(id,'TechnologyZone'),p=toScreen(zone.x,zone.y);
             const r=zone.radius*b.w/1000;
-            const stasis=zone.type==='stasis_field',color=stasis?0x87b9e8:0x69d9a0;
+            const stasis=zone.type==='stasis_field',emp=zone.type==='emp_field';
+            const color=emp?0xb5a7ff:stasis?0x87b9e8:0x69d9a0;
             g.fillStyle(color,0.09).fillCircle(p.x,p.y,r);
             g.lineStyle(1.5,color,0.75).strokeCircle(p.x,p.y,r);
-            if(stasis)continue;
+            if(emp){g.lineStyle(1,color,0.45).strokeCircle(p.x,p.y,r*0.72);}
+            if(stasis||emp)continue;
             // Decorative plus particles are renderer-only, independent of healing ticks.
             if(dt>0 && this.zoneParticles.length<36) {
                 const angle=Math.random()*Math.PI*2,rad=Math.sqrt(Math.random())*r;
@@ -1360,8 +1521,14 @@ class VNextScene extends Phaser.Scene {
             const style = this.battleUnitStyle(id);
             const color = OverseerHitEffects.tintColor(style.color, visual.flash);
             const berserk=this.world.get(id,'TechnologyBuff')?.type==='berserk';
+            if(side==='player' && OverseerVNextZones.active(this.model,'overclock')) {
+                g.lineStyle(1,0x62e7e1,0.65).strokeCircle(q.x,q.y,r*1.45);
+            }
             if(berserk){g.lineStyle(1,0xf4a261,0.8).strokeCircle(q.x,q.y,r*1.5);}
-            this.drawBattleUnit(g, style, q.x, q.y,berserk?r*1.16:r, color);
+            this.drawBattleUnit(g, style, q.x, q.y, (berserk ? r * 1.16 : r) * (style.size || 1), color);
+            if(this.world.hasComponent(id,'TemporaryAlly')) {
+                g.lineStyle(1,0x44dc91,0.7).strokeCircle(q.x,q.y,r*1.65);
+            }
             if (side === 'enemy' && this.world.get(id, 'ThreatMark')) {
                 g.lineStyle(1.5, 0xff6674, 0.92).strokeRect(
                     q.x - r - 4, q.y - r - 4, (r + 4) * 2, (r + 4) * 2);
@@ -1466,10 +1633,15 @@ class VNextScene extends Phaser.Scene {
                 base: side === 'enemy' && this.baseHp > 0 ? { x: 65, y: 300 } : null,
                 patrol: side === 'player' ? posts.get(id) : null,
                 allies: side === 'player' ? players : [],
-                centralDetection: side === 'player'
+                centralDetection: side === 'player',
+                allySpeedMultiplier: OverseerVNextZones.speedMultiplier(this.model)
             });
             for (const event of events) {
-                if (event.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - event.damage);
+                if (event.type === 'base-attack') {
+                    const applied = Math.min(this.baseHp, event.damage);
+                    this.baseHp = Math.max(0, this.baseHp - event.damage);
+                    OverseerVNextWaveTelemetry.baseHit(this.model, event.attacker, applied);
+                }
                 if (event.type === 'attack' && this.world.has(event.attacker) && this.world.has(event.target)) {
                     // Snapshot directions at impact time; simulation positions never receive recoil.
                     const attackerPosition = this.world.get(event.attacker, 'Position');
@@ -1494,7 +1666,11 @@ class VNextScene extends Phaser.Scene {
         // Wall-clock duration makes impacts readable at x1/x3/x5. Pause freezes them.
         this.hitEffects.update(Math.min(60, Math.max(0, delta)));
         this.actionEffects.update(Math.min(60, Math.max(0, delta)));
-        OverseerVNextZones.stepBuffs(this.model,dt);
+        const expiredSummons=OverseerVNextZones.stepBuffs(this.model,dt);
+        if(expiredSummons.length) {
+            const removed=new Set(expiredSummons);
+            this.battleUnits=this.battleUnits.filter(id=>!removed.has(id));
+        }
         // Rewards must be computed before reclaiming dead ECS entities.
         this.checkWaveClears();
         this.cleanupDeadUnits();

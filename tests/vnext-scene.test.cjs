@@ -14,6 +14,7 @@ const battleStyles = require('../src/scene/effects/BattleUnitStyles.js');
 const battleActions = require('../src/scene/effects/BattleActionEffects.js');
 const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
+const telemetry = require('../src/core/VNextWaveTelemetry.js');
 const technologies = require('../src/core/VNextTechnologies.js');
 const rewards = require('../src/core/VNextRewards.js');
 const artifacts = require('../src/core/VNextArtifacts.js');
@@ -94,7 +95,7 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
+    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
     localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
@@ -601,6 +602,142 @@ test('wave timeline exposes stable composition details on marker hover', () => {
     scene.scale.width = 800;
     scene.buildUi();
     assert.equal(scene.waveTooltipObjects.length, 0);
+});
+
+test('wave telemetry integrates with ECS spawns, death, actual base damage and rewards', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    scene.create();
+    scene.waveClock.number = 1;
+    scene.waveClock.elapsedMs = 80000;
+    const wave = waves.wave(1, scene.waveClock.seed);
+    scene.triggerWave(wave);
+    const ids = [...scene.waveMembers.get(1)];
+    assert.equal(scene.waveReport()[0].spawned, ids.length);
+    assert.equal(scene.waveReport()[0].alliesStart, 3);
+    scene.world.get(ids[0], 'Health').hp = 0;
+    scene.world.get(scene.battleUnits.find(id => scene.world.get(id, 'Faction').side === 'player'), 'Health').hp = 0;
+    telemetry.baseHit(scene.model, ids[1], 7);
+    scene.baseHp -= 7;
+    scene.checkWaveClears();
+    assert.deepEqual(scene.waveReport().map(row => [row.killed, row.allyDeathsDuring, row.coreDamage]), [[1, 1, 7]]);
+    scene.checkWaveClears(); // Count dead units only once, even before reclamation.
+    assert.equal(scene.waveReport()[0].killed, 1);
+    ids.forEach(id => { scene.world.get(id, 'Health').hp = 0; });
+    scene.waveClock.elapsedMs += 12000;
+    scene.checkWaveClears();
+    const record = scene.waveReport()[0];
+    assert.equal(record.status, 'cleared');
+    assert.equal(record.killed, ids.length);
+    assert.equal(record.durationSeconds, 12);
+    assert.equal(record.coreHpEnd, 93);
+    assert.equal(scene.activeReward.number, 1, 'existing reward flow is unchanged');
+    const snapshot = saves.capture(scene);
+    const restored = saves.restore(snapshot, World);
+    assert.deepEqual(telemetry.report(restored.model), scene.waveReport());
+    savedEntries.clear();
+});
+
+test('wave telemetry tolerates multiple concurrent waves and resumed legacy runs', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    scene.create();
+    for (const n of [1, 2]) {
+        scene.waveClock.number = n;
+        scene.waveClock.elapsedMs = n * 90000;
+        scene.triggerWave(waves.wave(n, scene.waveClock.seed));
+    }
+    const first = scene.waveMembers.get(1)[0];
+    const second = scene.waveMembers.get(2)[0];
+    scene.world.get(first, 'Health').hp = 0;
+    scene.world.get(second, 'Health').hp = 0;
+    const ally = scene.battleUnits.find(id => scene.world.get(id, 'Faction').side === 'player');
+    scene.world.get(ally, 'Health').hp = 0;
+    scene.checkWaveClears();
+    assert.deepEqual(scene.waveReport().map(row => [row.killed, row.allyDeathsDuring]), [[1, 1], [1, 1]]);
+    assert.equal(scene.activeReward, null);
+    const saved = saves.capture(scene);
+    const entity = saved.world.entities.find(e => e.id === scene.model.game);
+    entity.components = entity.components.filter(([kind]) => kind !== 'WaveTelemetry');
+    savedEntries.set(saves.KEY, JSON.stringify(saved));
+    const resumed = new VNextScene();
+    resumed.init({ resume: true });
+    resumed.create();
+    assert.deepEqual(resumed.waveReport(), [], 'old saves can lack metrics');
+    assert.equal(resumed.waveMembers.size, 2, 'wave gameplay resumes regardless of metrics');
+    savedEntries.clear();
+});
+
+test('timeline tooltip and spawner already accept multi-type wave descriptors', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const wave = {
+        number: 1, dueAtMs: 90000,
+        enemies: [{ type: 'basic_monster', count: 2 },
+            { type: 'ranged_monster', count: 2 }, { type: 'base_rusher', count: 1 }]
+    };
+    scene.previewWaves[0] = wave;
+    scene.showWaveTooltip(0, 500, 710);
+    const labels = scene.waveTooltipObjects.filter(o => typeof o.value === 'string').map(o => o.value);
+    assert.ok(labels.some(s => s.includes('×2') && s.includes('Ennemi de base')));
+    assert.ok(labels.some(s => s.includes('×2') && s.includes('Tireur distant')));
+    assert.ok(labels.some(s => s.includes('×1') && s.includes('Percuteur')));
+    scene.waveClock.number = 1;
+    scene.waveClock.elapsedMs = 90000;
+    scene.triggerWave(wave);
+    assert.equal(scene.waveMembers.get(1).length, 5);
+    const types = scene.waveMembers.get(1).map(id => scene.world.get(id, 'PreviewUnit').type);
+    assert.deepEqual(Array.from(types).sort(), [
+        'basic_monster', 'basic_monster', 'ranged_monster', 'ranged_monster', 'base_rusher'
+    ].sort());
+    assert.equal(scene.waveReport()[0].spawned, 5);
+});
+
+test('wave markers show one to five threat dots, elite in amber, and honest tooltip', () => {
+    const scene=new VNextScene();
+    scene.create();
+    scene.waveClock.elapsedMs=0;
+    const seed=scene.waveClock.seed;
+    scene.previewWaves=[waves.wave(1,seed),waves.wave(4,seed),waves.wave(7,seed),waves.wave(10,seed)];
+    scene.waveClock.elapsedMs=waves.wave(1,seed).dueAtMs-20000;
+    const due=[20000,50000,110000,180000];
+    scene.previewWaves=scene.previewWaves.map((wave,i)=>({...wave,dueAtMs:scene.waveClock.elapsedMs+due[i]}));
+    scene.waveMarkers=scene.waveMarkers.slice(0,4);
+    scene.paintWaveTimeline();
+    const visibleDots=scene.waveGraphics.drawCalls.filter(c=>c.type==='fillCircle');
+    assert.equal(visibleDots.length,1+2+3+5);
+    assert.equal(scene.waveGraphics.drawCalls.filter(c=>c.type==='strokeCircle').length,1,
+        'only the elite wave gets a special outline');
+    assert.deepEqual(scene.previewWaves.map(w=>waves.danger(w).level),[1,2,3,5]);
+    scene.showWaveTooltip(3,500,650);
+    const labels=scene.waveTooltipObjects.filter(o=>typeof o.value==='string').map(o=>o.value);
+    assert.ok(labels.includes('VAGUE 10 · ÉLITE'));
+    assert.ok(labels.some(s=>s.includes('MENACE ESTIMÉE')));
+    assert.ok(labels.some(s=>s.includes('RÉCOMPENSE : BÂTIMENT + TECHNO')));
+    assert.ok(labels.some(s=>s.includes('Percuteur')));
+});
+
+test('clearing tenth-wave elite guarantees two reward choices in existing journey', () => {
+    savedEntries.clear();
+    const scene=new VNextScene();scene.create();
+    scene.waveClock.number=10;
+    scene.waveClock.elapsedMs=waves.wave(10,scene.waveClock.seed).dueAtMs;
+    const wave=waves.wave(10,scene.waveClock.seed);
+    scene.triggerWave(wave);
+    for(const id of scene.waveMembers.get(10))scene.world.get(id,'Health').hp=0;
+    scene.checkWaveClears();
+    assert.deepEqual(scene.activeReward.stages.map(stage=>stage.kind),['building','technology']);
+    const cardBefore=cards.cards(scene.model).length;
+    assert.equal(scene.chooseReward(scene.activeReward.options[0]),true);
+    assert.equal(cards.cards(scene.model).length,cardBefore+1);
+    assert.equal(scene.activeReward.index,1);
+    const saved=saves.capture(scene);
+    assert.equal(saves.restore(saved,World).activeReward.index,1);
+    const techBefore=technologies.inventory(scene.model).items.length;
+    assert.equal(scene.chooseReward(scene.activeReward.options[0]),true);
+    assert.equal(technologies.inventory(scene.model).items.length,techBefore+1);
+    assert.equal(scene.activeReward,null);
+    savedEntries.clear();
 });
 
 test('wave timer spawns enemies at simulation interval and pauses', () => {
@@ -1141,7 +1278,8 @@ test('observed laboratory displays live research progress and a technology after
 test('wave rewards mix one-shot technology and buildings, preserve save/restore',()=>{
  const scene=new VNextScene();scene.create();
  const choices=new Set();for(let n=1;n<=80;n++)for(const type of scene.rewardOptions(n))choices.add(type);
- assert.ok(scene.rewardOptions(1,'technology').includes('tech:healing_field'));
+ assert.equal(scene.rewardOptions(1,'technology').length,3);
+ assert.ok(scene.rewardOptions(1,'technology').every(type=>technologies.TYPES.includes(type.slice(5))));
   assert.ok(choices.has('reactor'));
  scene.waveClock.number=1;scene.activeReward={number:1,options:['reactor','factory','tech:healing_field']};
  assert.doesNotThrow(()=>saves.restore(saves.capture(scene),World));
@@ -1185,10 +1323,167 @@ test('reward journey routes building then technology without resuming between st
 });
 test('reward distribution approximates 40/40/20 deterministically',()=>{
  const rewardSystem=require('../src/core/VNextRewards.js'),count={building:0,technology:0,both:0};
- for(let n=1;n<=1000;n++){const mode=rewardSystem.mode(n,137);count[mode.length===2?'both':mode[0]]++;}
- assert.ok(Math.abs(count.building-400)<80);
- assert.ok(Math.abs(count.technology-400)<80);
- assert.ok(Math.abs(count.both-200)<70);
+ for(let n=1;n<=1000;n++){if(n%10===0)continue;const mode=rewardSystem.mode(n,137);count[mode.length===2?'both':mode[0]]++;}
+ assert.ok(Math.abs(count.building-360)<80);
+ assert.ok(Math.abs(count.technology-360)<80);
+ assert.ok(Math.abs(count.both-180)<70);
+ for(const seed of [0,13,137,981,4294967295]) {
+  assert.deepEqual(rewardSystem.mode(10,seed),['building','technology']);
+  assert.deepEqual(rewardSystem.mode(20,seed),['building','technology']);
+ }
+});
+
+
+test('technology inventory hover explains each effect and cleans up on drag and resize', () => {
+    const scene = new VNextScene();
+    scene.create();
+    technologies.inventory(scene.model).items.push('healing_field', 'berserk', 'stasis_field');
+    scene.buildUi();
+    for (const [type, expected] of [
+        ['healing_field', '+1 PV toutes les 2 s'],
+        ['berserk', "Cadence d'attaque : +50 %"],
+        ['stasis_field', 'Vitesse : -50 %']
+    ]) {
+        const card = scene.ui.find(o => o.getData?.('technology') === type);
+        assert.ok(card, type + ' appears in inventory');
+        card.handlers.pointerover();
+        assert.ok(scene.technologyTooltipObjects.some(o => o.value === expected), expected);
+        const previous = [...scene.technologyTooltipObjects];
+        card.handlers.pointerout();
+        assert.equal(scene.technologyTooltipObjects.length, 0);
+        assert.ok(previous.every(o => o.destroyed));
+    }
+    const card = scene.ui.find(o => o.getData?.('technology') === 'berserk');
+    card.handlers.pointerover();
+    scene.onDragStart({ x: 15, y: 15 }, card);
+    assert.equal(scene.technologyTooltipObjects.length, 0);
+    scene.dragGhost.destroy(); scene.dragGhost = null;
+    scene.showTechnologyTooltip('stasis_field', 900, 200);
+    const old = [...scene.technologyTooltipObjects];
+    scene.scale.width = 800;
+    scene.buildUi();
+    assert.ok(old.every(o => o.destroyed));
+});
+
+test('technology reward hover displays effect details above the reward overlay', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.activeReward = { number: 1, options: ['tech:healing_field', 'tech:berserk', 'tech:stasis_field'] };
+    scene.buildUi();
+    for (const [type, expected] of [
+        ['tech:healing_field', 'RÉGÉNÉRATION'],
+        ['tech:berserk', 'BERSERK'],
+        ['tech:stasis_field', 'STASE']
+    ]) {
+        const card = scene.ui.find(o => o.getData?.('reward') === type);
+        assert.ok(card);
+        card.handlers.pointerover();
+        assert.ok(scene.technologyTooltipObjects.some(o => o.value === expected && o.depth === 311));
+        const old = [...scene.technologyTooltipObjects];
+        card.handlers.pointerout();
+        assert.ok(old.every(o => o.destroyed));
+    }
+    scene.ui.find(o => o.getData?.('reward') === 'tech:berserk').handlers.pointerover();
+    const old = [...scene.technologyTooltipObjects];
+    scene.chooseReward('tech:berserk');
+    assert.ok(old.every(o => o.destroyed));
+});
+
+
+test('Surcharge uses a base drop and Surcadencement uses a battlefield drop without wasting invalid casts', () => {
+    const scene = new VNextScene();
+    scene.create();
+    technologies.inventory(scene.model).items.push('overload', 'overclock');
+    scene.buildUi();
+    const overload = scene.ui.find(o => o.getData?.('technology') === 'overload');
+    assert.ok(overload);
+    scene.onDragEnd({x:-12,y:-12},overload);
+    assert.ok(technologies.inventory(scene.model).items.includes('overload'));
+    const l=scene.layout;
+    scene.onDragEnd({x:l.boardX+l.boardW/2,y:l.mainTop+110},overload);
+    assert.equal(zones.active(scene.model,'overload'),true);
+    assert.ok(!technologies.inventory(scene.model).items.includes('overload'));
+    const overclock=scene.ui.find(o => o.getData?.('technology') === 'overclock');
+    assert.ok(overclock);
+    const b=scene.battleBounds;
+    scene.onDragEnd({x:b.x+b.w/2,y:b.y+b.h/2},overclock);
+    assert.equal(zones.speedMultiplier(scene.model),1.5);
+    assert.ok(!technologies.inventory(scene.model).items.includes('overclock'));
+    const saved=saves.restore(saves.capture(scene),World);
+    assert.equal(zones.speedMultiplier(saved.model),1.5);
+});
+
+test('new technologies show accurate tooltips in inventory and reward choice', () => {
+    const scene = new VNextScene();
+    scene.create();
+    technologies.inventory(scene.model).items.push('overclock','overload');
+    scene.buildUi();
+    for(const [type,expected] of [['overclock','Déplacement : +50 %'],['overload','Production : ×2']]){
+        const label=scene.ui.find(o=>o.getData?.('technology')===type);
+        assert.ok(label);
+        label.handlers.pointerover();
+        assert.ok(scene.technologyTooltipObjects.some(o=>o.value===expected));
+        label.handlers.pointerout();
+    }
+    scene.activeReward={number:1,options:['tech:overclock','tech:overload','tech:healing_field']};
+    scene.buildUi();
+    const reward=scene.ui.find(o=>o.getData?.('reward')==='tech:overload');
+    reward.handlers.pointerover();
+    assert.ok(scene.technologyTooltipObjects.some(o=>o.value==='SURCHARGE'));
+});
+
+test('EMP and Renforts show tooltips, cast through the battlefield and are saved',()=>{
+    const scene=new VNextScene();scene.create();
+    technologies.inventory(scene.model).items.push('emp_field','reinforcements');
+    scene.buildUi();
+    for(const [type,title] of [['emp_field','IMPULSION ÉLECTROMAGNÉTIQUE'],['reinforcements','RENFORTS']]){
+        const label=scene.ui.find(o=>o.getData?.('technology')===type);
+        assert.ok(label,type+' available');
+        label.handlers.pointerover();
+        assert.ok(scene.technologyTooltipObjects.some(o=>o.value===title));
+        label.handlers.pointerout();
+    }
+    const b=scene.battleBounds;
+    const p={x:b.x+b.w/2,y:b.y+b.h/2};
+    const emp=scene.ui.find(o=>o.getData?.('technology')==='emp_field');
+    scene.onDragEnd({x:-1,y:-1},emp);
+    assert.equal(technologies.inventory(scene.model).items.length,2);
+    scene.onDragEnd(p,emp);
+    const zonesBefore=scene.world.query('TechnologyZone');
+    assert.ok(zonesBefore.some(id=>scene.world.get(id,'TechnologyZone').type==='emp_field'));
+    const reinforcements=scene.ui.find(o=>o.getData?.('technology')==='reinforcements');
+    const before=scene.battleUnits.length;
+    scene.onDragEnd(p,reinforcements);
+    assert.equal(scene.battleUnits.length,before+1);
+    const summoned=scene.battleUnits.find(id=>scene.world.hasComponent(id,'TemporaryAlly'));
+    assert.ok(summoned);
+    assert.equal(scene.world.get(summoned,'TemporaryAlly').remainingMs,25000);
+    const saved=saves.restore(saves.capture(scene),World);
+    assert.equal(saved.model.world.get(summoned,'TemporaryAlly').remainingMs,25000);
+    // One simulated frame before expiry; no separate wall-clock life counter.
+    scene.world.get(summoned,'TemporaryAlly').remainingMs=60;
+    scene.update(0,60);
+    assert.equal(scene.world.has(summoned),false);
+    assert.ok(!scene.battleUnits.includes(summoned));
+    assert.doesNotThrow(()=>saves.restore(saves.capture(scene),World));
+});
+
+test('seven technology types are eligible for laboratory research and wave rewards',()=>{
+    assert.equal(technologies.TYPES.length,7);
+    const scene=new VNextScene();scene.create();
+    const collected=new Set();
+    for(let n=1;n<=180;n++)
+        for(const type of scene.rewardOptions(n,'technology'))collected.add(type);
+    for(const type of technologies.TYPES)assert.ok(collected.has('tech:'+type),type+' is offered');
+    scene.activeReward={number:1,options:['tech:emp_field','tech:reinforcements','tech:overclock']};
+    scene.buildUi();
+    for(const type of scene.activeReward.options){
+        const card=scene.ui.find(o=>o.getData?.('reward')===type);
+        assert.ok(card);
+        card.handlers.pointerover();
+        assert.ok(scene.technologyTooltipObjects.length>0);
+        card.handlers.pointerout();
+    }
 });
 
 test('six artifact slots appear between title and speed controls, including on narrow screens', () => {

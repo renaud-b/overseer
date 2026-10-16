@@ -32,6 +32,7 @@
         if (!unitType) return 0;
         return model.world.query('PreviewUnit', 'Health', 'Faction').filter(id =>
             model.world.get(id, 'Faction').side === 'player' &&
+            !model.world.hasComponent(id, 'TemporaryAlly') &&
             model.world.get(id, 'PreviewUnit').type === unitType &&
             model.world.get(id, 'Health').hp > 0).length;
     }
@@ -79,7 +80,10 @@
             const slot = model.world.get(id, 'GridSlot').index;
             if (!model.world.get(model.tiles[slot], 'Watched').active) continue;
             const progress = model.world.get(id, 'Production');
-            progress.elapsedMs += deltaMs;
+            // Surcharge speeds observed production, never Laboratory research or unobserved machines.
+            const extra = model.world.get(model.game, 'TechnologyEffects')?.overloadMs || 0;
+            const acceleratedMs = deltaMs + Math.min(deltaMs, Math.max(0, extra));
+            progress.elapsedMs += acceleratedMs;
             progress.blocked = false;
             if (MILITARY[type]) {
                 // A completed cycle waits for materials/capacity. No resource reservation,
