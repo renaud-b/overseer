@@ -73,7 +73,7 @@ class Display {
     strokeEllipse(x, y, width, height) { this.drawCalls.push({type:'strokeEllipse',x,y,width,height,color:this.lineColor}); return this; }
     strokeRect() { return this; }
     strokePoints(points) { this.drawCalls.push({ type: 'strokePoints', points, color: this.lineColor }); return this; }
-    fillRect() { return this; }
+    fillRect(x,y,width,height) { this.drawCalls.push({type:'fillRect',x,y,width,height}); return this; }
     strokeTriangle() { return this; }
     fillTriangle() { return this; }
     clear() { this.drawCalls = []; return this; }
