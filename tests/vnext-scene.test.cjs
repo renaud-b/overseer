@@ -1825,23 +1825,24 @@ test('perception amplifier renders a circular radar centered on the core and hid
     const id=preview.placeBuilding(scene.model,'perception_amplifier',6);
     preview.setObserved(scene.model,[6]);
     scene.buildUi();
-    const g=scene.battleGraphics,b=scene.battleBounds;
+    const b=scene.battleBounds;
+    const graphics=()=>scene.battleGraphics;
     const baseX=b.x+b.w*65/1000,baseY=b.y+b.h*300/600;
     const tinted=scene.detectionColor();
-    const rings=()=>g.drawCalls.filter(call=>call.type==='strokeCircle'&&call.color===tinted);
+    const rings=()=>graphics().drawCalls.filter(call=>call.type==='strokeCircle'&&call.color===tinted);
     const edge=Math.hypot(Math.max(baseX-b.x,b.x+b.w-baseX),
                           Math.max(baseY-b.y,b.y+b.h-baseY))+8;
     assert.equal(rings().length,0,'no permanent ring or radar wave at the start of a sweep');
     scene.world.set(scene.model.game,'PerceptionPulse',{phaseMs:2500});
     scene.paintBattle();
     assert.equal(rings().length,2,'one circle with a subtle glow, no second detection ring');
-    assert.equal(g.drawCalls.filter(call=>call.type==='strokeEllipse').length,0);
+    assert.equal(graphics().drawCalls.filter(call=>call.type==='strokeEllipse').length,0);
     for(const ring of rings()){
         assert.ok(Math.abs(ring.x-baseX)<1e-6);
         assert.ok(Math.abs(ring.y-baseY)<1e-6);
         assert.ok(Math.abs(ring.r-edge/2)<1e-6);
     }
-    assert.equal(g.mask,scene.battleMask,'the existing battlefield mask clips the circular wave');
+    assert.equal(graphics().mask,scene.battleMask,'the existing battlefield mask clips the circular wave');
     scene.world.set(scene.model.game,'PerceptionPulse',{phaseMs:4950});
     scene.paintBattle();
     assert.ok(rings().at(-1).r>Math.hypot(Math.max(baseX-b.x,b.x+b.w-baseX),
@@ -1878,13 +1879,15 @@ test('detection and radar rings follow a lighter version of the current core HP 
         assert.equal(scene.baseHealthColor(),coreColor);
         const lighter=light(coreColor);
         assert.equal(scene.detectionColor(),lighter);
+        const passiveRadius=threats.radius(scene.model)*scene.battleBounds.w/1000;
         assert.ok(scene.battleGraphics.drawCalls.some(c=>
-            c.type==='strokeCircle'&&c.color===lighter&&c.r>50));
+            c.type==='strokeCircle'&&c.color===lighter&&
+            Math.abs(c.r-passiveRadius)<1e-6));
         preview.setObserved(scene.model,[6]);
         scene.world.set(scene.model.game,'PerceptionPulse',{phaseMs:2500});
         scene.paintBattle();
         assert.equal(scene.battleGraphics.drawCalls.filter(c=>
-            c.type==='strokeCircle'&&c.color===lighter&&c.r>50).length,2);
+            c.type==='strokeCircle'&&c.color===lighter&&c.r>0).length,2);
         assert.equal(scene.battleGraphics.drawCalls.filter(c=>
             c.type==='strokeEllipse').length,0);
         preview.setObserved(scene.model,[]);
