@@ -176,3 +176,10 @@ La collection est stockée dans le composant ECS `ArtifactCollection` et conserv
 ### Remplacement d'artefacts (modale)
 
 Lorsque les six emplacements sont remplis, les récompenses d'artefacts continuent d'apparaître avec leur fréquence habituelle. Après avoir choisi l'un des artefacts proposés, une modale affiche les **six artefacts équipés**, leurs descriptions et le nouvel artefact. Choisir un emplacement le remplace **à la même position** ; « CONSERVER LES SIX » refuse le nouvel artefact, sans perte. La simulation reste en pause pendant cette décision. Le choix en attente (`activeReward.pendingArtifact`) est sauvegardé et restauré par « Continuer » ; il ne modifie pas la collection avant confirmation. Pour éviter un pouvoir orphelin, Jugement du noyau ne peut pas être remplacé lorsque Surcharge terminale est équipée. Les effets déjà produits (unités, mutations, zones en cours) persistent ; seuls les futurs déclenchements dépendent de la collection actuelle.
+
+
+## Talents / Production (aperçu, non actif)
+
+La branche Fondations propose quatre talents de production : extraction d'énergie/matière (+20 %), rendement en composants (+25 %), efficacité des conversions (-15 % d'intrants) et automatisation économique (+10 % de cadence sous vision). Ces valeurs et coûts sont **provisoires**. Les talents sont visibles dans la scène, mais **non achetables** tant que leurs effets ECS et leur équilibrage ne sont pas implémentés. La convergence exige les talents « composants » et « efficacité ».
+
+Les identifiants historiques `starter_economy`, `extra_scrap` et `extra_alloy` restent reconnus dans les sauvegardes existantes (affichés seulement si déjà acquis), et remboursables via une réinitialisation ; ils ne sont plus proposés à l'achat. Aucune conversion silencieuse d'anciens achats et aucun changement de production ne sont introduits par cette PR.
