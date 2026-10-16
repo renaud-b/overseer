@@ -103,5 +103,7 @@ Critère de réussite : une partie courte jouable où le joueur comprend l'activ
 
 - **Retenu :** local-only, Phaser, grille 5 × 5, vision comme activation, esthétique vectorielle minimaliste, champ de bataille visible, UI organisée par fonction.
 - **Direction forte, non implémentée :** cinq ressources Énergie / Matière / Refroidissement / Composants / Données.
-- **À trancher :** mécanique exacte du refroidissement ; coûts et cycles ; contrats producteurs/consommateurs ; familles d'unités ; mutations en partie vs persistantes ; détail responsive HUD ; migration progressive vs tranche VNext.
+- **Décision VNext :** la pose d'un bâtiment consomme une carte, mais aucune ressource ; les recettes militaires sont dépensées **par unité produite**, pas lors de la pose. Pour la Caserne : 25 composants et 15 énergie par soldat.
+- **Validé pour une PR à venir (pas encore implémenté) :** une unité militaire demande un cycle complet sous vision, conserve sa progression hors vision, et ne consomme ses ressources qu'à la fin du cycle. Durées : Caserne 5 s, Centre balistique 8 s, Forge blindée 12 s, Centre médical 10 s.
+- **À trancher :** mécanique exacte du refroidissement ; autres coûts et rendements ; contrats producteurs/consommateurs ; mutations en partie vs persistantes ; détail responsive HUD ; migration progressive vs tranche VNext.
 - **Hors périmètre :** blockchain, wallet, replays, snapshots, anti-triche, MMO, refonte réseau.
