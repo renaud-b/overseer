@@ -123,3 +123,28 @@ test('VNext battle presentation loads after board view and before VNextScene', (
     vm.runInNewContext(fs.readFileSync(path.join(ROOT, battle), 'utf8'), context);
     assert.equal(typeof context.OverseerVNextBattleView?.install, 'function');
 });
+
+
+test('VNext HUD, wave and reward presentations load after battle view, before scene', () => {
+    const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    const scripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)].map(match => match[1]);
+    const relative = [
+        'src/scene/VNextBattleView.js',
+        'src/scene/VNextHudView.js',
+        'src/scene/VNextWaveView.js',
+        'src/scene/VNextRewardView.js',
+        'src/scene/VNextScene.js'
+    ];
+    for (let i = 0; i < relative.length; i++) {
+        assert.ok(scripts.includes(relative[i]), 'Missing script: ' + relative[i]);
+        if (i) assert.ok(scripts.indexOf(relative[i-1]) < scripts.indexOf(relative[i]),
+            'Incorrect load order: ' + relative[i]);
+    }
+    const vm = require('node:vm');
+    for (const pathName of relative.slice(1,-1)) {
+        const context = {};
+        vm.runInNewContext(fs.readFileSync(path.join(ROOT, pathName), 'utf8'), context);
+        const exported = 'Overseer' + pathName.split('/').pop().replace(/\.js$/, '');
+        assert.equal(typeof context[exported]?.install, 'function', exported);
+    }
+});
