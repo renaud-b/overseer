@@ -582,9 +582,12 @@ test('a defeated wave offers three unique cards and pauses until one is selected
     scene.update(0, 60);
     assert.equal(scene.waveClock.elapsedMs, elapsed);
     const before = cards.cards(scene.model).length;
+    const technologiesBefore = technologies.inventory(scene.model).items.length;
     assert.equal(scene.chooseReward('not-a-card'), false);
     assert.equal(scene.chooseReward(options[0]), true);
-    assert.equal(cards.cards(scene.model).length, before + 1);
+    const technologyReward = options[0].startsWith('tech:');
+    assert.equal(cards.cards(scene.model).length, before + (technologyReward ? 0 : 1));
+    assert.equal(technologies.inventory(scene.model).items.length, technologiesBefore + (technologyReward ? 1 : 0));
     assert.equal(scene.activeReward, null);
     assert.equal(scene.chooseReward(options[1]), false);
 });
