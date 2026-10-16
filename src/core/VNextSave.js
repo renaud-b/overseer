@@ -25,7 +25,8 @@
             model: { game: scene.model.game, grid: scene.model.grid, tiles: [...scene.model.tiles] },
             attention: {
                 x: scene.attention.x, y: scene.attention.y,
-                patternIndex: scene.visionRules.patternIndex
+                patternIndex: scene.visionRules.patternIndex,
+                level: scene.visionRules.level ?? 0
             },
             waveClock: { ...scene.waveClock },
             waveMembers: [...scene.waveMembers].map(([number, ids]) => [number, [...ids]]),
@@ -87,7 +88,8 @@
 
         const attention = data.attention;
         requireValid(attention && integer(attention.x, 0, 4) &&
-            integer(attention.y, 0, 4) && integer(attention.patternIndex, 0, 3), 'attention');
+            integer(attention.y, 0, 4) && integer(attention.patternIndex, 0, 3) &&
+            (attention.level === undefined || integer(attention.level, 0, 3)), 'attention');
         const waveClock = data.waveClock;
         requireValid(waveClock && integer(waveClock.number, 0) &&
             number(waveClock.elapsedMs) && integer(waveClock.seed, 0, 0xffffffff), 'wave clock');
@@ -130,6 +132,7 @@
             model: { world, game, grid, tiles: [...tiles] },
             attention: { x: attention.x, y: attention.y },
             patternIndex: attention.patternIndex,
+            visionLevel: attention.level ?? 0,
             waveClock: { number: waveClock.number, elapsedMs: waveClock.elapsedMs, seed: waveClock.seed },
             waveMembers,
             rewardQueue,
