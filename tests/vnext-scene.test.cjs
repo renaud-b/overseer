@@ -40,6 +40,9 @@ const battleViewSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBattleV
 const vNextHudViewSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextHudView.js'), 'utf8');
 const vNextWaveViewSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextWaveView.js'), 'utf8');
 const vNextRewardViewSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextRewardView.js'), 'utf8');
+const vNextInputSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextInput.js'), 'utf8');
+const vNextRunFlowSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextRunFlow.js'), 'utf8');
+const vNextSimulationSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextSimulation.js'), 'utf8');
 const sceneSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextScene.js'), 'utf8');
 
 class Display {
@@ -98,7 +101,7 @@ class FakeScene {
 }
 const OverseerVNextBrand = vm.runInNewContext(brandSource + '\nOverseerVNextBrand;', {});
 const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
-const VNextScene = vm.runInNewContext(tooltipSource + '\n' + boardSource + '\n' + battleViewSource + '\n' + vNextHudViewSource + '\n' + vNextWaveViewSource + '\n' + vNextRewardViewSource + '\n' + sceneSource + '\nVNextScene;', {
+const VNextScene = vm.runInNewContext(tooltipSource + '\n' + boardSource + '\n' + battleViewSource + '\n' + vNextHudViewSource + '\n' + vNextWaveViewSource + '\n' + vNextRewardViewSource + '\n' + vNextInputSource + '\n' + vNextRunFlowSource + '\n' + vNextSimulationSource + '\n' + sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
     OverseerECS: { World }, OverseerCombat: combat, OverseerHitEffects: hitEffects,
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
@@ -2225,4 +2228,30 @@ test('extracted reward view never chooses a reward while drawing choices', () =>
     scene.buildUi();
     assert.equal(JSON.stringify(scene.activeReward), original);
     assert.deepEqual(scene.world.serialize(), before);
+});
+
+
+test('extracted simulation entry point preserves ECS world when paused and gameplay during play', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const before = scene.world.serialize();
+    scene.selectSpeed(0);
+    scene.update(0, 4000);
+    assert.deepEqual(scene.world.serialize(), before, 'paused simulation must not advance ECS');
+    scene.selectSpeed(1);
+    scene.update(0, 40);
+    assert.ok(scene.waveClock.elapsedMs > 0, 'running simulation still advances wave clock');
+});
+
+test('scene can restart on same Phaser instance with extracted run and input handlers', () => {
+    const scene = new VNextScene();
+    scene.create();
+    assert.equal(typeof scene.onDragEnd, 'function');
+    assert.equal(typeof scene.triggerWave, 'function');
+    assert.equal(typeof scene.update, 'function');
+    const oldWorld = scene.world;
+    scene.finishRun();
+    scene.create();
+    assert.notStrictEqual(scene.world, oldWorld);
+    assert.equal(scene.runFinished, false);
 });
