@@ -1,6 +1,6 @@
 (function(root) {
     'use strict';
-    const STARTER_CARDS = Object.freeze(['reactor', 'extractor', 'factory', 'barracks']);
+    const STARTER_CARDS = Object.freeze(['reactor', 'extractor', 'factory', 'barracks', 'laboratory']);
     function initialize(model) {
         if (!model.world.hasComponent(model.game, 'BuildingHand')) {
             model.world.set(model.game, 'BuildingHand', { cards: [...STARTER_CARDS] });

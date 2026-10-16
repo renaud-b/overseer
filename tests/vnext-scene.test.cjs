@@ -88,22 +88,22 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextZones: zones, OverseerVNextSave: saves, localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
-test('scene begins with exactly four unspent cards and empty base', () => {
+test('scene begins with five unspent cards, including the laboratory, and empty base', () => {
     const scene = new VNextScene();
     scene.create();
     assert.equal(scene.world.query('Tile').length, 25);
     assert.equal(scene.world.query('Building').length, 0);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory']);
     assert.equal(scene.world.query('PreviewUnit').length, 3);
     scene.selectedType = 'reactor';
     scene.clickTile(6);
     assert.ok(preview.buildingAt(scene.model, 6));
-    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks']);
+    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks', 'laboratory']);
     scene.clickTile(6);
     scene.clickTile(23);
     assert.equal(preview.buildingAt(scene.model, 6), null);
     assert.ok(preview.buildingAt(scene.model, 23));
-    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks']);
+    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks', 'laboratory']);
     scene.scale.width = 800;
     scene.buildUi();
     scene.resetBattle();
@@ -225,10 +225,10 @@ test('drag and drop consumes a single card only on valid target', () => {
     scene.create();
     const dragged = { getData: () => 'barracks' };
     scene.onDragEnd({ x: -100, y: -100 }, dragged);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory']);
     const { x, y, cell } = scene.gridLayout;
     scene.onDragEnd({ x: x + cell * 0.5, y: y + cell * 0.5 }, dragged);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'laboratory']);
     assert.ok(preview.buildingAt(scene.model, 0));
 });
 
