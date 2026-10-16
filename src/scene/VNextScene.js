@@ -93,6 +93,7 @@ class VNextScene extends Phaser.Scene {
         // Presentation-only throughput samples. Never persist or infer production from HUD state.
         this.resourceRateHistory = [];
         this.resourceRateClockMs = 0;
+        this.productionPopups = []; // Presentation only.
         this.hoveredTile = null;
         this.tooltipObjects = [];
         this.waveTooltipObjects = [];
@@ -154,6 +155,7 @@ class VNextScene extends Phaser.Scene {
         this.hideResourceTooltip();
         this.hideWaveTooltip();
         this.ui.forEach(object => object.destroy());
+        this.clearProductionPopups();
         this.ui = [];
         const w = this.scale.width, h = this.scale.height;
         const m = 16, gap = 12, mainTop = 82, mainBottom = h - 86;
@@ -554,6 +556,60 @@ class VNextScene extends Phaser.Scene {
         this.updateBoardHint();
         this.buildUi();
         if (placed !== null) this.saveCurrentGame();
+    }
+
+    clearProductionPopups() {
+        for (const popup of this.productionPopups || []) {
+            popup.icon.destroy();
+            popup.label.destroy();
+        }
+        this.productionPopups = [];
+    }
+
+    showProductionPopup(event) {
+        if (event.type !== 'production' || !this.world.has(event.building) || !this.gridLayout) return;
+        const slot = this.world.get(event.building, 'GridSlot')?.index;
+        if (!Number.isInteger(slot) || slot < 0 || slot >= 25) return;
+        const recipe = OverseerVNextEconomy.PROTOTYPE_RECIPES[event.buildingType];
+        if (!recipe) return;
+        const { x, y, cell } = this.gridLayout;
+        const cx = x + (slot % 5 + 0.5) * cell;
+        const cy = y + (Math.floor(slot / 5) + 0.5) * cell;
+        for (const [resource, amount] of Object.entries(recipe.produces)) {
+            if (!amount || resource.startsWith('unit_')) continue;
+            const style = this.resourceStyles.find(item => item.id === resource && !item.pending);
+            if (!style) continue;
+            const icon = this.add.graphics().setDepth(100);
+            this.drawResourceIcon(icon, style, cx - 15, cy - cell * 0.29, 7);
+            const label = this.add.text(cx - 4, cy - cell * 0.29 - 8, `+${amount}`, {
+                fontFamily: 'monospace', fontSize: '12px',
+                color: `#${style.color.toString(16).padStart(6, '0')}`
+            }).setDepth(100);
+            this.productionPopups.push({ icon, label, elapsedMs: 0, startY: cy - cell * 0.29 });
+        }
+        while (this.productionPopups.length > 24) {
+            const oldest = this.productionPopups.shift();
+            oldest.icon.destroy();
+            oldest.label.destroy();
+        }
+    }
+
+    updateProductionPopups(delta) {
+        if (delta <= 0) return;
+        for (const popup of this.productionPopups) {
+            popup.elapsedMs += delta;
+            const progress = Math.min(1, popup.elapsedMs / 850);
+            const rise = progress * 24;
+            const alpha = 1 - progress;
+            popup.icon.setY(-rise).setAlpha(alpha);
+            popup.label.setY(popup.startY - 8 - rise).setAlpha(alpha);
+        }
+        this.productionPopups = this.productionPopups.filter(popup => {
+            if (popup.elapsedMs < 850) return true;
+            popup.icon.destroy();
+            popup.label.destroy();
+            return false;
+        });
     }
 
     drawResourceIcon(g, style, x, y, radius = 10) {
@@ -1092,8 +1148,10 @@ class VNextScene extends Phaser.Scene {
         const economyEvents = OverseerVNextEconomy.step(this.model, dt);
         for (const event of economyEvents) {
             if (event.type === 'unit-produced') this.spawnFriendlyUnit(event.unitType);
+            if (event.type === 'production') this.showProductionPopup(event);
         }
         this.noteResourceChanges(previousResources, dt);
+        this.updateProductionPopups(Math.min(60, Math.max(0, delta)));
         this.updateResourceHud();
         this.paintBoard();
         const players = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'player' && this.world.get(id, 'Health').hp > 0);

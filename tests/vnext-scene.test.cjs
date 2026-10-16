@@ -32,6 +32,8 @@ class Display {
     setInteractive() { this.interactive = true; return this; }
     setPadding() { return this; }
     setPosition(x, y) { this.x = x; this.y = y; return this; }
+    setY(value) { this.y = value; return this; }
+    setAlpha(value) { this.alpha = value; return this; }
     setDepth(value) { this.depth = value; return this; }
     setData(name, value) { this.data[name] = value; return this; }
     getData(name) { return this.data[name]; }
@@ -305,6 +307,43 @@ test('resource rates include real consumption, pause without decay and return to
     for (let i = 0; i < 110; i++) scene.update(0, 60);
     assert.equal(scene.resourceStatusLabels.energy.value, '0.0/s');
     assert.equal(scene.resourceStatusLabels.energy.color, '#7898aa');
+});
+
+test('production emits a colored icon and amount that rise, fade and expire', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.selectedType = 'reactor';
+    scene.clickTile(6);
+    for (let i = 0; i < 34; i++) scene.update(0, 60);
+    assert.equal(scene.productionPopups.length, 1);
+    const popup = scene.productionPopups[0];
+    assert.equal(popup.label.value, '+2');
+    assert.equal(popup.label.color, '#35d8ef');
+    const startY = popup.label.y;
+    scene.updateProductionPopups(350);
+    assert.ok(popup.label.y < startY);
+    assert.ok(popup.label.alpha < 1);
+    scene.selectSpeed(0);
+    const frozenY = popup.label.y;
+    scene.update(0, 250);
+    assert.equal(popup.label.y, frozenY);
+    scene.updateProductionPopups(500);
+    assert.equal(scene.productionPopups.length, 0);
+    assert.ok(popup.icon.destroyed && popup.label.destroyed);
+});
+
+test('production popups are bounded and cleared on UI rebuild', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.selectedType = 'reactor';
+    scene.clickTile(6);
+    const id = preview.buildingAt(scene.model, 6);
+    for (let i = 0; i < 40; i++) scene.showProductionPopup({ type: 'production', building: id, buildingType: 'reactor' });
+    assert.equal(scene.productionPopups.length, 24);
+    const old = [...scene.productionPopups];
+    scene.buildUi();
+    assert.equal(scene.productionPopups.length, 0);
+    assert.ok(old.every(p => p.icon.destroyed && p.label.destroyed));
 });
 
 test('resource panel narrows and reveals each resource name only on hover', () => {
