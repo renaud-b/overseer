@@ -263,7 +263,7 @@ test('card hover shares building recipe tooltip with grid hover', () => {
     assert.ok(previous.every(object => object.destroyed));
 });
 
-test('compact resource HUD shows only icon, count and real recent delta', () => {
+test('compact resource HUD shows icon, count and measured net rate per simulation second', () => {
     const scene = new VNextScene();
     scene.create();
     const allText = scene.ui.filter(o => typeof o.value === 'string').map(o => o.value);
@@ -274,11 +274,38 @@ test('compact resource HUD shows only icon, count and real recent delta', () => 
     scene.clickTile(6);
     for (let i = 0; i < 34; i++) scene.update(0, 60);
     assert.equal(scene.resourceLabels.energy.value, '2');
-    assert.equal(scene.resourceStatusLabels.energy.value, '+2');
+    assert.equal(scene.resourceStatusLabels.energy.value, '+1.0/s');
+    assert.equal(scene.resourceStatusLabels.energy.color, '#69e5ac');
     scene.scale.width = 800;
     scene.buildUi();
     assert.equal(scene.compactResources.energy.value, '2');
-    assert.equal(scene.compactResourceDeltas.energy.value, '+2');
+    assert.equal(scene.compactResourceDeltas.energy.value, '+1.0/s');
+});
+
+test('resource rates include real consumption, pause without decay and return to zero out of vision', () => {
+    const scene = new VNextScene();
+    scene.create();
+    assert.equal(scene.resourceStatusLabels.energy.value, '0.0/s');
+    assert.equal(scene.resourceStatusLabels.energy.color, '#7898aa');
+    scene.selectedType = 'factory';
+    scene.clickTile(6);
+    const resources = scene.world.get(scene.model.game, 'Resources');
+    resources.energy = 8;
+    resources.matter = 8;
+    for (let i = 0; i < 50; i++) scene.update(0, 60); // One 3-second cycle.
+    assert.equal(scene.resourceStatusLabels.energy.value, '-0.7/s');
+    assert.equal(scene.resourceStatusLabels.matter.value, '-0.7/s');
+    assert.equal(scene.resourceStatusLabels.components.value, '+0.3/s');
+    assert.equal(scene.resourceStatusLabels.energy.color, '#ff6674');
+    assert.equal(scene.resourceStatusLabels.components.color, '#69e5ac');
+    scene.selectSpeed(0);
+    scene.update(0, 5000); // Pausing freezes the simulation-time window.
+    assert.equal(scene.resourceStatusLabels.energy.value, '-0.7/s');
+    scene.selectSpeed(1);
+    assert.equal(scene.changeAttention(2, 0), true); // Move the factory outside vision.
+    for (let i = 0; i < 110; i++) scene.update(0, 60);
+    assert.equal(scene.resourceStatusLabels.energy.value, '0.0/s');
+    assert.equal(scene.resourceStatusLabels.energy.color, '#7898aa');
 });
 
 test('resource panel narrows and reveals each resource name only on hover', () => {

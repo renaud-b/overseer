@@ -90,7 +90,9 @@ class VNextScene extends Phaser.Scene {
             { id: 'components', label: 'Composants', glyph: 'factory', source: 'factory', color: 0xf4ba58 },
             { id: 'data', label: 'Données', glyph: 'laboratory', pending: true, color: 0xb58aff }
         ];
-        this.lastResourceChanges = {}; // Transient HUD feedback, not economy state.
+        // Presentation-only throughput samples. Never persist or infer production from HUD state.
+        this.resourceRateHistory = [];
+        this.resourceRateClockMs = 0;
         this.hoveredTile = null;
         this.tooltipObjects = [];
         this.waveTooltipObjects = [];
@@ -638,8 +640,8 @@ class VNextScene extends Phaser.Scene {
         });
     }
 
-    // Statuses report real ECS activation/blockage. A recent delta reports only
-    // the last actual balance change, never a fabricated continuous rate.
+    // Statuses report real ECS activation/blockage. The rate indicator uses
+    // actual balance changes over simulation time, not projected recipe output.
     resourceActivity(source) {
         const buildings = this.world.query('Building', 'GridSlot')
             .filter(id => this.world.get(id, 'Building').type === source);
@@ -654,13 +656,31 @@ class VNextScene extends Phaser.Scene {
     }
 
     noteResourceChanges(previous, dt) {
+        // Only samples taken around an actual economy step count. Card grants and
+        // direct resource edits never become fake production or consumption rates.
+        this.resourceRateClockMs += dt;
         const balance = this.world.get(this.model.game, 'Resources');
+        const changes = {};
         for (const id of ['energy', 'matter', 'components']) {
-            const old = this.lastResourceChanges[id];
-            if (old) old.remainingMs -= dt;
             const change = balance[id] - previous[id];
-            if (change) this.lastResourceChanges[id] = { change, remainingMs: 2300 };
+            if (change) changes[id] = change;
         }
+        if (Object.keys(changes).length) {
+            this.resourceRateHistory.push({ atMs: this.resourceRateClockMs, changes });
+        }
+        const cutoff = this.resourceRateClockMs - 6000;
+        while (this.resourceRateHistory.length && this.resourceRateHistory[0].atMs <= cutoff) {
+            this.resourceRateHistory.shift();
+        }
+    }
+
+    resourceRatePerSecond(id) {
+        // Simulation seconds, so x1/x3/x5 change how fast time passes, not the units.
+        const windowMs = Math.min(6000, this.resourceRateClockMs);
+        if (windowMs <= 0) return 0;
+        const net = this.resourceRateHistory.reduce((sum, item) =>
+            sum + (item.changes[id] || 0), 0);
+        return net * 1000 / windowMs;
     }
 
     updateResourceHud() {
@@ -670,11 +690,9 @@ class VNextScene extends Phaser.Scene {
             if (style.pending) continue;
             this.resourceLabels[style.id]?.setText(String(balance[style.id]));
             this.compactResources?.[style.id]?.setText(String(balance[style.id]));
-            const recent = this.lastResourceChanges[style.id];
-            const delta = recent?.remainingMs > 0
-                ? `${recent.change > 0 ? '+' : ''}${recent.change}` : '—';
-            const color = recent?.remainingMs > 0
-                ? (recent.change > 0 ? '#69e5ac' : '#ff9e8c') : '#7898aa';
+            const rate = Number(this.resourceRatePerSecond(style.id).toFixed(1));
+            const delta = `${rate > 0 ? '+' : ''}${rate.toFixed(1)}/s`;
+            const color = rate > 0 ? '#69e5ac' : rate < 0 ? '#ff6674' : '#7898aa';
             for (const status of [this.resourceStatusLabels[style.id], this.compactResourceDeltas?.[style.id]]) {
                 status?.setText(delta);
                 status?.setColor(color);
