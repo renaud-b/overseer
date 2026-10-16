@@ -1568,7 +1568,7 @@ test('six artifact slots appear between title and speed controls, including on n
     savedEntries.clear();
 });
 
-test('artifact reward follows building/technology, is saved, and hides when inventory fills', () => {
+test('artifact reward follows building/technology, is saved, and remains offerable when full', () => {
     savedEntries.clear();
     const scene = new VNextScene(); scene.create();
     const seed = 812;
@@ -1593,7 +1593,11 @@ test('artifact reward follows building/technology, is saved, and hides when inve
 
     for(const id of artifacts.IDS) artifacts.add(resumed.model,id);
     assert.equal(artifacts.list(resumed.model).length, 6);
-    for(let n=3;n<130;n++) assert.ok(resumed.rewardForWave(n).stages.every(s=>s.kind!=='artifact'));
+    for(let n=3;n<130;n++) {
+        const offered = resumed.rewardForWave(n).stages.some(s=>s.kind==='artifact');
+        assert.equal(offered,rewards.artifactDrop(n,seed),
+            'full inventory still gets an artifact offer at the usual rarity');
+    }
     savedEntries.clear();
 });
 
@@ -1615,6 +1619,13 @@ test('an artifact offered by queued rewards is replaced or skipped when previous
     assert.ok(options.every(type=>!artifacts.list(scene.model).includes(type.slice(9))));
     for(const id of artifacts.IDS) artifacts.add(scene.model,id);
     scene.reconcileArtifactRewards();
+    assert.equal(rewards.current(scene.activeReward).kind,'artifact');
+    assert.ok(scene.activeReward.options.every(type =>
+        !artifacts.list(scene.model).includes(type.slice(9))));
+    const chosen=scene.activeReward.options[0];
+    assert.equal(scene.chooseReward(chosen),true);
+    assert.equal(scene.activeReward.pendingArtifact,chosen.slice(9));
+    assert.equal(scene.declineArtifactReward(),true);
     assert.equal(scene.activeReward,null);
     savedEntries.clear();
 });
@@ -2254,4 +2265,175 @@ test('scene can restart on same Phaser instance with extracted run and input han
     scene.create();
     assert.notStrictEqual(scene.world, oldWorld);
     assert.equal(scene.runFinished, false);
+});
+
+test('defective military production changes the fifth produced unit, not the starter lineup',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ artifacts.add(scene.model,'defective');
+ const starters=[...scene.battleUnits];
+ for(let i=1;i<=5;i++){
+  const id=scene.spawnFriendlyUnit('unit_guard',{type:'unit-produced',unitType:'unit_guard',
+   spent:{components:25,energy:15}});
+  const health=scene.world.get(id,'Health'),combat=scene.world.get(id,'Combat');
+  assert.equal(Boolean(scene.world.get(id,'DefectiveUnit')),i===5);
+  if(i===5){assert.equal(health.maxHp,4);assert.equal(combat.damage,2);}
+ }
+ for(const id of starters)assert.equal(scene.world.get(id,'DefectiveUnit'),undefined);
+ assert.equal(scene.saveCurrentGame(),true);
+ const restored=new VNextScene();restored.init({resume:true});restored.create();
+ assert.equal(artifactEffects.state(restored.model).manufacturedCount,5);
+ savedEntries.clear();
+});
+test('corrosion from enemy death renders a clipped battlefield zone and pauses with simulation',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ artifacts.add(scene.model,'corrosion');
+ scene.spawnEnemyUnit('basic_monster',0,1);
+ const enemy=scene.battleUnits.at(-1);
+ scene.world.get(enemy,'Health').hp=0;
+ assert.equal(scene.cleanupDeadUnits(),true);
+ assert.equal(artifactEffects.state(scene.model).corrosionZones.length,1);
+ scene.paintBattle();
+ assert.ok(scene.zoneGraphics.drawCalls.some(x=>x.type==='strokeCircle'&&x.color===0x91bb70));
+ scene.selectSpeed(0);
+ scene.update(0,4000);
+ assert.equal(artifactEffects.state(scene.model).corrosionZones[0].remainingMs,4000);
+ savedEntries.clear();
+});
+
+test('Distributed relay draws an unobtrusive violet connection, persists on Continue and pauses',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ preview.placeBuilding(scene.model,'reactor',7);
+ preview.setObserved(scene.model,[6]);artifacts.add(scene.model,'distributed');
+ scene.update(0,60);
+ const relay=artifactEffects.state(scene.model);
+ assert.ok(relay.relayTarget!==null);
+ assert.ok(scene.boardGraphics.drawCalls.some(c=>c.type==='lineBetween'&&c.color===0xb58aff));
+ const before=relay.relayRemainingMs;
+ scene.selectSpeed(0);scene.update(0,5000);
+ assert.equal(relay.relayRemainingMs,before);
+ assert.equal(scene.saveCurrentGame(),true);
+ const resumed=new VNextScene();resumed.init({resume:true});resumed.create();
+ assert.equal(artifactEffects.state(resumed.model).relayTarget,relay.relayTarget);
+ assert.equal(artifactEffects.state(resumed.model).relayRemainingMs,before);
+ savedEntries.clear();
+});
+test('Instinct evolution emits a heal visual after a perfect wave and survives Continue',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ artifacts.add(scene.model,'evolution');
+ const unit=scene.battleUnits[0],hp=scene.world.get(unit,'Health').maxHp;
+ artifactEffects.startWave(scene.model,1,42,scene.baseHp,economy);
+ const result=artifactEffects.clearWave(scene.model,1,scene.baseHp);
+ assert.equal(result.evolved,unit);
+ assert.equal(scene.world.get(unit,'Health').maxHp,hp+1);
+ assert.equal(scene.saveCurrentGame(),true);
+ const resumed=new VNextScene();resumed.init({resume:true});resumed.create();
+ assert.equal(resumed.world.get(unit,'Health').maxHp,hp+1);
+ savedEntries.clear();
+});
+
+test('full artifact inventory opens replacement overlay, keeps inventory unchanged until selection',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ for(const id of artifacts.IDS.slice(0,6))artifacts.add(scene.model,id);
+ const incoming=artifacts.IDS[6],wave=5;
+ scene.waveClock.number=wave;
+ scene.activeReward={number:wave,stages:[{kind:'artifact',options:['artifact:'+incoming]}],
+  index:0,options:['artifact:'+incoming]};
+ scene.buildUi();
+ assert.equal(scene.chooseReward('artifact:'+incoming),true);
+ assert.equal(scene.activeReward.pendingArtifact,incoming);
+ assert.deepEqual(artifacts.list(scene.model),artifacts.IDS.slice(0,6));
+ assert.equal(scene.ui.filter(o=>Number.isInteger(o.getData?.('artifactReplacementSlot'))).length,6);
+ assert.equal(scene.ui.filter(o=>o.getData?.('declineArtifactReplacement')===true).length,1);
+ assert.ok(scene.ui.some(o=>o.value?.includes('NOUVEL ARTEFACT')));
+ const saved=saves.read(saveStorage);
+ assert.equal(saved.activeReward.pendingArtifact,incoming);
+ scene.update(0,2000);
+ assert.deepEqual(artifacts.list(scene.model),artifacts.IDS.slice(0,6));
+ const slot=scene.ui.find(o=>o.getData?.('artifactReplacementSlot')===2);
+ slot.handlers.pointerover();
+ assert.ok(scene.artifactTooltipObjects.some(o=>o.value===artifacts.get(artifacts.IDS[2]).label));
+ slot.handlers.pointerout();
+ slot.handlers.pointerdown();
+ assert.equal(scene.activeReward,null);
+ assert.equal(artifacts.list(scene.model).length,6);
+ assert.equal(artifacts.list(scene.model)[2],incoming);
+ assert.equal(artifacts.list(scene.model).includes(artifacts.IDS[2]),false);
+ assert.deepEqual(artifacts.list(saves.restore(saves.read(saveStorage),World).model),
+  artifacts.list(scene.model));
+ savedEntries.clear();
+});
+test('declining an artifact replacement advances the reward without changing six equipped items',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ for(const id of artifacts.IDS.slice(0,6))artifacts.add(scene.model,id);
+ scene.waveClock.number=6;
+ const before=artifacts.list(scene.model);
+ scene.activeReward={number:6,stages:[{kind:'artifact',options:['artifact:'+artifacts.IDS[6]]}],
+  index:0,options:['artifact:'+artifacts.IDS[6]]};
+ scene.chooseReward('artifact:'+artifacts.IDS[6]);
+ assert.equal(scene.chooseReward('artifact:'+artifacts.IDS[7]),false);
+ const cancel=scene.ui.find(o=>o.getData?.('declineArtifactReplacement')===true);
+ cancel.handlers.pointerdown();
+ assert.equal(scene.activeReward,null);
+ assert.deepEqual(artifacts.list(scene.model),before);
+ savedEntries.clear();
+});
+test('Continue resumes the same replacement choice, not a new random reward',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ for(const id of artifacts.IDS.slice(0,6))artifacts.add(scene.model,id);
+ scene.waveClock.number=7;
+ const offer='artifact:'+artifacts.IDS[6];
+ scene.activeReward={number:7,stages:[{kind:'artifact',options:[offer]}],index:0,options:[offer]};
+ scene.buildUi();
+ scene.chooseReward(offer);
+ const resumed=new VNextScene();resumed.init({resume:true});resumed.create();
+ assert.equal(resumed.activeReward.pendingArtifact,artifacts.IDS[6]);
+ assert.deepEqual(artifacts.list(resumed.model),artifacts.IDS.slice(0,6));
+ assert.equal(resumed.ui.filter(o=>Number.isInteger(o.getData?.('artifactReplacementSlot'))).length,6);
+ assert.equal(resumed.replaceArtifactReward(1),true);
+ assert.equal(resumed.activeReward,null);
+ assert.equal(artifacts.list(resumed.model)[1],artifacts.IDS[6]);
+ savedEntries.clear();
+});
+test('replacement UI disables removing core laser while terminal overload is equipped',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ for(const id of ['core_laser','terminal_overload','echo','shield','recovery','lingering'])
+  artifacts.add(scene.model,id);
+ scene.waveClock.number=8;
+ scene.activeReward={number:8,stages:[{kind:'artifact',options:['artifact:hyperfocus']}],
+  index:0,options:['artifact:hyperfocus']};
+ scene.chooseReward('artifact:hyperfocus');
+ const core=scene.ui.find(o=>o.getData?.('artifactReplacementSlot')===0);
+ assert.equal(core.handlers.pointerdown,undefined);
+ assert.equal(scene.replaceArtifactReward(0),false);
+ assert.equal(scene.activeReward.pendingArtifact,'hyperfocus');
+ assert.equal(scene.replaceArtifactReward(2),true);
+ assert.deepEqual(artifacts.list(scene.model),[
+  'core_laser','terminal_overload','hyperfocus','shield','recovery','lingering'
+ ]);
+ savedEntries.clear();
+});
+test('a full collection still gets rare artifact rewards after previous queued waves',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ for(const id of artifacts.IDS.slice(0,6))artifacts.add(scene.model,id);
+ scene.waveClock.seed=137;
+ const lucky=Array.from({length:100},(_,i)=>i+3).find(n=>rewards.artifactDrop(n,137));
+ scene.waveClock.number=lucky;
+ const reward=scene.rewardForWave(lucky);
+ assert.equal(reward.stages.at(-1).kind,'artifact');
+ scene.activeReward=reward;
+ while(rewards.current(scene.activeReward).kind!=='artifact')
+  scene.chooseReward(scene.activeReward.options[0]);
+ const option=scene.activeReward.options[0];
+ assert.equal(scene.chooseReward(option),true);
+ assert.equal(scene.activeReward.pendingArtifact,option.slice(9));
+ savedEntries.clear();
 });

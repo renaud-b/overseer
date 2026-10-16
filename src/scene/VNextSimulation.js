@@ -16,11 +16,12 @@
         for (const wave of OverseerVNextWaves.advance(scene.waveClock, dt)) scene.triggerWave(wave);
         scene.updateWaveTimeline();
         const previousResources = { ...scene.world.get(scene.model.game, 'Resources') };
+        const relayMs=OverseerVNextArtifactEffects.relay(scene.model,dt,OverseerVNextEconomy);
         OverseerVNextCooling.step(scene.model,dt);
         const coolingBonuses=OverseerVNextCooling.bonuses(scene.model);
-        const economyEvents = OverseerVNextArtifactEffects.production(scene.model, dt, OverseerVNextEconomy,coolingBonuses);
+        const economyEvents = OverseerVNextArtifactEffects.production(scene.model, dt, OverseerVNextEconomy,coolingBonuses,relayMs);
         const researchEvents=OverseerVNextTechnologies.step(scene.model,dt,
-            OverseerVNextArtifactEffects.focusedBuilding(scene.model,OverseerVNextEconomy),coolingBonuses);
+            OverseerVNextArtifactEffects.focusedBuilding(scene.model,OverseerVNextEconomy),coolingBonuses,relayMs);
         if(researchEvents.length)scene.buildUi();
         for (const event of economyEvents) {
             if (event.type === 'unit-produced') scene.spawnFriendlyUnit(event.unitType, event);
@@ -34,6 +35,11 @@
         scene.updateProductionPopups(Math.min(60, Math.max(0, delta)));
         scene.updateResourceHud();
         scene.paintBoard();
+        for(const hit of OverseerVNextArtifactEffects.corrosionStep(scene.model,dt)) {
+            if(scene.world.has(hit.target))
+                scene.hitEffects.hit(hit.target,hit.from,hit.to,0x91bb70);
+        }
+        OverseerVNextArtifactEffects.combatTimers(scene.model,dt);
         const players = scene.battleUnits.filter(id => scene.world.has(id) && scene.world.get(id, 'Faction').side === 'player' && scene.world.get(id, 'Health').hp > 0);
         const enemies = scene.battleUnits.filter(id => scene.world.has(id) && scene.world.get(id, 'Faction').side === 'enemy' && scene.world.get(id, 'Health').hp > 0);
         const pulseBonus=Math.max(0,...OverseerVNextThreats.amplifiers(scene.model).map(id=>coolingBonuses[id]||0));
@@ -54,6 +60,7 @@
             });
             for (const event of events) {
                 if (event.type === 'base-attack') {
+                    OverseerVNextArtifactEffects.defense(scene.model,event.attacker);
                     const previousHp = scene.baseHp;
                     const result = OverseerVNextArtifactEffects.baseHit(scene.model, previousHp, event.damage);
                     scene.baseHp = result.hp;

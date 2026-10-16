@@ -25,7 +25,7 @@ function artifactDrop(number,seed){
 function create(number,seed,buildings,technologies,artifacts=[],owned=[]){
  const stages=mode(number,seed).map(kind=>({kind,options:options(number,seed,kind,buildings,technologies)}));
  const available=artifacts.filter(id=>!owned.includes(id));
- if(owned.length<6&&available.length&&artifactDrop(number,seed)){
+ if(available.length&&artifactDrop(number,seed)){
   stages.push({kind:'artifact',options:options(number,seed,'artifact',buildings,technologies,available)});
  }
  return {number,stages,index:0,options:[...stages[0].options]};

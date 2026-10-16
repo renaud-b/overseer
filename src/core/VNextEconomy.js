@@ -87,7 +87,7 @@
         return { type: 'production', building: id, buildingType: building.type };
     }
 
-    function step(model, deltaMs, extraActivationMs = {}, focusedBuildingId = null, coolingBonuses = {}) {
+    function step(model, deltaMs, extraActivationMs = {}, focusedBuildingId = null, coolingBonuses = {}, anticipationMs = 0) {
         if (!Number.isFinite(deltaMs) || deltaMs < 0) throw new Error('Invalid simulation delta');
         const resources = initialize(model);
         if (deltaMs === 0) return [];
@@ -108,8 +108,10 @@
             // Hyperfocus stacks additively with Surcharge, never boosts grace or Echo.
             const focusBonus = watched && id === focusedBuildingId ? activeMs * 0.4 : 0;
             const coolingBonus = watched ? Math.max(0, coolingBonuses[id] || 0) : 0;
+            // +100% observed military progress at wave opening, never on off-vision relay.
+            const anticipationBonus = watched && MILITARY[type] ? Math.min(activeMs,anticipationMs) : 0;
             // Bonus from cooling stacks additively with Hyperfocus and Surcharge.
-            progress.elapsedMs += acceleratedMs + focusBonus + activeMs * coolingBonus;
+            progress.elapsedMs += acceleratedMs + focusBonus + activeMs * coolingBonus + anticipationBonus;
             progress.blocked = false;
             if (MILITARY[type]) {
                 // A completed cycle waits for materials/capacity. No resource reservation,

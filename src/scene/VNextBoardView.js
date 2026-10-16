@@ -167,6 +167,17 @@
             const pa = point(a), pb = point(b);
             g.lineBetween(pa.x, pa.y, pb.x, pb.y);
         });
+        const relay=OverseerVNextArtifactEffects.state(this.model).relayTarget;
+        if(relay!==null&&relay!==undefined&&OverseerVNextArtifactEffects.relayActive(this.model,relay)){
+            const relaySlot=this.world.get(relay,'GridSlot').index;
+            const neighboring=this.model.tiles.map((tile,i)=>({tile,i}))
+              .filter(({tile,i})=>this.world.get(tile,'Watched').active&&
+                Math.abs(i%5-relaySlot%5)+Math.abs(Math.floor(i/5)-Math.floor(relaySlot/5))===1);
+            if(neighboring.length){
+                const source=point(neighboring[0].i),target=point(relaySlot);
+                g.lineStyle(1.5,0xb58aff,0.82).lineBetween(source.x,source.y,target.x,target.y);
+            }
+        }
         this.world.query('Building', 'GridSlot').forEach(id => {
             const slot = this.world.get(id, 'GridSlot').index;
             const p = point(slot);
@@ -180,6 +191,8 @@
             if (active) {
                 g.lineStyle(1, 0x67e5e7, 0.7).strokeCircle(p.x, p.y, cell * 0.36);
             }
+            const relayed=OverseerVNextArtifactEffects.relayActive(this.model,id);
+            if(relayed)g.lineStyle(1.5,0xb58aff,0.85).strokeCircle(p.x,p.y,cell*0.36);
             this.drawGlyph(g, type, p.x, p.y, active ? style.color : 0x5b7687, cell * 0.18);
             const heat=OverseerVNextCooling.heat(this.model,id);
             const hx=p.x-cell*0.22,hy=p.y-cell*0.4,hw=cell*0.44;
@@ -189,7 +202,7 @@
                 g.lineStyle(1,0x87b9e8,0.65).strokeCircle(p.x,p.y,cell*0.34);
             const progress = this.world.get(id, 'Production') || (type === 'laboratory' ? this.world.get(id, 'Research') : null);
             const progressDuration = type === 'laboratory' ? OverseerVNextTechnologies.RESEARCH_MS : progress?.cooldownMs;
-            if (active && progress && progressDuration > 0) {
+            if ((active || relayed) && progress && progressDuration > 0) {
                 // Small progress indicator, driven by ECS state, not a Phaser timer.
                 const px = p.x - cell * 0.25, py = p.y + cell * 0.36, pw = cell * 0.5;
                 g.fillStyle(0x294354, 0.8).fillRect(px, py, pw, 3);

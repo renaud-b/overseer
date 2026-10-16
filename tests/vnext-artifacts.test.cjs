@@ -37,7 +37,10 @@ test('artifact rewards are deterministic, optional, independent of the existing 
     }
     assert.ok(waves.some(n => rewards.artifactDrop(n, 191)));
     const full = rewards.create(15, 191, buildings, technologies, artifacts.IDS, artifacts.IDS.slice(0, 6));
-    assert.ok(full.stages.every(stage => stage.kind !== 'artifact'));
+    // A full inventory keeps offering artifacts: selecting one opens replacement.
+    if (rewards.artifactDrop(15,191))
+        assert.ok(full.stages.some(stage => stage.kind === 'artifact'));
+    else assert.ok(full.stages.every(stage => stage.kind !== 'artifact'));
     // Five owned still leaves one free slot and three distinct choices.
     const scarce = artifacts.IDS.slice(0, 5);
     const lucky = waves.find(n => rewards.artifactDrop(n, 191));
@@ -46,4 +49,36 @@ test('artifact rewards are deterministic, optional, independent of the existing 
     assert.equal(options.length, 3);
     assert.equal(new Set(options).size, 3);
     assert.ok(options.every(option => artifacts.IDS.slice(5).includes(option.slice(9))));
+});
+
+test('six slots remain capped while offerable artifacts can be proposed for replacement',()=>{
+ const model=preview.createModel(World);
+ for(const id of artifacts.IDS.slice(0,6))assert.equal(artifacts.add(model,id),true);
+ assert.deepEqual(artifacts.available(model),[]);
+ assert.ok(artifacts.offerable(model).length>0);
+ const lucky=Array.from({length:100},(_,i)=>i+3).find(n=>rewards.artifactDrop(n,77));
+ const reward=rewards.create(lucky,77,['reactor','factory','barracks'],
+  ['berserk','healing_field','stasis_field'],artifacts.offerable(model),artifacts.list(model));
+ const stage=reward.stages.at(-1);
+ assert.equal(stage.kind,'artifact');
+ assert.ok(stage.options.every(t=>!artifacts.list(model).includes(t.slice(9))));
+ const chosen=stage.options[0].slice(9);
+ assert.equal(artifacts.replace(model,2,chosen),true);
+ assert.equal(artifacts.list(model).length,6);
+ assert.equal(artifacts.list(model)[2],chosen);
+ assert.equal(artifacts.list(model).includes(artifacts.IDS[2]),false);
+ assert.equal(artifacts.replace(model,3,chosen),false,'no duplicate');
+ assert.equal(artifacts.replace(model,-1,artifacts.IDS[2]),false);
+});
+test('replacement cannot unequip Jugement du noyau when Surcharge terminale depends on it',()=>{
+ const model=preview.createModel(World);
+ for(const id of ['core_laser','terminal_overload','echo','shield','recovery','lingering'])
+  assert.equal(artifacts.add(model,id),true);
+ assert.equal(artifacts.canReplace(model,0,'hyperfocus'),false);
+ assert.equal(artifacts.replace(model,0,'hyperfocus'),false);
+ assert.equal(artifacts.canReplace(model,2,'hyperfocus'),true);
+ assert.equal(artifacts.replace(model,2,'hyperfocus'),true);
+ assert.deepEqual(artifacts.list(model),[
+  'core_laser','terminal_overload','hyperfocus','shield','recovery','lingering'
+ ]);
 });

@@ -30,7 +30,19 @@
         { id: 'parasite_network', label: 'Réseau parasitaire', symbol: 'orbit', color: 0xb58aff,
           description: 'À chaque production observée, un bâtiment voisin hors vision gagne 20 % d’avancement sur son cycle.' },
         { id: 'vital_transfer', label: 'Transfert vital', symbol: 'diamond', color: 0x69d9a0,
-          description: 'À la mort d’un allié, l’allié vivant blessé le plus proche récupère 30 % de ses PV maximaux.' }
+          description: 'À la mort d’un allié, l’allié vivant blessé le plus proche récupère 30 % de ses PV maximaux.' },
+        { id: 'defense_directive', label: 'Directive de protection', symbol: 'diamond', color: 0x62e7e1,
+          description: 'Lorsque le noyau est attaqué, les alliés proches ciblent prioritairement son agresseur pendant 3 s.' },
+        { id: 'defective', label: 'Production défectueuse', symbol: 'triangle', color: 0xf4ba58,
+          description: 'Une unité militaire fabriquée sur cinq inflige 50 % de dégâts supplémentaires, mais perd 25 % de PV max.' },
+        { id: 'corrosion', label: 'Contamination synthétique', symbol: 'orbit', color: 0x91bb70,
+          description: 'La mort d’un ennemi laisse pendant 4 s une zone corrosive (rayon 65), infligeant 1 dégât par seconde.' },
+        { id: 'anticipation', label: 'Anticipation algorithmique', symbol: 'triangle', color: 0xf4ba58,
+          description: 'Pendant les 5 premières secondes d’une vague, les bâtiments militaires observés fabriquent 2× plus vite.' },
+        { id: 'distributed', label: 'Système distribué', symbol: 'orbit', color: 0xb58aff,
+          description: 'Active un bâtiment immédiatement à la périphérie de la vision pendant 20 s, puis en choisit un autre au hasard.' },
+        { id: 'evolution', label: 'Instinct d’évolution', symbol: 'diamond', color: 0x69d9a0,
+          description: 'Après une vague sans dégâts au noyau, une unité alliée gagne +1 PV max (maximum +5 par unité).' }
     ].map(entry => Object.freeze(entry)));
     const IDS = Object.freeze(CATALOG.map(entry => entry.id));
     function get(id) { return CATALOG.find(artifact => artifact.id === id) || null; }
@@ -42,23 +54,38 @@
         return world.get(model.game, 'ArtifactCollection');
     }
     function list(model) { return [...collection(model).ids]; }
-    function available(model) {
-        if (!hasCapacity(model)) return [];
+    function offerable(model) {
+        // A full inventory can still draw new artifacts to consider for replacement.
         const owned = new Set(list(model));
         return IDS.filter(id => !owned.has(id) &&
             (id !== 'terminal_overload' || owned.has('core_laser')));
     }
+    function available(model) { return hasCapacity(model) ? offerable(model) : []; }
     function hasCapacity(model) { return collection(model).ids.length < CAPACITY; }
     function add(model, id) {
         if (!get(id) || !hasCapacity(model) || collection(model).ids.includes(id)) return false;
         collection(model).ids.push(id);
         return true;
     }
+    function canReplace(model, index, incoming) {
+        const ids = collection(model).ids;
+        if (ids.length !== CAPACITY || !Number.isInteger(index) ||
+            index < 0 || index >= ids.length || !get(incoming) || ids.includes(incoming)) return false;
+        // Surcharge terminale requires Jugement du noyau: never leave a dead passive.
+        const next = ids.map((id, i) => i === index ? incoming : id);
+        return !next.includes('terminal_overload') || next.includes('core_laser');
+    }
+    function replace(model, index, incoming) {
+        if (!canReplace(model,index,incoming)) return false;
+        collection(model).ids[index]=incoming;
+        return true;
+    }
     function valid(ids) {
         return Array.isArray(ids) && ids.length <= CAPACITY &&
             new Set(ids).size === ids.length && ids.every(id => IDS.includes(id));
     }
-    const api = { CAPACITY, CATALOG, IDS, get, collection, list, available, hasCapacity, add, valid };
+    const api = { CAPACITY, CATALOG, IDS, get, collection, list, offerable, available,
+        hasCapacity, add, canReplace, replace, valid };
     root.OverseerVNextArtifacts = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

@@ -9,7 +9,8 @@ const PULSE = Object.freeze({durationMs:5000,maxRadius:500});
 function amplifiers(model) {
     return model.world.query('Building','GridSlot').filter(id=>
         model.world.get(id,'Building').type==='perception_amplifier' &&
-        model.world.get(model.tiles[model.world.get(id,'GridSlot').index],'Watched').active);
+        (model.world.get(model.tiles[model.world.get(id,'GridSlot').index],'Watched').active||
+         root.OverseerVNextArtifactEffects?.relayActive(model,id)===true));
 }
 function state(model) {
     if(!model.world.hasComponent(model.game,'PerceptionPulse'))
