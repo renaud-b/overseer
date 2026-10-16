@@ -14,6 +14,7 @@ const battleStyles = require('../src/scene/effects/BattleUnitStyles.js');
 const battleActions = require('../src/scene/effects/BattleActionEffects.js');
 const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
+const telemetry = require('../src/core/VNextWaveTelemetry.js');
 const technologies = require('../src/core/VNextTechnologies.js');
 const rewards = require('../src/core/VNextRewards.js');
 const zones = require('../src/core/VNextZones.js');
@@ -93,7 +94,7 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
+    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
     localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
@@ -600,6 +601,70 @@ test('wave timeline exposes stable composition details on marker hover', () => {
     scene.scale.width = 800;
     scene.buildUi();
     assert.equal(scene.waveTooltipObjects.length, 0);
+});
+
+test('wave telemetry integrates with ECS spawns, death, actual base damage and rewards', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    scene.create();
+    scene.waveClock.number = 1;
+    scene.waveClock.elapsedMs = 80000;
+    const wave = waves.wave(1, scene.waveClock.seed);
+    scene.triggerWave(wave);
+    const ids = [...scene.waveMembers.get(1)];
+    assert.equal(scene.waveReport()[0].spawned, ids.length);
+    assert.equal(scene.waveReport()[0].alliesStart, 3);
+    scene.world.get(ids[0], 'Health').hp = 0;
+    scene.world.get(scene.battleUnits.find(id => scene.world.get(id, 'Faction').side === 'player'), 'Health').hp = 0;
+    telemetry.baseHit(scene.model, ids[1], 7);
+    scene.baseHp -= 7;
+    scene.checkWaveClears();
+    assert.deepEqual(scene.waveReport().map(row => [row.killed, row.allyDeathsDuring, row.coreDamage]), [[1, 1, 7]]);
+    scene.checkWaveClears(); // Count dead units only once, even before reclamation.
+    assert.equal(scene.waveReport()[0].killed, 1);
+    ids.forEach(id => { scene.world.get(id, 'Health').hp = 0; });
+    scene.waveClock.elapsedMs += 12000;
+    scene.checkWaveClears();
+    const record = scene.waveReport()[0];
+    assert.equal(record.status, 'cleared');
+    assert.equal(record.killed, ids.length);
+    assert.equal(record.durationSeconds, 12);
+    assert.equal(record.coreHpEnd, 93);
+    assert.equal(scene.activeReward.number, 1, 'existing reward flow is unchanged');
+    const snapshot = saves.capture(scene);
+    const restored = saves.restore(snapshot, World);
+    assert.deepEqual(telemetry.report(restored.model), scene.waveReport());
+    savedEntries.clear();
+});
+
+test('wave telemetry tolerates multiple concurrent waves and resumed legacy runs', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    scene.create();
+    for (const n of [1, 2]) {
+        scene.waveClock.number = n;
+        scene.waveClock.elapsedMs = n * 90000;
+        scene.triggerWave(waves.wave(n, scene.waveClock.seed));
+    }
+    const first = scene.waveMembers.get(1)[0];
+    const second = scene.waveMembers.get(2)[0];
+    scene.world.get(first, 'Health').hp = 0;
+    scene.world.get(second, 'Health').hp = 0;
+    const ally = scene.battleUnits.find(id => scene.world.get(id, 'Faction').side === 'player');
+    scene.world.get(ally, 'Health').hp = 0;
+    scene.checkWaveClears();
+    assert.deepEqual(scene.waveReport().map(row => [row.killed, row.allyDeathsDuring]), [[1, 1], [1, 1]]);
+    assert.equal(scene.activeReward, null);
+    const saved = saves.capture(scene);
+    const entity = saved.world.entities.find(e => e.id === scene.model.game);
+    entity.components = entity.components.filter(([kind]) => kind !== 'WaveTelemetry');
+    savedEntries.set(saves.KEY, JSON.stringify(saved));
+    const resumed = new VNextScene();
+    resumed.init({ resume: true });
+    resumed.create();
+    assert.deepEqual(resumed.waveReport(), [], 'old saves can lack metrics');
+    assert.equal(resumed.waveMembers.size, 2, 'wave gameplay resumes regardless of metrics');
+    savedEntries.clear();
 });
 
 test('wave timer spawns enemies at simulation interval and pauses', () => {

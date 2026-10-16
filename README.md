@@ -65,6 +65,18 @@ Le jeu comprend également un système de talents et une progression entre les p
 
 Le joueur débloque successivement **4, 5 puis 6 cases de vision** contre **30, 90 puis 240 Données** (360 au total). Le Nœud de calcul de la PR dédiée doit fournir les Données ; ce barème ne modifie ni la production de Données, ni la cadence des vagues. Les achats restent sauvegardés. Ces prix sont des valeurs d'équilibrage de prototype, à ajuster après des parties complètes.
 
+### Diagnostiquer une partie longue (vagues)
+
+La télémétrie VNext est **locale**, stockée dans le composant ECS `WaveTelemetry` (80 vagues maximum, également conservées par la sauvegarde). Elle n'envoie aucune donnée à un serveur et ne change ni les ennemis ni les récompenses. Une sauvegarde ancienne sans télémétrie reste chargeable ; l'historique antérieur n'est pas reconstitué.
+
+Dans la console du navigateur, pendant une partie :
+
+```js
+console.table(game.scene.getScene('VNextScene').waveReport());
+```
+
+Chaque ligne indique composition, nombre d'ennemis apparus et morts, durée en **secondes de simulation**, dégâts réellement infligés au noyau, nombre d'alliés perdus pendant l'intervalle, effectifs, niveau de vision et différence de Données. **En cas de vagues simultanées**, une même perte alliée peut figurer dans plusieurs intervalles ; il ne s'agit pas d'une attribution causale. Le résultat ne mesure pas encore la performance réelle du joueur hors combat.
+
 ## Architecture du prototype
 
 - `index.html`, `src/main.js` : chargement et démarrage Phaser.

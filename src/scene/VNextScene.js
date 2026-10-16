@@ -24,6 +24,11 @@ class VNextScene extends Phaser.Scene {
 
     finishRun() {
         if (this.runFinished) return;
+        if (this.model) {
+            OverseerVNextWaveTelemetry.casualties(this.model, this.battleUnits || []);
+            OverseerVNextWaveTelemetry.endActive(this.model, this.waveClock.elapsedMs,
+                this.baseHp, this.visionRules.level);
+        }
         this.runFinished = true;
         OverseerVNextSave.clear(this.saveStorage()); // Never touch persistent talents.
         this.buildUi();
@@ -106,6 +111,8 @@ class VNextScene extends Phaser.Scene {
         this.rewardQueue = restored?.rewardQueue ?? [];
         this.activeReward = restored?.activeReward ?? null;
         this.rewardSerial = 0;
+        // ECS-owned metrics are saved with the World. Previous saves can omit them.
+        OverseerVNextWaveTelemetry.initialize(this.model);
 
         if (restored) {
             OverseerVNextEconomy.initialize(this.model); // Backfill Data for old saves, preserve cycles.
@@ -938,6 +945,8 @@ class VNextScene extends Phaser.Scene {
         for (const group of wave.enemies) {
             for (let i = 0; i < group.count; i++) this.spawnEnemyUnit(group.type, i, group.count, wave.number);
         }
+        OverseerVNextWaveTelemetry.begin(this.model, wave, this.waveClock.elapsedMs,
+            this.baseHp, this.visionRules.level, this.waveMembers.get(wave.number).length);
         // Preview markers slide forward; the wave plan itself remains deterministic.
         this.previewWaves = OverseerVNextWaves.preview(8, this.waveClock.seed, this.waveClock.number);
         this.buildUi();
@@ -955,11 +964,19 @@ class VNextScene extends Phaser.Scene {
             OverseerVNextCards.REWARD_CARDS,OverseerVNextTechnologies.TYPES);
     }
 
+    // Debug console: console.table(game.scene.getScene('VNextScene').waveReport())
+    waveReport() {
+        return OverseerVNextWaveTelemetry.report(this.model);
+    }
+
     checkWaveClears() {
+        OverseerVNextWaveTelemetry.casualties(this.model, this.battleUnits);
         let changed = false;
         for (const [number, members] of this.waveMembers) {
             if (!members.length) continue;
             if (!members.every(id => !this.world.has(id) || this.world.get(id, 'Health').hp <= 0)) continue;
+            OverseerVNextWaveTelemetry.end(this.model, number, this.waveClock.elapsedMs,
+                this.baseHp, this.visionRules.level);
             this.waveMembers.delete(number);
             this.rewardQueue.push(this.rewardForWave(number));
             changed = true;
@@ -1367,7 +1384,11 @@ class VNextScene extends Phaser.Scene {
                 centralDetection: side === 'player'
             });
             for (const event of events) {
-                if (event.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - event.damage);
+                if (event.type === 'base-attack') {
+                    const applied = Math.min(this.baseHp, event.damage);
+                    this.baseHp = Math.max(0, this.baseHp - event.damage);
+                    OverseerVNextWaveTelemetry.baseHit(this.model, event.attacker, applied);
+                }
                 if (event.type === 'attack' && this.world.has(event.attacker) && this.world.has(event.target)) {
                     // Snapshot directions at impact time; simulation positions never receive recoil.
                     const attackerPosition = this.world.get(event.attacker, 'Position');

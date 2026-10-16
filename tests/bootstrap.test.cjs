@@ -18,6 +18,13 @@ test('all runtime scripts are served locally and exist after npm install', () =>
     }
 });
 
+test('wave telemetry loads before VNextScene on the actual browser path', () => {
+    const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    const scripts = [...html.matchAll(/<script\\s+src="([^"]+)"/g)].map(match => match[1]);
+    assert.ok(scripts.indexOf('src/core/VNextWaveTelemetry.js') > 0);
+    assert.ok(scripts.indexOf('src/core/VNextWaveTelemetry.js') < scripts.indexOf('src/scene/VNextScene.js'));
+});
+
 test('VNext vision rules are loaded before the scene that uses them', () => {
     const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
     const scripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)].map(match => match[1]);
