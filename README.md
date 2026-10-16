@@ -187,3 +187,8 @@ Les identifiants historiques `starter_economy`, `extra_scrap` et `extra_alloy` r
 ### Signal vital du noyau
 
 Le **cercle intérieur** du noyau reste fixe. Son ancien deuxième cercle est remplacé par une **onde sinusoïdale fermée**, qui tourne lentement autour du noyau et ajoute des harmoniques de plus en plus irrégulières lorsque ses PV diminuent. Couleur liée aux mêmes seuils de santé que le noyau ; aucune texture ni particule supplémentaire. L'animation est purement graphique : elle se base sur l'horloge de simulation existante (figée en pause et restaurée avec la sauvegarde), n'influence ni la vie, ni la détection radar, ni les attaques. La géométrie est limitée à 96 points et reste dans le masque du panneau de combat.
+
+
+### Fondations — Défense du noyau
+
+Deux talents fonctionnels disponibles contre des Éclats de mémoire : **Noyau renforcé** (`starter_base_hp`, 5 éclats) accorde 20 PV supplémentaires (120 maximum) lors de la création d'une partie, et **Renforts initiaux** (`starter_reinforcement`, 8 éclats, après Noyau renforcé) ajoute un Soldat gratuit à l'escouade de départ. Les effets sont figés dans `DefenseTalents` pour la partie, sauvegardés dans l'ECS et ne sont pas réattribués lors d'un « Continuer ». Les anciennes sauvegardes sans ce composant restent inchangées. Les identifiants historiques `starter_drone` et `starter_guard` sont conservés pour les achats passés et remboursements mais ne sont plus proposés à l'achat.
