@@ -8,15 +8,13 @@ const OverseerGameSettings = {
         };
         return {
             language: get('selectedLanguage', window.selectedLanguage || 'en'),
-            layout: get('keyboardLayout', window.keyboardLayout || 'qwerty'),
-            reducedMotion: get('overseer.reducedMotion', 'false') === 'true'
+            layout: get('keyboardLayout', window.keyboardLayout || 'qwerty')
         };
     },
     set(storage, key, value) {
         const definitions = {
             language: ['selectedLanguage', this.languages],
-            layout: ['keyboardLayout', this.layouts],
-            reducedMotion: ['overseer.reducedMotion', [true, false]]
+            layout: ['keyboardLayout', this.layouts]
         };
         const definition = definitions[key];
         if (!definition || !definition[1].includes(value)) return false;
@@ -46,16 +44,16 @@ class OverseerOptionsModal {
     }
     keep(object) { this.objects.push(object); return object; }
     clear() { this.objects.forEach(object => object.destroy()); this.objects = []; }
-    text(x, y, value, size = 13, color = '#dfeaf0') {
+    text(x, y, value, size = 13, color = '#dfeaf0', depth = 502) {
         return this.keep(this.scene.add.text(x, y, value, {
             fontFamily: 'monospace', fontSize: size + 'px', color,
             wordWrap: { width: Math.max(180, this.width - 42) }
-        }).setDepth(502));
+        }).setDepth(depth));
     }
-    action(x, y, label, callback, color = '#62e7e1') {
+    action(x, y, label, callback, color = '#62e7e1', depth = 503) {
         const button = this.keep(this.scene.add.text(x, y, label, {
             fontFamily: 'monospace', fontSize: '12px', color
-        }).setDepth(503).setInteractive({ useHandCursor: true }));
+        }).setDepth(depth).setInteractive({ useHandCursor: true }));
         button.on('pointerdown', callback);
         return button;
     }
@@ -69,11 +67,11 @@ class OverseerOptionsModal {
         this.clear();
         const { width: w, height: h } = this.scene.scale;
         this.width = Math.min(520, w - 30);
-        const x = (w - this.width) / 2, top = Math.max(12, (h - 550) / 2);
+        const x = (w - this.width) / 2, top = Math.max(12, (h - 410) / 2);
         const g = this.keep(this.scene.add.graphics().setDepth(500));
-        g.fillStyle(0x08121c, 0.92).fillRect(0, 0, w, h);
+        // Transparent hit-shield: keep the menu or battle visible behind the panel.
         this.keep(this.scene.add.zone(w / 2, h / 2, w, h).setInteractive().setDepth(501));
-        g.fillStyle(0x0b1d2b, 1).fillRoundedRect(x, top, this.width, 550, 8);
+        g.fillStyle(0x0b1d2b, 1).fillRoundedRect(x, top, this.width, 410, 8);
         g.lineStyle(1, 0x346274, 0.9).strokeRoundedRect(x, top, this.width, 550, 8);
         const left = x + 22, right = x + this.width - 150;
         this.text(left, top + 17, 'OVERSEER / CONFIGURATION', 11, '#62e7e1');
@@ -94,28 +92,32 @@ class OverseerOptionsModal {
                 settings.layout === 'azerty' ? 'qwerty' : 'azerty');
             this.render();
         });
-        this.text(left, top + 213, 'AFFICHAGE', 13, '#62e7e1');
-        this.text(left, top + 247, 'Réduire les animations du menu', 12);
-        this.action(right, top + 277, settings.reducedMotion ? 'OUI  ›' : 'NON  ›', () => {
-            OverseerGameSettings.set(this.storage(), 'reducedMotion', !settings.reducedMotion);
-            this.render();
-        });
-        this.text(left, top + 328, 'DONNÉES LOCALES', 13, '#62e7e1');
-        this.action(left, top + 366, 'EFFACER LA PARTIE', () => this.ask('save'), '#ff8a91');
-        this.action(left, top + 401, 'EFFACER LA PROGRESSION', () => this.ask('progress'), '#ff8a91');
-        this.text(left, top + 453, 'Chaque suppression demande une confirmation.', 10, '#8daabb');
-        this.action(left, top + 510, '← RETOUR', () => this.close());
+        this.text(left, top + 214, 'DONNÉES LOCALES', 13, '#62e7e1');
+        this.action(left, top + 250, 'EFFACER LA PARTIE', () => this.ask('save'), '#ff8a91');
+        this.action(left, top + 286, 'EFFACER LA PROGRESSION', () => this.ask('progress'), '#ff8a91');
+        this.text(left, top + 326, 'Chaque suppression demande une confirmation.', 10, '#8daabb');
+        this.action(left, top + 371, '← RETOUR', () => this.close());
         if (this.confirm) {
             const type = this.confirm;
-            const cy = top + 330;
-            g.fillStyle(0x091923, 1).fillRoundedRect(x + 10, cy, this.width - 20, 195, 6);
-            g.lineStyle(1, 0xff6674).strokeRoundedRect(x + 10, cy, this.width - 20, 195, 6);
-            this.text(left, cy + 18, 'CONFIRMER LA SUPPRESSION ?', 15, '#ff8a91');
-            this.text(left, cy + 53, type === 'save' ?
+            // Separate high-depth overlay: the confirmation must intercept events
+            // before the parent options buttons and its full-screen hit shield.
+            const overlay = this.keep(this.scene.add.graphics().setDepth(510));
+            overlay.fillStyle(0x08121c, 0.38).fillRect(0, 0, w, h);
+            this.keep(this.scene.add.zone(w / 2, h / 2, w, h)
+                .setInteractive().setDepth(511));
+            const cy = Math.max(15, (h - 210) / 2);
+            overlay.fillStyle(0x091923, 1)
+                .fillRoundedRect(x + 10, cy, this.width - 20, 210, 6);
+            overlay.lineStyle(1, 0xff6674)
+                .strokeRoundedRect(x + 10, cy, this.width - 20, 210, 6);
+            this.text(left, cy + 20, 'CONFIRMER LA SUPPRESSION ?', 15, '#ff8a91', 512);
+            this.text(left, cy + 62, type === 'save' ?
                 'La partie en cours sera perdue.' :
-                'Les talents et éclats seront effacés.\nLa partie en cours sera terminée.', 11);
-            this.action(left, cy + 137, 'ANNULER', () => { this.confirm = null; this.render(); });
-            this.action(right, cy + 137, 'CONFIRMER', () => this.erase(type), '#ff8a91');
+                'Les talents et éclats seront effacés.\\nLa partie en cours sera terminée.', 11, '#dfeaf0', 512);
+            this.action(left, cy + 153, 'ANNULER',
+                () => { this.confirm = null; this.render(); }, '#62e7e1', 513);
+            this.action(right, cy + 153, 'CONFIRMER',
+                () => this.erase(type), '#ff8a91', 513);
         }
     }
     ask(type) { this.confirm = type; this.render(); }
