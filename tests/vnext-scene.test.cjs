@@ -219,6 +219,12 @@ test('compute node shows Data stock, throughput, tooltip and floating production
     scene.buildUi();
     assert.equal(scene.compactResources.data.value, '2');
     assert.equal(scene.compactResourceDeltas.data.value, '+0.3/s');
+    assert.ok(scene.compactResources.data.x > scene.layout.boardX);
+    assert.ok(scene.compactResources.data.y > scene.gridLayout.y + scene.gridLayout.size,
+        'compact resources must not overlap the base grid or construction cards');
+    const technologies = scene.ui.find(item => item.value === 'TECHNOLOGIES');
+    assert.ok(technologies.y > scene.compactResources.data.y,
+        'compact technology inventory appears below resource lines');
 });
 
 test('Data from compute-node cycles pays a vision upgrade and survives Continue', () => {
