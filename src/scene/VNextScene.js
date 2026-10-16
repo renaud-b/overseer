@@ -611,6 +611,7 @@ class VNextScene extends Phaser.Scene {
         const b = this.battleBounds;
         g.lineStyle(1, 0x1c3949, 0.5).lineBetween(b.x + b.w * 0.52, b.y, b.x + b.w * 0.52, b.y + b.h);
         this.battleGraphics = this.keep(this.add.graphics());
+        this.battleParticleGraphics = this.keep(this.add.graphics());
         this.battleStatus = this.text(l.battleX + 15, mainBottom - 38, '', 11, '#8eabbc');
     }
 
@@ -963,6 +964,17 @@ class VNextScene extends Phaser.Scene {
             g.fillStyle(side === 'player' ? 0x44dc91 : 0xff5e79, 1)
                 .fillRect(q.x - 11, q.y - r - 9, 22 * Math.max(0, hp.hp / hp.maxHp), 3);
         }
+        // Draw fragments separately from the unit loop so a killing hit can outlive its target.
+        const fragments = this.battleParticleGraphics;
+        if (fragments) {
+            fragments.clear();
+            for (const bit of this.hitEffects.fragments()) {
+                const q = p(bit.x, bit.y);
+                if (q.x < b.x || q.x > b.x + b.w || q.y < b.y || q.y > b.y + b.h) continue;
+                fragments.fillStyle(bit.color, bit.alpha);
+                fragments.fillRect(q.x - bit.size / 2, q.y - bit.size / 2, bit.size, bit.size);
+            }
+        }
         if (this.battleStatus) {
             const alive = side => this.battleUnits.filter(id => this.world.has(id) &&
                 this.world.get(id, 'Faction').side === side && this.world.get(id, 'Health').hp > 0).length;
@@ -1006,8 +1018,11 @@ class VNextScene extends Phaser.Scene {
                 if (event.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - event.damage);
                 if (event.type === 'attack' && this.world.has(event.attacker) && this.world.has(event.target)) {
                     // Snapshot directions at impact time; simulation positions never receive recoil.
+                    const side = this.world.get(event.target, 'Faction').side;
                     this.hitEffects.hit(event.target,
-                        this.world.get(event.attacker, 'Position'), this.world.get(event.target, 'Position'));
+                        this.world.get(event.attacker, 'Position'),
+                        this.world.get(event.target, 'Position'),
+                        side === 'player' ? 0x38d9f1 : 0xff5c79);
                 }
             }
         }

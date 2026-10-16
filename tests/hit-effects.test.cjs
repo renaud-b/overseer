@@ -47,3 +47,32 @@ test('a short double flash preserves source colors and clears independently of s
     effects.clear();
     assert.equal(effects.hits.size, 0);
 });
+
+test('impact fragments retain unit color and position even after a lethal impact', () => {
+    const fx = new HitEffects();
+    const attacker = { x: 0, y: 0 };
+    const target = { x: 100, y: 120 };
+    fx.hit(71, attacker, target, 0x38d9f1);
+    target.x = -1000; // As if the target died or moved after impact.
+    const initial = fx.fragments();
+    assert.equal(initial.length, 5);
+    assert.ok(initial.every(p => p.x === 100 && p.y === 120 && p.color === 0x38d9f1));
+    fx.update(120);
+    const airborne = fx.fragments();
+    assert.ok(airborne.some((p, i) => p.x !== initial[i].x || p.y !== initial[i].y));
+    assert.ok(airborne.every(p => p.alpha > 0 && p.alpha < 1));
+    fx.update(500);
+    assert.equal(fx.fragments().length, 0);
+});
+
+test('fragments are bounded under continuous simultaneous hits and freeze on pause', () => {
+    const fx = new HitEffects();
+    for (let id = 0; id < 500; id++)
+        fx.hit(id, { x: id + 1, y: 0 }, { x: id, y: 0 }, 0xff5c79);
+    assert.ok(fx.particles.length <= 180);
+    const snapshot = fx.fragments();
+    fx.update(0);
+    assert.deepEqual(fx.fragments(), snapshot);
+    fx.clear();
+    assert.equal(fx.fragments().length, 0);
+});
