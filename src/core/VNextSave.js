@@ -91,7 +91,8 @@
 
         const attention = data.attention;
         requireValid(attention && integer(attention.x, 0, 4) &&
-            integer(attention.y, 0, 4) && integer(attention.patternIndex, 0, 3), 'attention');
+            integer(attention.y, 0, 4) && integer(attention.patternIndex, 0, 3) &&
+            (attention.level === undefined || integer(attention.level, 0, 3)), 'attention');
         const waveClock = data.waveClock;
         requireValid(waveClock && integer(waveClock.number, 0) &&
             number(waveClock.elapsedMs) && integer(waveClock.seed, 0, 0xffffffff), 'wave clock');
