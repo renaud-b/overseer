@@ -288,3 +288,47 @@ test('legacy zero-cadence military production does not turn old elapsed time int
     assert.equal(resources.components, 25);
 });
 
+
+test('fractional production bonuses yield whole resources over multiple observed cycles and persist',()=>{
+ const {model,reactor,extractor,resources}=make();
+ economy.configureTalents(model,['production_extraction','production_components']);
+ preview.setObserved(model,[6,7]);
+ for(let i=0;i<5;i++)economy.step(model,2000);
+ assert.equal(resources.energy,12);
+ assert.equal(resources.matter,12);
+ const before=model.world.get(model.game,'ProductionTalents');
+ assert.equal(before.fractions[reactor].outputs.energy,0);
+ const resumed={...model,world:World.restore(model.world.serialize())};
+ assert.deepEqual(resumed.world.get(model.game,'ProductionTalents').ids,['production_extraction','production_components']);
+ assert.equal(economy.configureTalents(resumed,[]),false);
+});
+test('component yield tracks fractional bonuses with no floating resources',()=>{
+ const {model,resources}=make();
+ economy.configureTalents(model,['production_components']);
+ resources.energy=50;resources.matter=50;
+ preview.setObserved(model,[11]);
+ for(let i=0;i<4;i++)economy.step(model,3000);
+ assert.equal(resources.components,5);
+ assert.equal(Number.isInteger(resources.components),true);
+});
+test('industrial input discounts accumulate whole-number credits without changing military costs',()=>{
+ const {model,resources}=make();
+ economy.configureTalents(model,['production_efficiency']);
+ resources.energy=50;resources.matter=50;
+ preview.setObserved(model,[11]);
+ for(let i=0;i<10;i++)economy.step(model,3000);
+ assert.equal(resources.components,10);
+ assert.equal(resources.energy,33);
+ assert.equal(resources.matter,33);
+ assert.equal(Number.isInteger(resources.energy),true);
+});
+test('automation only speeds up watched economic cycles and preserves unobserved progress',()=>{
+ const {model,reactor}=make();
+ economy.configureTalents(model,['production_automation']);
+ preview.setObserved(model,[6]);
+ assert.equal(economy.step(model,1820).filter(e=>e.building===reactor).length,1);
+ const progress=model.world.get(reactor,'Production').elapsedMs;
+ preview.setObserved(model,[11]);
+ economy.step(model,3000);
+ assert.equal(model.world.get(reactor,'Production').elapsedMs,progress);
+});
