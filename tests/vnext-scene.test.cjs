@@ -229,6 +229,8 @@ test('compute node shows Data stock, throughput, tooltip and floating production
     scene.create();
     assert.equal(scene.resourceLabels.data.value, '0');
     assert.equal(scene.resourceStatusLabels.data.value, '0.0/s');
+    // The compute node is now reward-only, so grant it explicitly for this focused test.
+    assert.equal(cards.grant(scene.model, 'compute_node'), true);
     scene.selectedType = 'compute_node';
     scene.clickTile(6);
     const id = preview.buildingAt(scene.model, 6);
@@ -264,6 +266,7 @@ test('Data from compute-node cycles pays a vision upgrade and survives Continue'
     savedEntries.clear();
     const running = new VNextScene();
     running.create();
+    assert.equal(cards.grant(running.model, 'compute_node'), true);
     running.selectedType = 'compute_node';
     running.clickTile(6);
     const resources = running.world.get(running.model.game, 'Resources');
@@ -284,22 +287,22 @@ test('Data from compute-node cycles pays a vision upgrade and survives Continue'
     savedEntries.clear();
 });
 
-test('scene begins with six unspent cards and empty base', () => {
+test('scene begins with four unspent cards and empty base', () => {
     const scene = new VNextScene();
     scene.create();
     assert.equal(scene.world.query('Tile').length, 25);
     assert.equal(scene.world.query('Building').length, 0);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks']);
     assert.equal(scene.world.query('PreviewUnit').length, 3);
     scene.selectedType = 'reactor';
     scene.clickTile(6);
     assert.ok(preview.buildingAt(scene.model, 6));
-    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
+    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks']);
     scene.clickTile(6);
     scene.clickTile(23);
     assert.equal(preview.buildingAt(scene.model, 6), null);
     assert.ok(preview.buildingAt(scene.model, 23));
-    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
+    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks']);
     scene.scale.width = 800;
     scene.buildUi();
     scene.resetBattle();
@@ -420,10 +423,10 @@ test('drag and drop consumes a single card only on valid target', () => {
     scene.create();
     const dragged = { getData: () => 'barracks' };
     scene.onDragEnd({ x: -100, y: -100 }, dragged);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks']);
     const { x, y, cell } = scene.gridLayout;
     scene.onDragEnd({ x: x + cell * 0.5, y: y + cell * 0.5 }, dragged);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'laboratory', 'compute_node']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory']);
     assert.ok(preview.buildingAt(scene.model, 0));
 });
 
@@ -1525,7 +1528,17 @@ test('six artifact slots appear between title and speed controls, including on n
         scene.scale.width = width; scene.buildUi();
         const slots = scene.ui.filter(object => Number.isInteger(object.getData?.('artifactSlot')));
         assert.equal(slots.length, 6);
-        assert.ok(slots[0].x > 140 && slots[5].x < Math.max(330, width - 472));
+        const title = scene.ui.find(o => o.value === OverseerVNextBrand.title);
+        assert.ok(title);
+        const titleSize = width < 1000 ? 16 : 23;
+        const titleRight = title.x + (title.width ??
+            OverseerVNextBrand.title.length * titleSize * 0.61);
+        const firstLeft = slots[0].x - slots[0].width / 2;
+        const lastRight = slots[5].x + slots[5].width / 2;
+        const speedX = Math.max(330, width - 472);
+        assert.ok(firstLeft > titleRight, 'artifact slots must not overlap the title');
+        if (width >= 1000) assert.ok(firstLeft - titleRight >= 63, 'leave about 64px after the title');
+        assert.ok(lastRight <= speedX - 12, 'artifact slots must not cover speed controls');
         slots[0].handlers.pointerover();
         assert.ok(scene.artifactTooltipObjects.some(item => item.value === 'Emplacement vide'));
         slots[0].handlers.pointerout();

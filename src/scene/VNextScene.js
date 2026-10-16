@@ -198,9 +198,15 @@ class VNextScene extends Phaser.Scene {
         const g = this.keep(this.add.graphics());
         g.fillStyle(0x08121c).fillRect(0, 0, w, h);
         g.lineStyle(1, 0x1d3644, 0.9).lineBetween(m, 65, w - m, 65);
-        this.text(m + 6, 19, OverseerVNextBrand.title, 23, OverseerVNextBrand.titleColor);
+        // Compact widths need a smaller title so the artifact slots stay visible.
+        const titleSize = w < 1000 ? 16 : 23;
+        const title = this.text(m + 6, 19, OverseerVNextBrand.title,
+            titleSize, OverseerVNextBrand.titleColor);
         this.text(m + 7, 49, OverseerVNextBrand.subtitle, 10, OverseerVNextBrand.subtitleColor);
-        this.drawArtifactSlots(w);
+        // Phaser measures Text.width; the estimate is for lightweight test renderers.
+        const titleRight = title.x + (title.width ??
+            OverseerVNextBrand.title.length * titleSize * 0.61);
+        this.drawArtifactSlots(w, titleRight);
         this.drawSpeedControls(w);
         this.panel(g, m, mainTop, leftW, mainBottom - mainTop);
         this.panel(g, centerX, mainTop, boardW, mainBottom - mainTop);
@@ -226,12 +232,15 @@ class VNextScene extends Phaser.Scene {
         if (this.hoveredTile !== null) this.showBuildingTooltip(this.hoveredTile);
     }
 
-    drawArtifactSlots(w) {
+    drawArtifactSlots(w, titleRight) {
         const items = OverseerVNextArtifacts.list(this.model);
         const speedX = Math.max(330, w - 472);
         const size = Math.min(32, Math.max(18, Math.floor((speedX - 185 - 16 - 25) / 6)));
         const gap = size < 26 ? 4 : 6;
-        const start = Math.max(165, Math.min(230, speedX - 6 * size - 5 * gap - 12));
+        const maxStart = speedX - 6 * size - 5 * gap - 12;
+        // Give the brand 64px of breathing room where possible. On narrow
+        // screens cap the offset to keep all six slots before speed controls.
+        const start = Math.min(maxStart, titleRight + 64);
         this.artifactSlots = [];
         const graphics = this.keep(this.add.graphics());
         for (let i = 0; i < OverseerVNextArtifacts.CAPACITY; i++) {
