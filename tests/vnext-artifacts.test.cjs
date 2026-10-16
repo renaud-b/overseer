@@ -38,8 +38,10 @@ test('artifact rewards are deterministic, optional, independent of the existing 
     assert.ok(waves.some(n => rewards.artifactDrop(n, 191)));
     const full = rewards.create(15, 191, buildings, technologies, artifacts.IDS, artifacts.IDS.slice(0, 6));
     assert.ok(full.stages.every(stage => stage.kind !== 'artifact'));
-    const scarce = artifacts.IDS.slice(0, 7);
+    // Five owned still leaves one free slot and three distinct choices.
+    const scarce = artifacts.IDS.slice(0, 5);
     const lucky = waves.find(n => rewards.artifactDrop(n, 191));
     const almostAll = rewards.create(lucky, 191, buildings, technologies, artifacts.IDS, scarce);
-    assert.deepEqual(almostAll.stages.at(-1).options, ['artifact:' + artifacts.IDS[7]]);
+    assert.deepEqual(new Set(almostAll.stages.at(-1).options),
+        new Set(artifacts.IDS.slice(5).map(id => 'artifact:' + id)));
 });
