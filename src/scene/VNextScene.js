@@ -713,7 +713,9 @@ class VNextScene extends Phaser.Scene {
     }
 
     drawCompactResources() {
-        const l = this.layout, x = l.m + 17, startY = l.mainBottom - 237;
+        // Compact HUD lives under the grid, not on top of construction cards.
+        const l = this.layout, x = l.boardX + 16;
+        const startY = this.gridLayout.y + this.gridLayout.size + 12;
         const g = this.keep(this.add.graphics());
         this.compactResources = {};
         this.compactResourceDeltas = {};
@@ -722,8 +724,8 @@ class VNextScene extends Phaser.Scene {
             this.drawResourceIcon(g, style, x + 8, y + 7, 8);
             const color = `#${style.color.toString(16).padStart(6, '0')}`;
             this.compactResources[style.id] = this.text(x + 25, y - 2, '0', 14, color);
-            this.compactResourceDeltas[style.id] = this.text(l.m + l.leftW - 17, y, '—', 11, '#7898aa').setOrigin(1, 0);
-            this.resourceHoverZone(style, x, y - 3, l.leftW - 32, 22, x + 7, y - 30);
+            this.compactResourceDeltas[style.id] = this.text(l.boardX + l.boardW - 16, y, '—', 11, '#7898aa').setOrigin(1, 0);
+            this.resourceHoverZone(style, x, y - 3, l.boardW - 32, 22, x + 7, y - 30);
         });
     }
 
@@ -777,8 +779,8 @@ class VNextScene extends Phaser.Scene {
     // actual balance changes over simulation time, not projected recipe output.
     drawTechnologies() {
         const l=this.layout, right=Boolean(l.rightW);
-        const x=right?l.rightX+12:l.m+10;
-        const y=right?l.mainTop+223:l.mainBottom-139;
+        const x=right?l.rightX+12:l.boardX+16;
+        const y=right?l.mainTop+223:this.gridLayout.y+this.gridLayout.size+105;
         const items=OverseerVNextTechnologies.inventory(this.model).items;
         if(!right && l.leftW<165)return;
         this.text(x,y,'TECHNOLOGIES',12,'#b58aff');
