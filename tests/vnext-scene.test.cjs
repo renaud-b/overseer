@@ -1854,7 +1854,7 @@ test('Cryopump shows active proximity coverage, non-punitive heat and a cooling 
  assert.equal(cooling.heat(scene.model,reactor),0);
  assert.equal(cooling.heat(scene.model,pump),0);
  scene.showBuildingTooltip(7);
- assert.ok(scene.tooltipObjects.some(o=>o.value==='PORTEE : 8 CASES VOISINES'));
+ assert.ok(scene.tooltipObjects.some(o=>o.value==='PORTÉE : 8 CASES VOISINES'));
  scene.hideBuildingTooltip();
  preview.setObserved(scene.model,[6]);
  scene.updateResourceHud();
