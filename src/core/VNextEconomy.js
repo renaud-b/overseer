@@ -68,7 +68,25 @@
         return resources;
     }
 
-    function step(model, deltaMs) {
+    function forceCycle(model, id, pending = []) {
+        const world = model.world, building = world.get(id, 'Building');
+        const recipe = PROTOTYPE_RECIPES[building?.type];
+        if (!recipe) return null;
+        const resources = initialize(model);
+        if (MILITARY[building.type] &&
+            aliveUnits(model, building.type) + pending.filter(e =>
+                e.type === 'unit-produced' && e.buildingType === building.type).length >= unitCapacity(model, building.type)) return null;
+        if (Object.entries(recipe.consumes).some(([key, qty]) => resources[key] < qty)) return null;
+        for (const [key, qty] of Object.entries(recipe.consumes)) resources[key] -= qty;
+        if (MILITARY[building.type]) return {
+            type: 'unit-produced', building: id, buildingType: building.type,
+            unitType: MILITARY[building.type].unitType
+        };
+        for (const [key, qty] of Object.entries(recipe.produces)) resources[key] += qty;
+        return { type: 'production', building: id, buildingType: building.type };
+    }
+
+    function step(model, deltaMs, extraActivationMs = {}) {
         if (!Number.isFinite(deltaMs) || deltaMs < 0) throw new Error('Invalid simulation delta');
         const resources = initialize(model);
         if (deltaMs === 0) return [];
@@ -78,51 +96,47 @@
             const recipe = PROTOTYPE_RECIPES[type];
             if (!recipe) continue;
             const slot = model.world.get(id, 'GridSlot').index;
-            if (!model.world.get(model.tiles[slot], 'Watched').active) continue;
+            const watched = model.world.get(model.tiles[slot], 'Watched').active;
+            const activeMs = watched ? deltaMs :
+                Math.min(deltaMs, Math.max(0, extraActivationMs[id] || 0));
+            if (!activeMs) continue;
             const progress = model.world.get(id, 'Production');
-            // Surcharge speeds observed production, never Laboratory research or unobserved machines.
-            const extra = model.world.get(model.game, 'TechnologyEffects')?.overloadMs || 0;
-            const acceleratedMs = deltaMs + Math.min(deltaMs, Math.max(0, extra));
+            // Surcharge accelerates only observed machines; the artifact grace is unboosted.
+            const extra = watched ? model.world.get(model.game, 'TechnologyEffects')?.overloadMs || 0 : 0;
+            const acceleratedMs = activeMs + Math.min(activeMs, Math.max(0, extra));
             progress.elapsedMs += acceleratedMs;
             progress.blocked = false;
             if (MILITARY[type]) {
                 // A completed cycle waits for materials/capacity. No resource reservation,
                 // no production while unobserved, and no backlog of blocked cycles.
                 while (progress.elapsedMs >= recipe.cycleMs) {
-                    const pending = events.filter(e =>
-                        e.type === 'unit-produced' && e.buildingType === type).length;
-                    if (aliveUnits(model, type) + pending >= unitCapacity(model, type) ||
-                        Object.entries(recipe.consumes).some(([key, qty]) => resources[key] < qty)) {
+                    const event = forceCycle(model, id, events);
+                    if (!event) {
                         progress.elapsedMs = recipe.cycleMs;
                         progress.blocked = true;
                         break;
                     }
-                    for (const [key, qty] of Object.entries(recipe.consumes)) resources[key] -= qty;
                     progress.elapsedMs -= recipe.cycleMs;
-                    events.push({
-                        type: 'unit-produced', building: id, buildingType: type,
-                        unitType: MILITARY[type].unitType
-                    });
+                    events.push(event);
                 }
                 continue;
             }
             while (progress.elapsedMs >= recipe.cycleMs) {
-                if (Object.entries(recipe.consumes).some(([key, qty]) => resources[key] < qty)) {
+                const event = forceCycle(model, id, events);
+                if (!event) {
                     // The machine stays ready, then retries as soon as inputs are available.
                     progress.elapsedMs = recipe.cycleMs;
                     progress.blocked = true;
                     break;
                 }
-                for (const [key, qty] of Object.entries(recipe.consumes)) resources[key] -= qty;
-                for (const [key, qty] of Object.entries(recipe.produces)) resources[key] += qty;
                 progress.elapsedMs -= recipe.cycleMs;
-                events.push({ type: 'production', building: id, buildingType: type });
+                events.push(event);
             }
         }
         return events;
     }
 
-    const api = { PROTOTYPE_RECIPES, MILITARY, unitCapacity, aliveUnits, initialize, step };
+    const api = { PROTOTYPE_RECIPES, MILITARY, unitCapacity, aliveUnits, initialize, forceCycle, step };
     root.OverseerVNextEconomy = api;
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);

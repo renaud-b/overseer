@@ -18,6 +18,7 @@ const telemetry = require('../src/core/VNextWaveTelemetry.js');
 const technologies = require('../src/core/VNextTechnologies.js');
 const rewards = require('../src/core/VNextRewards.js');
 const artifacts = require('../src/core/VNextArtifacts.js');
+const artifactEffects = require('../src/core/VNextArtifactEffects.js');
 const zones = require('../src/core/VNextZones.js');
 const threats = require('../src/core/VNextThreats.js');
 const saves = require('../src/core/VNextSave.js');
@@ -95,7 +96,7 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
+    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextArtifactEffects: artifactEffects, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
     localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
@@ -1557,4 +1558,51 @@ test('an artifact offered by queued rewards is replaced or skipped when previous
     scene.reconcileArtifactRewards();
     assert.equal(scene.activeReward,null);
     savedEntries.clear();
+});
+
+test('artifact timers persist through Continue, and pause cannot advance a ready laser', () => {
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ assert.equal(artifacts.add(scene.model,'core_laser'),true);
+ artifactEffects.state(scene.model).laserMs=9000;
+ assert.equal(scene.saveCurrentGame(),true);
+ const resumed=new VNextScene();resumed.init({resume:true});resumed.create();
+ assert.equal(artifactEffects.state(resumed.model).laserMs,9000);
+ resumed.selectSpeed(0);
+ resumed.update(0,4000);
+ assert.equal(artifactEffects.state(resumed.model).laserMs,9000);
+ savedEntries.clear();
+});
+test('laser artifact damages a detected enemy and displays a bounded combat effect', () => {
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ assert.equal(artifacts.add(scene.model,'core_laser'),true);
+ artifactEffects.state(scene.model).laserMs=artifactEffects.LASER_MS;
+ scene.spawnEnemyUnit('basic_monster',0,1);
+ const enemy=scene.battleUnits.at(-1);
+ scene.world.get(enemy,'Position').x=135;
+ scene.world.get(enemy,'Position').y=300;
+ scene.world.get(enemy,'Health').hp=20;
+ scene.world.get(enemy,'Health').maxHp=20;
+ const before=scene.world.get(enemy,'Health').hp;
+ scene.update(0,60);
+ assert.equal(scene.world.get(enemy,'Health').hp,before-3);
+ assert.ok(scene.actionEffects.visuals().some(v=>v.kind==='laser'&&v.color===0x62e7e1));
+ savedEntries.clear();
+});
+test('artifact shield ring is only visible when the shield has charge', () => {
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ artifacts.add(scene.model,'shield');
+ artifactEffects.startWave(scene.model,1,120,35,economy);
+ const damage=artifactEffects.baseHit(scene.model,35,10);
+ scene.baseHp=damage.hp;
+ scene.paintBattle();
+ assert.ok(scene.battleGraphics.drawCalls.some(c=>
+  c.type==='strokeCircle'&&c.color===0x69d9a0));
+ artifactEffects.state(scene.model).shieldPoints=0;
+ scene.paintBattle();
+ assert.ok(!scene.battleGraphics.drawCalls.some(c=>
+  c.type==='strokeCircle'&&c.color===0x69d9a0));
+ savedEntries.clear();
 });

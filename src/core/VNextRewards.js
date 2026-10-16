@@ -12,7 +12,8 @@ function options(number,seed,kind,buildings,technologies,artifacts=[]){
  const pool=kind==='building'?[...buildings]:kind==='technology'?technologies.map(type=>'tech:'+type):artifacts.map(id=>'artifact:'+id);
  let state=(seed^Math.imul(number,0x9e3779b1)^(kind==='technology'?0xa62195c7:kind==='artifact'?0x4c32b879:0x4f3d7a1b))>>>0;
  for(let i=pool.length-1;i>0;i--){state=(Math.imul(state,1664525)+1013904223)>>>0;const j=state%(i+1);[pool[i],pool[j]]=[pool[j],pool[i]];}
- return pool.slice(0,3);
+ // Keep weighting in the shuffled pool, but never offer the same card twice.
+ return [...new Set(pool)].slice(0,3);
 }
 function artifactDrop(number,seed){
  // Independent from the established 40/40/20 building/technology distribution.

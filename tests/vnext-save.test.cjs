@@ -8,6 +8,7 @@ const cards = require('../src/core/VNextCards.js');
 const economy = require('../src/core/VNextEconomy.js');
 const save = require('../src/core/VNextSave.js');
 const artifacts = require('../src/core/VNextArtifacts.js');
+const artifactEffects = require('../src/core/VNextArtifactEffects.js');
 
 function storage() {
     const items = new Map();
@@ -180,4 +181,18 @@ test('artifacts persist in ECS saves, reject invalid inventories and old saves r
     game.components.find(([kind]) => kind === 'ArtifactCollection')[1].ids.push('echo');
     assert.throws(() => save.restore(bad, World), /artifact collection/);
     assert.ok(save.restore(save.capture(runningScene()), World)); // Previous saves omit artifacts.
+});
+
+test('malformed persisted artifact effect timers cannot offer Continue', () => {
+ const scene=runningScene(),slot=storage();
+ artifactEffects.state(scene.model).laserMs=1234;
+ assert.equal(save.write(scene,slot),true);
+ const stored=save.read(slot);
+ assert.equal(artifactEffects.state(save.restore(stored,World).model).laserMs,1234);
+ const bad=JSON.parse(JSON.stringify(stored));
+ const game=bad.world.entities.find(e=>e.id===scene.model.game);
+ game.components.find(([type])=>type==='ArtifactEffects')[1].laserMs=-100;
+ slot.setItem(save.KEY,JSON.stringify(bad));
+ assert.equal(save.read(slot),null);
+ assert.throws(()=>save.restore(bad,World),/artifact effects/);
 });
