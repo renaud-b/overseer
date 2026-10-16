@@ -14,6 +14,7 @@ const battleStyles = require('../src/scene/effects/BattleUnitStyles.js');
 const battleActions = require('../src/scene/effects/BattleActionEffects.js');
 const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
+const telemetry = require('../src/core/VNextWaveTelemetry.js');
 const technologies = require('../src/core/VNextTechnologies.js');
 const rewards = require('../src/core/VNextRewards.js');
 const zones = require('../src/core/VNextZones.js');
@@ -93,7 +94,7 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
+    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
     localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
@@ -600,6 +601,142 @@ test('wave timeline exposes stable composition details on marker hover', () => {
     scene.scale.width = 800;
     scene.buildUi();
     assert.equal(scene.waveTooltipObjects.length, 0);
+});
+
+test('wave telemetry integrates with ECS spawns, death, actual base damage and rewards', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    scene.create();
+    scene.waveClock.number = 1;
+    scene.waveClock.elapsedMs = 80000;
+    const wave = waves.wave(1, scene.waveClock.seed);
+    scene.triggerWave(wave);
+    const ids = [...scene.waveMembers.get(1)];
+    assert.equal(scene.waveReport()[0].spawned, ids.length);
+    assert.equal(scene.waveReport()[0].alliesStart, 3);
+    scene.world.get(ids[0], 'Health').hp = 0;
+    scene.world.get(scene.battleUnits.find(id => scene.world.get(id, 'Faction').side === 'player'), 'Health').hp = 0;
+    telemetry.baseHit(scene.model, ids[1], 7);
+    scene.baseHp -= 7;
+    scene.checkWaveClears();
+    assert.deepEqual(scene.waveReport().map(row => [row.killed, row.allyDeathsDuring, row.coreDamage]), [[1, 1, 7]]);
+    scene.checkWaveClears(); // Count dead units only once, even before reclamation.
+    assert.equal(scene.waveReport()[0].killed, 1);
+    ids.forEach(id => { scene.world.get(id, 'Health').hp = 0; });
+    scene.waveClock.elapsedMs += 12000;
+    scene.checkWaveClears();
+    const record = scene.waveReport()[0];
+    assert.equal(record.status, 'cleared');
+    assert.equal(record.killed, ids.length);
+    assert.equal(record.durationSeconds, 12);
+    assert.equal(record.coreHpEnd, 93);
+    assert.equal(scene.activeReward.number, 1, 'existing reward flow is unchanged');
+    const snapshot = saves.capture(scene);
+    const restored = saves.restore(snapshot, World);
+    assert.deepEqual(telemetry.report(restored.model), scene.waveReport());
+    savedEntries.clear();
+});
+
+test('wave telemetry tolerates multiple concurrent waves and resumed legacy runs', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    scene.create();
+    for (const n of [1, 2]) {
+        scene.waveClock.number = n;
+        scene.waveClock.elapsedMs = n * 90000;
+        scene.triggerWave(waves.wave(n, scene.waveClock.seed));
+    }
+    const first = scene.waveMembers.get(1)[0];
+    const second = scene.waveMembers.get(2)[0];
+    scene.world.get(first, 'Health').hp = 0;
+    scene.world.get(second, 'Health').hp = 0;
+    const ally = scene.battleUnits.find(id => scene.world.get(id, 'Faction').side === 'player');
+    scene.world.get(ally, 'Health').hp = 0;
+    scene.checkWaveClears();
+    assert.deepEqual(scene.waveReport().map(row => [row.killed, row.allyDeathsDuring]), [[1, 1], [1, 1]]);
+    assert.equal(scene.activeReward, null);
+    const saved = saves.capture(scene);
+    const entity = saved.world.entities.find(e => e.id === scene.model.game);
+    entity.components = entity.components.filter(([kind]) => kind !== 'WaveTelemetry');
+    savedEntries.set(saves.KEY, JSON.stringify(saved));
+    const resumed = new VNextScene();
+    resumed.init({ resume: true });
+    resumed.create();
+    assert.deepEqual(resumed.waveReport(), [], 'old saves can lack metrics');
+    assert.equal(resumed.waveMembers.size, 2, 'wave gameplay resumes regardless of metrics');
+    savedEntries.clear();
+});
+
+test('timeline tooltip and spawner already accept multi-type wave descriptors', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const wave = {
+        number: 1, dueAtMs: 90000,
+        enemies: [{ type: 'basic_monster', count: 2 },
+            { type: 'ranged_monster', count: 2 }, { type: 'base_rusher', count: 1 }]
+    };
+    scene.previewWaves[0] = wave;
+    scene.showWaveTooltip(0, 500, 710);
+    const labels = scene.waveTooltipObjects.filter(o => typeof o.value === 'string').map(o => o.value);
+    assert.ok(labels.some(s => s.includes('×2') && s.includes('Ennemi de base')));
+    assert.ok(labels.some(s => s.includes('×2') && s.includes('Tireur distant')));
+    assert.ok(labels.some(s => s.includes('×1') && s.includes('Percuteur')));
+    scene.waveClock.number = 1;
+    scene.waveClock.elapsedMs = 90000;
+    scene.triggerWave(wave);
+    assert.equal(scene.waveMembers.get(1).length, 5);
+    const types = scene.waveMembers.get(1).map(id => scene.world.get(id, 'PreviewUnit').type);
+    assert.deepEqual(Array.from(types).sort(), [
+        'basic_monster', 'basic_monster', 'ranged_monster', 'ranged_monster', 'base_rusher'
+    ].sort());
+    assert.equal(scene.waveReport()[0].spawned, 5);
+});
+
+test('wave markers show one to five threat dots, elite in amber, and honest tooltip', () => {
+    const scene=new VNextScene();
+    scene.create();
+    scene.waveClock.elapsedMs=0;
+    const seed=scene.waveClock.seed;
+    scene.previewWaves=[waves.wave(1,seed),waves.wave(4,seed),waves.wave(7,seed),waves.wave(10,seed)];
+    scene.waveClock.elapsedMs=waves.wave(1,seed).dueAtMs-20000;
+    const due=[20000,50000,110000,180000];
+    scene.previewWaves=scene.previewWaves.map((wave,i)=>({...wave,dueAtMs:scene.waveClock.elapsedMs+due[i]}));
+    scene.waveMarkers=scene.waveMarkers.slice(0,4);
+    scene.paintWaveTimeline();
+    const visibleDots=scene.waveGraphics.drawCalls.filter(c=>c.type==='fillCircle');
+    assert.equal(visibleDots.length,1+2+3+5);
+    assert.equal(scene.waveGraphics.drawCalls.filter(c=>c.type==='strokeCircle').length,1,
+        'only the elite wave gets a special outline');
+    assert.deepEqual(scene.previewWaves.map(w=>waves.danger(w).level),[1,2,3,5]);
+    scene.showWaveTooltip(3,500,650);
+    const labels=scene.waveTooltipObjects.filter(o=>typeof o.value==='string').map(o=>o.value);
+    assert.ok(labels.includes('VAGUE 10 · ÉLITE'));
+    assert.ok(labels.some(s=>s.includes('MENACE ESTIMÉE')));
+    assert.ok(labels.some(s=>s.includes('RÉCOMPENSE : BÂTIMENT + TECHNO')));
+    assert.ok(labels.some(s=>s.includes('Percuteur')));
+});
+
+test('clearing tenth-wave elite guarantees two reward choices in existing journey', () => {
+    savedEntries.clear();
+    const scene=new VNextScene();scene.create();
+    scene.waveClock.number=10;
+    scene.waveClock.elapsedMs=waves.wave(10,scene.waveClock.seed).dueAtMs;
+    const wave=waves.wave(10,scene.waveClock.seed);
+    scene.triggerWave(wave);
+    for(const id of scene.waveMembers.get(10))scene.world.get(id,'Health').hp=0;
+    scene.checkWaveClears();
+    assert.deepEqual(scene.activeReward.stages.map(stage=>stage.kind),['building','technology']);
+    const cardBefore=cards.cards(scene.model).length;
+    assert.equal(scene.chooseReward(scene.activeReward.options[0]),true);
+    assert.equal(cards.cards(scene.model).length,cardBefore+1);
+    assert.equal(scene.activeReward.index,1);
+    const saved=saves.capture(scene);
+    assert.equal(saves.restore(saved,World).activeReward.index,1);
+    const techBefore=technologies.inventory(scene.model).items.length;
+    assert.equal(scene.chooseReward(scene.activeReward.options[0]),true);
+    assert.equal(technologies.inventory(scene.model).items.length,techBefore+1);
+    assert.equal(scene.activeReward,null);
+    savedEntries.clear();
 });
 
 test('wave timer spawns enemies at simulation interval and pauses', () => {
@@ -1185,10 +1322,14 @@ test('reward journey routes building then technology without resuming between st
 });
 test('reward distribution approximates 40/40/20 deterministically',()=>{
  const rewardSystem=require('../src/core/VNextRewards.js'),count={building:0,technology:0,both:0};
- for(let n=1;n<=1000;n++){const mode=rewardSystem.mode(n,137);count[mode.length===2?'both':mode[0]]++;}
- assert.ok(Math.abs(count.building-400)<80);
- assert.ok(Math.abs(count.technology-400)<80);
- assert.ok(Math.abs(count.both-200)<70);
+ for(let n=1;n<=1000;n++){if(n%10===0)continue;const mode=rewardSystem.mode(n,137);count[mode.length===2?'both':mode[0]]++;}
+ assert.ok(Math.abs(count.building-360)<80);
+ assert.ok(Math.abs(count.technology-360)<80);
+ assert.ok(Math.abs(count.both-180)<70);
+ for(const seed of [0,13,137,981,4294967295]) {
+  assert.deepEqual(rewardSystem.mode(10,seed),['building','technology']);
+  assert.deepEqual(rewardSystem.mode(20,seed),['building','technology']);
+ }
 });
 
 
@@ -1289,7 +1430,6 @@ test('new technologies show accurate tooltips in inventory and reward choice', (
     reward.handlers.pointerover();
     assert.ok(scene.technologyTooltipObjects.some(o=>o.value==='SURCHARGE'));
 });
-
 
 test('EMP and Renforts show tooltips, cast through the battlefield and are saved',()=>{
     const scene=new VNextScene();scene.create();
