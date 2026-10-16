@@ -14,7 +14,14 @@ function stepUnit(world,id,delta,options={}){
   if(zone.type==='stasis_field'&&distance(position,zone)<=zone.radius){speed*=0.5;break;}
  }
  const detection=combat.detectionRadius;
- const candidate=opponents.filter(o=>distance(position,o.position)<detection).sort((a,b)=>distance(position,a.position)-distance(position,b.position))[0];
+ const central=options.centralDetection && faction.side==='player';
+ const eligible=opponents.filter(o=>central
+   ? Boolean(world.get(o.id,'ThreatMark')) || distance(position,o.position)<=55
+   : distance(position,o.position)<detection);
+ // Retain the previous marked target until it disappears, not merely until a closer enemy arrives.
+ const locked=central && eligible.find(o=>o.id===combat.targetId);
+ const candidate=locked || eligible.sort((a,b)=>distance(position,a.position)-distance(position,b.position))[0];
+ if (central) combat.targetId=candidate?.id ?? null;
  const target=combat.behavior==='base_rusher'?null:candidate;
  const events=[];
  if(combat.behavior==='healer' && faction.side==='player') {
@@ -43,6 +50,17 @@ function stepUnit(world,id,delta,options={}){
  }
  return events;
 }
+// Stable, bounded guard posts on the battlefield-facing (right) side of the AI.
+function formationPosition(index, total, core = {x:65,y:300}) {
+ if (!Number.isInteger(index) || !Number.isInteger(total) || total<=0 || index<0 || index>=total)
+   throw new RangeError('Invalid formation slot');
+ const perRing=7;
+ const ring=Math.floor(index/perRing), slot=index%perRing;
+ const count=Math.min(perRing,total-ring*perRing);
+ const angle=count===1?0:-Math.PI/2+Math.PI*slot/(count-1);
+ const radius=85+ring*28;
+ return {x:core.x+Math.cos(angle)*radius+16,y:core.y+Math.sin(angle)*radius};
+}
 // Keep friendly units readable without changing attack decisions or combat stats.
 // A single pairwise pass is enough for the small VNext battle; positions live in ECS.
 function separateUnits(world, ids, minimumDistance = 22) {
@@ -66,5 +84,5 @@ function separateUnits(world, ids, minimumDistance = 22) {
   }
  }
 }
-const api={stepUnit,separateUnits};root.OverseerCombat=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+const api={stepUnit,separateUnits,formationPosition};root.OverseerCombat=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(globalThis);

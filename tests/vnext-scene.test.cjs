@@ -16,6 +16,7 @@ const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
 const technologies = require('../src/core/VNextTechnologies.js');
 const zones = require('../src/core/VNextZones.js');
+const threats = require('../src/core/VNextThreats.js');
 const saves = require('../src/core/VNextSave.js');
 const visionUpgrades = require('../src/core/VNextVision.js');
 const savedEntries = new Map();
@@ -37,6 +38,9 @@ class Display {
     setPosition(x, y) { this.x = x; this.y = y; return this; }
     setY(value) { this.y = value; return this; }
     setAlpha(value) { this.alpha = value; return this; }
+    setVisible(value) { this.visible = value; return this; }
+    setMask(mask) { this.mask = mask; return this; }
+    createGeometryMask() { return { source: this, destroy() { this.destroyed = true; } }; }
     setDepth(value) { this.depth = value; return this; }
     setData(name, value) { this.data[name] = value; return this; }
     getData(name) { return this.data[name]; }
@@ -88,8 +92,32 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextZones: zones, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
+    OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
     localStorage: saveStorage, Vision, OverseerVNextBrand
+});
+
+test('AI core health moves above the rings, changes color, and battlefield graphics are clipped', () => {
+    const scene = new VNextScene();
+    scene.create();
+    assert.ok(scene.battleMask);
+    for (const layer of [scene.zoneGraphics, scene.battleGraphics,
+        scene.battleParticleGraphics, scene.battleActionGraphics]) {
+        assert.equal(layer.mask, scene.battleMask);
+    }
+    for (const [hp, color] of [[100, 0x48b8c4], [52, 0xf0ba60], [14, 0xff6674]]) {
+        scene.baseHp = hp;
+        scene.paintBattle();
+        const base = { x: scene.battleBounds.x + scene.battleBounds.w * 65 / 1000,
+            y: scene.battleBounds.y + scene.battleBounds.h / 2 };
+        assert.ok(scene.battleGraphics.drawCalls.some(call =>
+            call.type === 'strokeCircle' && call.color === color &&
+            Math.abs(call.x - base.x) < 0.01 && Math.abs(call.y - base.y) < 0.01));
+    }
+    assert.ok(!scene.battleStatus.value.includes('Base '));
+    const previousMask = scene.battleMask;
+    scene.buildUi();
+    assert.equal(previousMask.destroyed, true);
+    assert.notEqual(previousMask, scene.battleMask);
 });
 
 test('VNext vision upgrade spends ECS Data, exposes a disabled button and respects maximum', () => {
@@ -99,19 +127,20 @@ test('VNext vision upgrade spends ECS Data, exposes a disabled button and respec
     const resources = scene.world.get(scene.model.game, 'Resources');
     assert.equal(scene.visionRules.level, 0);
     assert.equal(scene.visionUpgradeButton.value, '▲ VISION');
-    assert.equal(scene.visionUpgradeCostLabel.value, '0/10 DONNÉES');
+    assert.equal(scene.visionUpgradeCostLabel.value, '0/30 DONNÉES');
     assert.equal(scene.tryUpgradeVision(), false);
     assert.equal(scene.visionRules.level, 0);
     assert.equal(scene.model.tiles.filter(id => scene.world.get(id, 'Watched').active).length, 3);
 
-    resources.data = 85; // Test injection until a Data-producing building exists.
-    for (const [level, remaining] of [[1, 75], [2, 50], [3, 0]]) {
+    resources.data = 360; // Test funding independent of the optional Data-producing building.
+    for (const [level, remaining, nextCost] of [[1, 330, 90], [2, 240, 240], [3, 0, null]]) {
         const button = scene.visionUpgradeButton;
         scene.updateVisionUpgradeButton();
         assert.equal(button.color, '#b58aff');
         button.handlers.pointerdown();
         assert.equal(scene.visionRules.level, level);
         assert.equal(resources.data, remaining);
+        if (nextCost !== null) assert.equal(scene.visionUpgradeCostLabel.value, `${remaining}/${nextCost} DONNÉES`);
         assert.equal(scene.model.tiles.filter(id => scene.world.get(id, 'Watched').active).length, level + 3);
         assert.equal(saves.read(saveStorage).attention.level, level);
     }
@@ -127,7 +156,7 @@ test('vision upgrade keeps rotation and clamps attention when the larger shape r
     const scene = new VNextScene();
     scene.create();
     const resources = scene.world.get(scene.model.game, 'Resources');
-    resources.data = 85;
+    resources.data = 360;
     assert.equal(scene.changeAttention(2, 2), true);
     assert.equal(scene.changeAttention(0, 0, true), true);
     assert.equal(scene.visionRules.patternIndex, 1);
@@ -154,7 +183,7 @@ test('Continue restores upgraded vision and old save files still restore level z
     savedEntries.clear();
     const running = new VNextScene();
     running.create();
-    running.world.get(running.model.game, 'Resources').data = 85;
+    running.world.get(running.model.game, 'Resources').data = 120;
     assert.equal(running.tryUpgradeVision(), true);
     assert.equal(running.tryUpgradeVision(), true);
     assert.equal(running.changeAttention(0, 0, true), true);
@@ -167,7 +196,7 @@ test('Continue restores upgraded vision and old save files still restore level z
     assert.equal(resumed.visionRules.level, 2);
     assert.equal(resumed.visionRules.patternIndex, running.visionRules.patternIndex);
     assert.deepEqual(resumed.model.tiles.map(id => resumed.world.get(id, 'Watched').active), previouslyWatched);
-    assert.equal(resumed.world.get(resumed.model.game, 'Resources').data, 50);
+    assert.equal(resumed.world.get(resumed.model.game, 'Resources').data, 0);
 
     const oldSave = saves.capture(running, 1720000000000);
     delete oldSave.attention.level;
@@ -191,22 +220,82 @@ test('Continue restores upgraded vision and old save files still restore level z
     savedEntries.clear();
 });
 
-test('scene begins with exactly four unspent cards and empty base', () => {
+test('compute node shows Data stock, throughput, tooltip and floating production event', () => {
+    const scene = new VNextScene();
+    scene.create();
+    assert.equal(scene.resourceLabels.data.value, '0');
+    assert.equal(scene.resourceStatusLabels.data.value, '0.0/s');
+    scene.selectedType = 'compute_node';
+    scene.clickTile(6);
+    const id = preview.buildingAt(scene.model, 6);
+    assert.equal(scene.world.get(id, 'Building').type, 'compute_node');
+    scene.showBuildingTooltip(6);
+    const labels = scene.tooltipObjects.filter(o => typeof o.value === 'string').map(o => o.value);
+    for (const item of ['Nœud de calcul', 'CONSOMME / CYCLE', 'PRODUIT / CYCLE', '6s/cycle']) {
+        assert.ok(labels.includes(item), `missing ${item}`);
+    }
+    const resources = scene.world.get(scene.model.game, 'Resources');
+    resources.energy = 2; resources.components = 1; resources.matter = 1;
+    for (let i = 0; i < 100; i++) scene.update(0, 60);
+    assert.equal(resources.data, 2);
+    assert.equal(scene.resourceLabels.data.value, '2');
+    assert.equal(scene.resourceStatusLabels.data.value, '+0.3/s');
+    assert.equal(scene.resourceStatusLabels.data.color, '#69e5ac');
+    assert.ok(scene.productionPopups.some(effect =>
+        effect.label.value === '+2' && effect.label.color === '#b58aff'));
+    assert.equal(scene.visionUpgradeCostLabel.value, '2/10 DONNÉES');
+    scene.scale.width = 800;
+    scene.buildUi();
+    assert.equal(scene.compactResources.data.value, '2');
+    assert.equal(scene.compactResourceDeltas.data.value, '+0.3/s');
+    assert.ok(scene.compactResources.data.x > scene.layout.boardX);
+    assert.ok(scene.compactResources.data.y > scene.gridLayout.y + scene.gridLayout.size,
+        'compact resources must not overlap the base grid or construction cards');
+    const technologies = scene.ui.find(item => item.value === 'TECHNOLOGIES');
+    assert.ok(technologies.y > scene.compactResources.data.y,
+        'compact technology inventory appears below resource lines');
+});
+
+test('Data from compute-node cycles pays a vision upgrade and survives Continue', () => {
+    savedEntries.clear();
+    const running = new VNextScene();
+    running.create();
+    running.selectedType = 'compute_node';
+    running.clickTile(6);
+    const resources = running.world.get(running.model.game, 'Resources');
+    resources.energy = 10; resources.matter = 5; resources.components = 5;
+    // Speed up the ECS production only; the UI must still see its real Data balance.
+    economy.step(running.model, 24000);
+    for (let i = 0; i < 100; i++) running.update(0, 60);
+    assert.equal(resources.data, 10);
+    assert.equal(running.visionUpgradeButton.color, '#b58aff');
+    assert.equal(running.tryUpgradeVision(), true);
+    assert.equal(resources.data, 0);
+    assert.equal(running.visionRules.level, 1);
+    const resumed = new VNextScene();
+    resumed.init({ resume: true });
+    resumed.create();
+    assert.equal(resumed.visionRules.level, 1);
+    assert.equal(resumed.world.get(resumed.model.game, 'Resources').data, 0);
+    savedEntries.clear();
+});
+
+test('scene begins with six unspent cards and empty base', () => {
     const scene = new VNextScene();
     scene.create();
     assert.equal(scene.world.query('Tile').length, 25);
     assert.equal(scene.world.query('Building').length, 0);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
     assert.equal(scene.world.query('PreviewUnit').length, 3);
     scene.selectedType = 'reactor';
     scene.clickTile(6);
     assert.ok(preview.buildingAt(scene.model, 6));
-    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks', 'laboratory']);
+    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
     scene.clickTile(6);
     scene.clickTile(23);
     assert.equal(preview.buildingAt(scene.model, 6), null);
     assert.ok(preview.buildingAt(scene.model, 23));
-    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks', 'laboratory']);
+    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
     scene.scale.width = 800;
     scene.buildUi();
     scene.resetBattle();
@@ -327,10 +416,10 @@ test('drag and drop consumes a single card only on valid target', () => {
     scene.create();
     const dragged = { getData: () => 'barracks' };
     scene.onDragEnd({ x: -100, y: -100 }, dragged);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
     const { x, y, cell } = scene.gridLayout;
     scene.onDragEnd({ x: x + cell * 0.5, y: y + cell * 0.5 }, dragged);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'laboratory']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'laboratory', 'compute_node']);
     assert.ok(preview.buildingAt(scene.model, 0));
 });
 
@@ -581,9 +670,12 @@ test('a defeated wave offers three unique cards and pauses until one is selected
     scene.update(0, 60);
     assert.equal(scene.waveClock.elapsedMs, elapsed);
     const before = cards.cards(scene.model).length;
+    const technologiesBefore = technologies.inventory(scene.model).items.length;
     assert.equal(scene.chooseReward('not-a-card'), false);
     assert.equal(scene.chooseReward(options[0]), true);
-    assert.equal(cards.cards(scene.model).length, before + 1);
+    const technologyReward = options[0].startsWith('tech:');
+    assert.equal(cards.cards(scene.model).length, before + (technologyReward ? 0 : 1));
+    assert.equal(technologies.inventory(scene.model).items.length, technologiesBefore + (technologyReward ? 1 : 0));
     assert.equal(scene.activeReward, null);
     assert.equal(scene.chooseReward(options[1]), false);
 });

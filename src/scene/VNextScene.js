@@ -82,13 +82,13 @@ class VNextScene extends Phaser.Scene {
         this.actionEffects = new OverseerBattleActionEffects.BattleActionEffects();
         this.types = OverseerVNextBuildings.BUILDINGS;
         // The resource HUD borrows glyphs and colors from the corresponding buildings.
-        // Cooling and data are placeholders: they have no ECS balances or simulation yet.
+        // Cooling remains a placeholder; Data is produced by the compute node.
         this.resourceStyles = [
             { id: 'energy', label: 'Énergie', glyph: 'reactor', source: 'reactor', color: 0x35d8ef },
             { id: 'matter', label: 'Matière', glyph: 'extractor', source: 'extractor', color: 0x39dd92 },
             { id: 'cooling', label: 'Refroidissement', glyph: 'cooling', pending: true, color: 0x87b9e8 },
             { id: 'components', label: 'Composants', glyph: 'factory', source: 'factory', color: 0xf4ba58 },
-            { id: 'data', label: 'Données', glyph: 'laboratory', pending: true, color: 0xb58aff }
+            { id: 'data', label: 'Données', glyph: 'compute_node', source: 'compute_node', color: 0xb58aff }
         ];
         // Presentation-only throughput samples. Never persist or infer production from HUD state.
         this.resourceRateHistory = [];
@@ -108,6 +108,7 @@ class VNextScene extends Phaser.Scene {
         this.rewardSerial = 0;
 
         if (restored) {
+            OverseerVNextEconomy.initialize(this.model); // Backfill Data for old saves, preserve cycles.
             // No resetBattle(), production reset or re-grant: ECS is the restored truth.
             this.battleUnits = restored.battleUnits;
         } else {
@@ -128,6 +129,8 @@ class VNextScene extends Phaser.Scene {
         this.events.once('shutdown', () => {
             this.hitEffects.clear();
             this.actionEffects.clear();
+            this.battleMask?.destroy();
+            this.battleMask = null;
             this.scale.off('resize', this.buildUi, this);
             if (typeof window !== 'undefined') window.removeEventListener?.('pagehide', this.onPageHide);
             this.input.keyboard.off('keydown', this.onKey, this);
@@ -157,6 +160,8 @@ class VNextScene extends Phaser.Scene {
         this.hideBuildingTooltip();
         this.hideResourceTooltip();
         this.hideWaveTooltip();
+        this.battleMask?.destroy();
+        this.battleMask = null;
         this.ui.forEach(object => object.destroy());
         this.clearProductionPopups();
         this.ui = [];
@@ -477,6 +482,11 @@ class VNextScene extends Phaser.Scene {
                 y: y + Math.sin(Math.PI * i / 3) * r
             }));
             g.strokePoints(points, true);
+        } else if (type === 'compute_node') {
+            g.strokeRect(x - r * 0.65, y - r * 0.65, r * 1.3, r * 1.3);
+            g.strokeCircle(x, y, r * 0.28);
+            g.lineBetween(x - r, y, x - r * 0.65, y);
+            g.lineBetween(x + r * 0.65, y, x + r, y);
         } else if (type === 'laboratory') {
             g.strokePoints([{ x, y: y - r }, { x: x + r, y }, { x, y: y + r }, { x: x - r, y }], true);
         } else {
@@ -707,7 +717,9 @@ class VNextScene extends Phaser.Scene {
     }
 
     drawCompactResources() {
-        const l = this.layout, x = l.m + 17, startY = l.mainBottom - 156;
+        // Compact HUD lives under the grid, not on top of construction cards.
+        const l = this.layout, x = l.boardX + 16;
+        const startY = this.gridLayout.y + this.gridLayout.size + 12;
         const g = this.keep(this.add.graphics());
         this.compactResources = {};
         this.compactResourceDeltas = {};
@@ -716,8 +728,8 @@ class VNextScene extends Phaser.Scene {
             this.drawResourceIcon(g, style, x + 8, y + 7, 8);
             const color = `#${style.color.toString(16).padStart(6, '0')}`;
             this.compactResources[style.id] = this.text(x + 25, y - 2, '0', 14, color);
-            this.compactResourceDeltas[style.id] = this.text(l.m + l.leftW - 17, y, '—', 11, '#7898aa').setOrigin(1, 0);
-            this.resourceHoverZone(style, x, y - 3, l.leftW - 32, 22, x + 7, y - 30);
+            this.compactResourceDeltas[style.id] = this.text(l.boardX + l.boardW - 16, y, '—', 11, '#7898aa').setOrigin(1, 0);
+            this.resourceHoverZone(style, x, y - 3, l.boardW - 32, 22, x + 7, y - 30);
         });
     }
 
@@ -745,6 +757,17 @@ class VNextScene extends Phaser.Scene {
         this.battleGraphics = this.keep(this.add.graphics());
         this.battleParticleGraphics = this.keep(this.add.graphics());
         this.battleActionGraphics = this.keep(this.add.graphics());
+        // A geometry mask clips every battlefield effect, including large detection rings.
+        // Mask geometry is defined in screen coordinates and rebuilt on resize.
+        this.battleMaskGraphic = this.keep(this.add.graphics());
+        this.battleMaskGraphic.fillStyle(0xffffff, 1)
+            .fillRect(b.x, b.y, b.w, b.h)
+            .setVisible(false);
+        this.battleMask = this.battleMaskGraphic.createGeometryMask();
+        for (const graphics of [this.zoneGraphics, this.battleGraphics,
+            this.battleParticleGraphics, this.battleActionGraphics]) {
+            graphics.setMask(this.battleMask);
+        }
         this.battleStatus = this.text(l.battleX + 15, mainBottom - 38, '', 11, '#8eabbc');
     }
 
@@ -771,8 +794,8 @@ class VNextScene extends Phaser.Scene {
     // actual balance changes over simulation time, not projected recipe output.
     drawTechnologies() {
         const l=this.layout, right=Boolean(l.rightW);
-        const x=right?l.rightX+12:l.m+10;
-        const y=right?l.mainTop+223:l.mainBottom-158;
+        const x=right?l.rightX+12:l.boardX+16;
+        const y=right?l.mainTop+223:this.gridLayout.y+this.gridLayout.size+105;
         const items=OverseerVNextTechnologies.inventory(this.model).items;
         if(!right && l.leftW<165)return;
         this.text(x,y,'TECHNOLOGIES',12,'#b58aff');
@@ -814,7 +837,7 @@ class VNextScene extends Phaser.Scene {
         this.resourceRateClockMs += dt;
         const balance = this.world.get(this.model.game, 'Resources');
         const changes = {};
-        for (const id of ['energy', 'matter', 'components']) {
+        for (const id of ['energy', 'matter', 'components', 'data']) {
             const change = balance[id] - previous[id];
             if (change) changes[id] = change;
         }
@@ -1186,6 +1209,13 @@ class VNextScene extends Phaser.Scene {
         }
     }
 
+    baseHealthColor() {
+        // Three readable states, intentionally without pulsing or decorative animation.
+        if (this.baseHp <= 25) return 0xff6674;
+        if (this.baseHp <= 60) return 0xf0ba60;
+        return 0x48b8c4;
+    }
+
     paintBattle() {
         if (!this.battleGraphics || !this.battleBounds) return;
         const g = this.battleGraphics, b = this.battleBounds;
@@ -1194,8 +1224,19 @@ class VNextScene extends Phaser.Scene {
         g.clear();
         const p = (x, y) => ({ x: b.x + b.w * x / 1000, y: b.y + b.h * y / 600 });
         const base = p(65, 300);
-        g.lineStyle(1, 0x48b8c4, 0.65).strokeCircle(base.x, base.y, 12);
-        g.lineStyle(1, 0x48b8c4, 0.3).strokeCircle(base.x, base.y, 21);
+        // Detection is measured in simulation units; the panel mask clips its visible edge.
+        const detectionRadius = OverseerVNextThreats.RADIUS * b.w / 1000;
+        g.lineStyle(1, 0x91ced1, 0.44).strokeCircle(base.x, base.y, detectionRadius);
+        const coreColor = this.baseHealthColor();
+        g.lineStyle(2, coreColor, 0.82).strokeCircle(base.x, base.y, 12);
+        g.lineStyle(1, coreColor, 0.38).strokeCircle(base.x, base.y, 21);
+        const healthWidth = Math.min(62, b.w - 6);
+        const healthX = Math.max(b.x + 3, Math.min(base.x - healthWidth / 2,
+            b.x + b.w - healthWidth - 3));
+        const healthY = base.y - 37;
+        g.fillStyle(0x203b49, 1).fillRect(healthX, healthY, healthWidth, 5);
+        g.fillStyle(coreColor, 1).fillRect(healthX, healthY,
+            healthWidth * Math.max(0, Math.min(1, this.baseHp / 100)), 5);
         for (const id of this.battleUnits) {
             if (!this.world.has(id)) continue;
             const hp = this.world.get(id, 'Health');
@@ -1213,6 +1254,10 @@ class VNextScene extends Phaser.Scene {
             const berserk=this.world.get(id,'TechnologyBuff')?.type==='berserk';
             if(berserk){g.lineStyle(1,0xf4a261,0.8).strokeCircle(q.x,q.y,r*1.5);}
             this.drawBattleUnit(g, style, q.x, q.y,berserk?r*1.16:r, color);
+            if (side === 'enemy' && this.world.get(id, 'ThreatMark')) {
+                g.lineStyle(1.5, 0xff6674, 0.92).strokeRect(
+                    q.x - r - 4, q.y - r - 4, (r + 4) * 2, (r + 4) * 2);
+            }
             g.fillStyle(0x23404e, 0.8).fillRect(q.x - 11, q.y - r - 9, 22, 3);
             g.fillStyle(side === 'player' ? 0x44dc91 : 0xff5e79, 1)
                 .fillRect(q.x - 11, q.y - r - 9, 22 * Math.max(0, hp.hp / hp.maxHp), 3);
@@ -1268,7 +1313,7 @@ class VNextScene extends Phaser.Scene {
         if (this.battleStatus) {
             const alive = side => this.battleUnits.filter(id => this.world.has(id) &&
                 this.world.get(id, 'Faction').side === side && this.world.get(id, 'Health').hp > 0).length;
-            this.battleStatus.setText(`Alliés ${alive('player')}   Menaces ${alive('enemy')}   Base ${this.baseHp}/100`);
+            this.battleStatus.setText(`Alliés ${alive('player')}   Menaces ${alive('enemy')}`);
         }
     }
 
@@ -1302,14 +1347,18 @@ class VNextScene extends Phaser.Scene {
         this.paintBoard();
         const players = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'player' && this.world.get(id, 'Health').hp > 0);
         const enemies = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'enemy' && this.world.get(id, 'Health').hp > 0);
+        OverseerVNextThreats.update(this.world, enemies, dt);
+        const posts = new Map(players.map((id, index) =>
+            [id, OverseerCombat.formationPosition(index, players.length)]));
         for (const id of [...players, ...enemies]) {
             if (this.world.get(id, 'Health').hp <= 0) continue;
             const side = this.world.get(id, 'Faction').side;
             const events = OverseerCombat.stepUnit(this.world, id, dt, {
                 opponents: side === 'player' ? enemies : players,
                 base: side === 'enemy' && this.baseHp > 0 ? { x: 65, y: 300 } : null,
-                patrol: side === 'player' ? { x: 280, y: 300 } : null,
-                allies: side === 'player' ? players : []
+                patrol: side === 'player' ? posts.get(id) : null,
+                allies: side === 'player' ? players : [],
+                centralDetection: side === 'player'
             });
             for (const event of events) {
                 if (event.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - event.damage);
@@ -1337,8 +1386,8 @@ class VNextScene extends Phaser.Scene {
         // Wall-clock duration makes impacts readable at x1/x3/x5. Pause freezes them.
         this.hitEffects.update(Math.min(60, Math.max(0, delta)));
         this.actionEffects.update(Math.min(60, Math.max(0, delta)));
-        // Rewards must be computed before reclaiming dead ECS entities.
         OverseerVNextZones.stepBuffs(this.model,dt);
+        // Rewards must be computed before reclaiming dead ECS entities.
         this.checkWaveClears();
         this.cleanupDeadUnits();
         this.paintBattle();

@@ -3,7 +3,7 @@
 
     // Playtest-only prices; amounts are NOT a finalized economy decision.
     // Change this table once Data production and balancing are validated.
-    const DATA_COSTS = Object.freeze([10, 25, 50]);
+    const DATA_COSTS = Object.freeze([30, 90, 240]);
 
     function nextCost(level) {
         return Number.isInteger(level) && level >= 0 ? (DATA_COSTS[level] ?? null) : null;

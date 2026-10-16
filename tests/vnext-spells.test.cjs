@@ -22,3 +22,18 @@ test('stasis slows enemies within the field, not allies, expires after ten secon
  assert.equal(m.world.get(ally,'Position').x,500);
  zones.step(m,10000);assert.equal(m.world.query('TechnologyZone').length,0);
 });
+
+test('Berserk keeps central marked-target locking and Stase does not mutate movement stats',()=>{
+ const m=preview.createModel(World),ally=unit(m,'player',100),near=unit(m,'enemy',160),marked=unit(m,'enemy',300);
+ m.world.set(marked,'ThreatMark',{remainingMs:3000});
+ zones.cast(m,'berserk',{x:100,y:300});
+ assert.deepEqual(m.world.query('TechnologyBuff'),[ally]);
+ combat.stepUnit(m.world,ally,100,{opponents:[near,marked],centralDetection:true});
+ assert.equal(m.world.get(ally,'Combat').targetId,marked);
+ assert.equal(m.world.get(ally,'Combat').elapsedMs,150);
+ zones.cast(m,'stasis_field',{x:160,y:300});
+ const before=m.world.get(near,'Position').x;
+ combat.stepUnit(m.world,near,1000,{base:{x:800,y:300}});
+ assert.equal(m.world.get(near,'Position').x,before+50);
+ assert.equal(m.world.get(near,'Movement').speed,100);
+});
