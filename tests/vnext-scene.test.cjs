@@ -1044,6 +1044,31 @@ test('invalid Continue returns to menu instead of silently starting a fresh game
     savedEntries.clear();
 });
 
+test('reusing VNextScene after defeat starts a fresh world without returning to menu', () => {
+    savedEntries.clear();
+    const scene = new VNextScene();
+    scene.init({ resume: false });
+    scene.create();
+    const firstWorld = scene.world;
+    scene.baseHp = 0;
+    scene.finishRun();
+    assert.equal(scene.runFinished, true);
+    assert.equal(saves.read(saveStorage), null);
+
+    let redirectedToMenu = false;
+    scene.scene.start = key => { if (key === 'MainMenuScene') redirectedToMenu = true; };
+    scene.init({ resume: false }); // Payload sent by MainMenuScene after defeat.
+    scene.create(); // Same Phaser scene instance; no page refresh.
+    assert.equal(redirectedToMenu, false);
+    assert.equal(scene.resumeRequested, false);
+    assert.equal(scene.runFinished, false);
+    assert.notEqual(scene.world, firstWorld);
+    assert.equal(scene.baseHp, 100);
+    assert.equal(scene.waveClock.number, 0);
+    assert.ok(saves.read(saveStorage), 'the new run must have a valid fresh save');
+    savedEntries.clear();
+});
+
 test('base destruction clears only the run and prevents another autosave', () => {
     savedEntries.clear();
     saveStorage.setItem('unlockedTalents', '["root"]');

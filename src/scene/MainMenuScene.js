@@ -139,7 +139,9 @@ class MainMenuScene extends Phaser.Scene {
         if (this.savedRun) { this.confirmNewGame(); return; }
         // Also discard unreadable/old save data before starting fresh.
         OverseerVNextSave.clear(this.saveStorage());
-        this.navigateTo('VNextScene');
+        // An explicit fresh payload prevents Phaser from reusing resume:true
+        // when the same VNextScene instance starts again after a defeat.
+        this.navigateTo('VNextScene', { resume: false });
     }
 
     confirmNewGame() {
@@ -170,7 +172,9 @@ class MainMenuScene extends Phaser.Scene {
                     }).setOrigin(0.5).setDepth(304));
                     return;
                 }
-                this.navigateTo('VNextScene');
+                // An explicit fresh payload prevents Phaser from reusing resume:true
+        // when the same VNextScene instance starts again after a defeat.
+        this.navigateTo('VNextScene', { resume: false });
             } }
         ];
         actions.forEach(({ label, x: center, color, action }) => {

@@ -318,6 +318,7 @@ test('New game asks for confirmation and cancellation keeps the save', () => {
     buttonFor(menu, 'NOUVELLE PARTIE').button.handlers.pointerdown();
     buttonFor(menu, 'RECOMMENCER').button.handlers.pointerdown();
     assert.equal(menu.started.key, 'VNextScene');
+    assert.equal(menu.started.data?.resume, false, 'confirmation must explicitly start fresh');
     assert.equal(localStorage.getItem(save.KEY), null);
     items.clear();
 });
@@ -330,6 +331,33 @@ test('fresh game works without a save; invalid save hides Continue', () => {
     assert.ok(!menu.objects.some(o => o.value === 'CONTINUER'));
     buttonFor(menu, 'START A GAME').button.handlers.pointerdown();
     assert.equal(menu.started.key, 'VNextScene');
+    assert.equal(menu.started.data?.resume, false, 'fresh start must override a previous Continue');
+    assert.equal(localStorage.getItem(save.KEY), null);
+    items.clear();
+});
+
+test('after a defeat, START A GAME overrides stale Continue scene data without a reload', () => {
+    items.clear();
+    assert.equal(installValidSave(), true);
+    const initial = new MainMenuScene();
+    initial.create();
+    buttonFor(initial, 'CONTINUER').button.handlers.pointerdown();
+    assert.equal(initial.started.data.resume, true);
+
+    // Defeat deletes the save while Phaser keeps the same VNextScene instance.
+    assert.equal(save.clear(localStorage), true);
+    const menu = new MainMenuScene();
+    menu.create();
+    assert.equal(menu.objects.some(o => o.value === 'CONTINUER'), false);
+    let lastVNextData = initial.started.data;
+    menu.scene.start = (key, data) => {
+        if (key === 'VNextScene') lastVNextData = data === undefined ? lastVNextData : data;
+        menu.started = { key, data };
+    };
+    buttonFor(menu, 'START A GAME').button.handlers.pointerdown();
+    assert.equal(menu.started.key, 'VNextScene');
+    assert.equal(lastVNextData.resume, false,
+        'Phaser must not inherit the resume:true payload from the defeated run');
     assert.equal(localStorage.getItem(save.KEY), null);
     items.clear();
 });
