@@ -238,7 +238,12 @@ test('barracks creates an autonomous player ECS unit after spending resources', 
     const balance = scene.world.get(scene.model.game, 'Resources');
     balance.energy = 15; balance.components = 25;
     const before = scene.world.query('PreviewUnit').length;
-    scene.update(0, 60);
+    for (let i = 0; i < 83; i++) scene.update(0, 60);
+    scene.update(0, 19);
+    assert.equal(scene.world.query('PreviewUnit').length, before, 'no soldier before five seconds');
+    assert.equal(balance.components, 25);
+    assert.equal(balance.energy, 15);
+    scene.update(0, 1);
     assert.equal(scene.world.query('PreviewUnit').length, before + 1);
     assert.equal(balance.components, 0);
     assert.equal(balance.energy, 0);
