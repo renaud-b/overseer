@@ -94,6 +94,8 @@ class VNextScene extends Phaser.Scene {
         this.resourceRateHistory = [];
         this.resourceRateClockMs = 0;
         this.productionPopups = []; // Presentation only.
+        this.techDrag = null;
+        this.zoneParticles=[];
         this.hoveredTile = null;
         this.tooltipObjects = [];
         this.waveTooltipObjects = [];
@@ -110,6 +112,7 @@ class VNextScene extends Phaser.Scene {
             this.battleUnits = restored.battleUnits;
         } else {
             OverseerVNextCards.initialize(this.model);
+            OverseerVNextTechnologies.inventory(this.model);
             OverseerVNextEconomy.initialize(this.model);
             this.applyAttention();
             this.resetBattle();
@@ -192,6 +195,7 @@ class VNextScene extends Phaser.Scene {
         this.compactResourceDeltas = null;
         if (rightW) this.drawRightPanel();
         else this.drawCompactResources();
+        this.drawTechnologies();
         this.drawFooter();
         this.updateResourceHud();
         this.paintBoard();
@@ -240,7 +244,7 @@ class VNextScene extends Phaser.Scene {
             const cw = l.leftW - 24;
             this.text(x + 53, y + 19, type.label, 12);
             const recipe = OverseerVNextEconomy.PROTOTYPE_RECIPES[typeId];
-            this.text(x + 53, y + 38, recipe ? 'PRODUCTION EXPÉRIMENTALE' : 'À IMPLÉMENTER', 10, '#7393a8');
+            this.text(x + 53, y + 38, typeId === 'laboratory' ? 'RECHERCHE : 30 S / TECHNO' : recipe ? 'PRODUCTION EXPÉRIMENTALE' : 'À IMPLÉMENTER', 10, '#7393a8');
             const hit = this.keep(this.add.zone(x + cw / 2, y + 32, cw, 65).setInteractive({ useHandCursor: true }));
             hit.setData('palette', typeId);
             hit.on('pointerover', () => this.showCardTooltip(typeId, x + cw, y + 10));
@@ -432,7 +436,11 @@ class VNextScene extends Phaser.Scene {
         label(x + 41, y + 14, info.label, 15, '#e3f0f5');
         label(x + pad, y + 48, info.description, 11, '#a6bfce');
         if (!recipe) {
-            label(x + pad, y + 105, 'PRODUCTION NON SIMULÉE', 11, '#819eaf');
+            if (type === 'laboratory') {
+                label(x + pad, y + 105, 'PRODUIT : TECHNOLOGIE DE SOIN', 10, '#69d9a0');
+                label(x + pad, y + 128, '1 TECHNOLOGIE / 30 S SOUS VISION', 10, '#b58aff');
+                label(x + pad, y + 151, 'INVENTAIRE : PANNEAU DE DROITE', 9, '#819eaf');
+            } else label(x + pad, y + 105, 'PRODUCTION NON SIMULÉE', 11, '#819eaf');
             return;
         }
         const drawItems = (title, entries, rowY) => {
@@ -518,13 +526,14 @@ class VNextScene extends Phaser.Scene {
                 g.lineStyle(1, 0x67e5e7, 0.7).strokeCircle(p.x, p.y, cell * 0.36);
             }
             this.drawGlyph(g, type, p.x, p.y, active ? style.color : 0x5b7687, cell * 0.18);
-            const progress = this.world.get(id, 'Production');
-            if (active && progress && progress.cooldownMs > 0) {
+            const progress = this.world.get(id, 'Production') || (type === 'laboratory' ? this.world.get(id, 'Research') : null);
+            const progressDuration = type === 'laboratory' ? OverseerVNextTechnologies.RESEARCH_MS : progress?.cooldownMs;
+            if (active && progress && progressDuration > 0) {
                 // Small progress indicator, driven by ECS state, not a Phaser timer.
                 const px = p.x - cell * 0.25, py = p.y + cell * 0.36, pw = cell * 0.5;
                 g.fillStyle(0x294354, 0.8).fillRect(px, py, pw, 3);
                 g.fillStyle(progress.blocked ? 0xff6674 : 0x62e7e1, 0.95)
-                    .fillRect(px, py, pw * Math.min(1, progress.elapsedMs / progress.cooldownMs), 3);
+                    .fillRect(px, py, pw * Math.min(1, progress.elapsedMs / progressDuration), 3);
             }
             if (id === this.movingId) g.lineStyle(2, 0xffffff, 0.9).strokeCircle(p.x, p.y, cell * 0.4);
         });
@@ -573,6 +582,8 @@ class VNextScene extends Phaser.Scene {
 
     onDragStart(pointer, object) {
         if (this.activeReward) return;
+        const technology=object.getData('technology');
+        if(OverseerVNextTechnologies.TYPES.includes(technology)){this.techDrag=technology;this.dragGhost=this.add.graphics();this.dragGhost.lineStyle(2,0x69d9a0,1).strokeCircle(0,0,16);this.dragGhost.setPosition(pointer.x,pointer.y).setDepth(300);return;}
         const type = object.getData('palette');
         if (!type) return;
         this.dragType = type;
@@ -582,7 +593,7 @@ class VNextScene extends Phaser.Scene {
     }
 
     onDrag(pointer, object) {
-        if (object.getData('palette') && this.dragGhost) this.dragGhost.setPosition(pointer.x, pointer.y);
+        if ((object.getData('palette')||object.getData('technology')) && this.dragGhost) this.dragGhost.setPosition(pointer.x, pointer.y);
     }
 
     onDragEnd(pointer, object) {
@@ -591,6 +602,14 @@ class VNextScene extends Phaser.Scene {
             this.dragGhost = null;
             this.dragType = null;
             return;
+        }
+        if(OverseerVNextTechnologies.TYPES.includes(object.getData('technology'))) {
+            const target=this.technologyTarget(pointer.x,pointer.y);
+            if(target && OverseerVNextTechnologies.consume(this.model,object.getData('technology'))) {
+                this.castTechnology(object.getData('technology'),target);
+                this.saveCurrentGame();
+            }
+            this.dragGhost?.destroy();this.dragGhost=null;this.techDrag=null;this.buildUi();return;
         }
         if (!object.getData('palette')) return;
         const index = this.gridIndex(pointer.x, pointer.y);
@@ -710,6 +729,10 @@ class VNextScene extends Phaser.Scene {
         return zone;
     }
 
+    castTechnology(type,target) {
+        return OverseerVNextZones.cast(this.model,type,target);
+    }
+
     drawBattlePanel() {
         const l = this.layout;
         this.text(l.battleX + 15, l.mainTop + 17, 'CHAMP DE BATAILLE', 15);
@@ -718,6 +741,7 @@ class VNextScene extends Phaser.Scene {
         const g = this.keep(this.add.graphics());
         const b = this.battleBounds;
         g.lineStyle(1, 0x1c3949, 0.5).lineBetween(b.x + b.w * 0.52, b.y, b.x + b.w * 0.52, b.y + b.h);
+        this.zoneGraphics = this.keep(this.add.graphics());
         this.battleGraphics = this.keep(this.add.graphics());
         this.battleParticleGraphics = this.keep(this.add.graphics());
         this.battleActionGraphics = this.keep(this.add.graphics());
@@ -745,6 +769,28 @@ class VNextScene extends Phaser.Scene {
 
     // Statuses report real ECS activation/blockage. The rate indicator uses
     // actual balance changes over simulation time, not projected recipe output.
+    drawTechnologies() {
+        const l=this.layout, right=Boolean(l.rightW);
+        const x=right?l.rightX+12:l.m+10;
+        const y=right?l.mainTop+223:l.mainBottom-158;
+        const items=OverseerVNextTechnologies.inventory(this.model).items;
+        if(!right && l.leftW<165)return;
+        this.text(x,y,'TECHNOLOGIES',12,'#b58aff');
+        const count=items.filter(t=>t==='healing_field').length;
+        if(!count){this.text(x,y+28,'Aucune disponible',10,'#7898aa');return;}
+        const label=this.text(x+8,y+32,`✚  SOIN ×${count}`,12,'#69d9a0');
+        label.setPadding(8,7,8,7).setInteractive({useHandCursor:true});
+        label.setData('technology','healing_field');
+        this.input.setDraggable(label);
+    }
+
+    // Coordinates in the simulation's 1000×600 battlefield space.
+    technologyTarget(x,y) {
+        const b=this.battleBounds;
+        if(!b || x<b.x || y<b.y || x>b.x+b.w || y>b.y+b.h)return null;
+        return {x:(x-b.x)*1000/b.w,y:(y-b.y)*600/b.h};
+    }
+
     resourceActivity(source) {
         const buildings = this.world.query('Building', 'GridSlot')
             .filter(id => this.world.get(id, 'Building').type === source);
@@ -874,7 +920,7 @@ class VNextScene extends Phaser.Scene {
     // Reward choices stay in the small, already-playable building catalog.
     // Generate once per cleared wave, never on each render.
     rewardOptions(number) {
-        const pool = OverseerVNextCards.REWARD_CARDS.slice();
+        const pool = [...new Set([...OverseerVNextCards.REWARD_CARDS, ...OverseerVNextTechnologies.TYPES.map(type => `tech:${type}`)])];
         let state = (this.waveClock.seed ^ Math.imul(number, 0x9e3779b1)) >>> 0;
         for (let i = pool.length - 1; i > 0; i--) {
             state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
@@ -923,7 +969,11 @@ class VNextScene extends Phaser.Scene {
 
     chooseReward(type) {
         if (!this.activeReward || !this.activeReward.options.includes(type)) return false;
-        if (!OverseerVNextCards.grant(this.model, type)) return false;
+        if (type.startsWith('tech:')) {
+            const technology = type.slice(5);
+            if (!OverseerVNextTechnologies.TYPES.includes(technology)) return false;
+            OverseerVNextTechnologies.inventory(this.model).items.push(technology);
+        } else if (!OverseerVNextCards.grant(this.model, type)) return false;
         this.activeReward = this.rewardQueue.shift() || null;
         this.buildUi();
         this.saveCurrentGame();
@@ -950,12 +1000,17 @@ class VNextScene extends Phaser.Scene {
             fontFamily:'monospace',fontSize:'11px',color:'#8daabb'
         }).setDepth(301));
         reward.options.forEach((type, i) => {
-            const building = OverseerVNextBuildings.getBuilding(type);
+            const building = type === 'tech:healing_field'
+                ? { color: 0x69d9a0, label: 'Régénération', description: 'Technologie consommable' }
+                : OverseerVNextBuildings.getBuilding(type);
             const cardW = (width - 56) / 3, cx = x + 14 + i * (cardW + 14), cy = y + 94;
             g.fillStyle(0x123047).fillRoundedRect(cx, cy, cardW, 108, 5);
             g.lineStyle(1, building.color, 0.7).strokeRoundedRect(cx, cy, cardW, 108, 5);
             const iconG = this.keep(this.add.graphics().setDepth(301));
-            this.drawGlyph(iconG, type, cx + cardW / 2, cy + 27, building.color, 13);
+            if (type === 'tech:healing_field') {
+                iconG.lineStyle(2, building.color, 1).lineBetween(cx + cardW / 2 - 7, cy + 27, cx + cardW / 2 + 7, cy + 27);
+                iconG.lineBetween(cx + cardW / 2, cy + 20, cx + cardW / 2, cy + 34);
+            } else this.drawGlyph(iconG, type, cx + cardW / 2, cy + 27, building.color, 13);
             this.keep(this.add.text(cx + cardW / 2, cy + 53, building.label, {
                 fontFamily:'monospace',fontSize:'12px',color:'#dfeaf0'
             }).setOrigin(0.5, 0).setDepth(301));
@@ -963,6 +1018,7 @@ class VNextScene extends Phaser.Scene {
                 .setInteractive({useHandCursor:true}).setDepth(302));
             zone.setData('reward', type);
             zone.on('pointerover', () => {
+                if (type.startsWith('tech:')) return;
                 this.showCardTooltip(type, cx + cardW / 2, cy - 205);
                 // Reward selection overlay is above the game HUD (depth 300).
                 // Reuse the same building popup, but draw it over the overlay.
@@ -1097,9 +1153,35 @@ class VNextScene extends Phaser.Scene {
         }
     }
 
+    paintTechnologyZones(dt=0) {
+        const g=this.zoneGraphics,b=this.battleBounds;
+        if(!g||!b)return;
+        g.clear();
+        const toScreen=(x,y)=>({x:b.x+x*b.w/1000,y:b.y+y*b.h/600});
+        for(const id of this.world.query('TechnologyZone')) {
+            const zone=this.world.get(id,'TechnologyZone'),p=toScreen(zone.x,zone.y);
+            const r=zone.radius*b.w/1000;
+            g.fillStyle(0x34bb79,0.09).fillCircle(p.x,p.y,r);
+            g.lineStyle(1.5,0x69d9a0,0.75).strokeCircle(p.x,p.y,r);
+            // Decorative plus particles are renderer-only, independent of healing ticks.
+            if(dt>0 && this.zoneParticles.length<36) {
+                const angle=Math.random()*Math.PI*2,rad=Math.sqrt(Math.random())*r;
+                this.zoneParticles.push({x:p.x+Math.cos(angle)*rad,y:p.y+Math.sin(angle)*rad,life:700});
+            }
+        }
+        this.zoneParticles=this.zoneParticles.filter(p=>p.life>0);
+        for(const p of this.zoneParticles) {
+            p.y-=dt*0.018;p.life-=dt;
+            g.lineStyle(1,0x9ff3bb,Math.max(0,p.life/700));
+            g.lineBetween(p.x-3,p.y,p.x+3,p.y);g.lineBetween(p.x,p.y-3,p.x,p.y+3);
+        }
+    }
+
     paintBattle() {
         if (!this.battleGraphics || !this.battleBounds) return;
         const g = this.battleGraphics, b = this.battleBounds;
+        this.paintTechnologyZones(this.zoneFrameMs||0);
+        this.zoneFrameMs=0;
         g.clear();
         const p = (x, y) => ({ x: b.x + b.w * x / 1000, y: b.y + b.h * y / 600 });
         const base = p(65, 300);
@@ -1194,10 +1276,15 @@ class VNextScene extends Phaser.Scene {
         this.updateWaveTimeline();
         const previousResources = { ...this.world.get(this.model.game, 'Resources') };
         const economyEvents = OverseerVNextEconomy.step(this.model, dt);
+        const researchEvents=OverseerVNextTechnologies.step(this.model,dt);
+        if(researchEvents.length)this.buildUi();
         for (const event of economyEvents) {
             if (event.type === 'unit-produced') this.spawnFriendlyUnit(event.unitType);
             if (event.type === 'production') this.showProductionPopup(event);
         }
+        const zoneEvents=OverseerVNextZones.step(this.model,dt);
+        for(const event of zoneEvents) this.actionEffects.heal({x:event.x,y:event.y},{x:event.x,y:event.y},0x69d9a0);
+        this.zoneFrameMs=Math.min(60,Math.max(0,delta));
         this.noteResourceChanges(previousResources, dt);
         this.updateProductionPopups(Math.min(60, Math.max(0, delta)));
         this.updateResourceHud();

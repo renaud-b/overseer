@@ -14,6 +14,8 @@ const battleStyles = require('../src/scene/effects/BattleUnitStyles.js');
 const battleActions = require('../src/scene/effects/BattleActionEffects.js');
 const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
+const technologies = require('../src/core/VNextTechnologies.js');
+const zones = require('../src/core/VNextZones.js');
 const saves = require('../src/core/VNextSave.js');
 const visionUpgrades = require('../src/core/VNextVision.js');
 const savedEntries = new Map();
@@ -86,7 +88,7 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
+    OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextZones: zones, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
     localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
@@ -194,17 +196,17 @@ test('scene begins with exactly four unspent cards and empty base', () => {
     scene.create();
     assert.equal(scene.world.query('Tile').length, 25);
     assert.equal(scene.world.query('Building').length, 0);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory']);
     assert.equal(scene.world.query('PreviewUnit').length, 3);
     scene.selectedType = 'reactor';
     scene.clickTile(6);
     assert.ok(preview.buildingAt(scene.model, 6));
-    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks']);
+    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks', 'laboratory']);
     scene.clickTile(6);
     scene.clickTile(23);
     assert.equal(preview.buildingAt(scene.model, 6), null);
     assert.ok(preview.buildingAt(scene.model, 23));
-    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks']);
+    assert.deepEqual(cards.cards(scene.model), ['extractor', 'factory', 'barracks', 'laboratory']);
     scene.scale.width = 800;
     scene.buildUi();
     scene.resetBattle();
@@ -325,10 +327,10 @@ test('drag and drop consumes a single card only on valid target', () => {
     scene.create();
     const dragged = { getData: () => 'barracks' };
     scene.onDragEnd({ x: -100, y: -100 }, dragged);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory']);
     const { x, y, cell } = scene.gridLayout;
     scene.onDragEnd({ x: x + cell * 0.5, y: y + cell * 0.5 }, dragged);
-    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory']);
+    assert.deepEqual(cards.cards(scene.model), ['reactor', 'extractor', 'factory', 'laboratory']);
     assert.ok(preview.buildingAt(scene.model, 0));
 });
 
@@ -739,6 +741,7 @@ test('pending reward is resumed without replaying the cleared wave', () => {
     savedEntries.clear();
     const running = new VNextScene();
     running.create();
+    running.waveClock.seed = 137;
     const wave = waves.wave(1, running.waveClock.seed);
     running.waveClock.number = 1;
     running.waveClock.elapsedMs = wave.dueAtMs;
@@ -747,6 +750,7 @@ test('pending reward is resumed without replaying the cleared wave', () => {
     running.checkWaveClears();
     assert.equal(running.activeReward.number, 1);
     const options = [...running.activeReward.options];
+    assert.doesNotThrow(() => saves.restore(saves.capture(running), World));
 
     const resumed = new VNextScene();
     resumed.init({ resume: true });
@@ -1007,3 +1011,46 @@ test('a produced repair drone emits a healing beam and target halo, without hit 
     assert.deepEqual(scene.hitEffects.view(guard), { x: 0, y: 0, flash: 0 });
     assert.equal(scene.hitEffects.fragments().length, 0);
 });
+
+test('laboratory research appears as draggable one-shot card and invalid drop preserves inventory',()=>{
+ const scene=new VNextScene();scene.create();
+ const id=preview.placeBuilding(scene.model,'laboratory',6);
+ preview.setObserved(scene.model,[6]);
+ technologies.step(scene.model,technologies.RESEARCH_MS);
+ scene.buildUi();
+ const card=scene.ui.find(o=>o.getData?.('technology')==='healing_field');
+ assert.ok(card,'researched card in technology panel');
+ scene.onDragEnd({x:-4,y:-4},card);
+ assert.equal(technologies.inventory(scene.model).items.length,1);
+ const b=scene.battleBounds;
+ scene.onDragEnd({x:b.x+b.w/2,y:b.y+b.h/2},card);
+ assert.equal(technologies.inventory(scene.model).items.length,0);
+ assert.equal(scene.world.query('TechnologyZone').length,1);
+});
+
+test('observed laboratory displays live research progress and a technology after one cycle', () => {
+    const scene = new VNextScene(); scene.create();
+    const laboratory = preview.placeBuilding(scene.model, 'laboratory', 6);
+    preview.setObserved(scene.model, [6]);
+    scene.update(0,60);
+    assert.ok(scene.world.hasComponent(laboratory, 'Research'));
+    scene.world.get(laboratory, 'Research').elapsedMs = technologies.RESEARCH_MS - 60;
+    scene.update(0,60);
+    assert.equal(technologies.inventory(scene.model).items.length,1);
+    assert.ok(scene.ui.some(o => o.getData?.('technology') === 'healing_field'));
+});
+
+
+
+test('wave rewards mix one-shot technology and buildings, preserve save/restore',()=>{
+ const scene=new VNextScene();scene.create();
+ const choices=new Set();for(let n=1;n<=80;n++)for(const type of scene.rewardOptions(n))choices.add(type);
+ assert.ok(choices.has('tech:healing_field'));
+ scene.waveClock.number=1;scene.activeReward={number:1,options:['reactor','factory','tech:healing_field']};
+ assert.doesNotThrow(()=>saves.restore(saves.capture(scene),World));
+ const before=technologies.inventory(scene.model).items.length;
+ assert.equal(scene.chooseReward('tech:healing_field'),true);
+ assert.equal(technologies.inventory(scene.model).items.length,before+1);
+ assert.equal(scene.chooseReward('tech:healing_field'),false);
+});
+

@@ -9,7 +9,10 @@
     function rewardTypes() {
         const cards = root.OverseerVNextCards ||
             (typeof require === 'function' ? require('./VNextCards.js') : null);
-        return cards?.REWARD_CARDS || cards?.STARTER_CARDS || [];
+        const technologies = root.OverseerVNextTechnologies ||
+            (typeof require === 'function' ? require('./VNextTechnologies.js') : null);
+        return [...(cards?.REWARD_CARDS || cards?.STARTER_CARDS || []),
+            ...(technologies?.TYPES || []).map(type => `tech:${type}`)];
     }
 
     function storageOrNull(storage) {
