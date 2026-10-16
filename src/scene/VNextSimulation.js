@@ -43,8 +43,10 @@
         const players = scene.battleUnits.filter(id => scene.world.has(id) && scene.world.get(id, 'Faction').side === 'player' && scene.world.get(id, 'Health').hp > 0);
         const enemies = scene.battleUnits.filter(id => scene.world.has(id) && scene.world.get(id, 'Faction').side === 'enemy' && scene.world.get(id, 'Health').hp > 0);
         const pulseBonus=Math.max(0,...OverseerVNextThreats.amplifiers(scene.model).map(id=>coolingBonuses[id]||0));
-        OverseerVNextThreats.step(scene.model, dt, 1+pulseBonus);
-        OverseerVNextThreats.update(scene.world, enemies, dt, OverseerVNextThreats.radius(scene.model));
+        // Decay previous designations first, then tag each distant target only
+        // when the expanding radar wavefront reaches it.
+        OverseerVNextThreats.update(scene.world,enemies,dt);
+        OverseerVNextThreats.step(scene.model,dt,1+pulseBonus,enemies);
         const posts = new Map(players.map((id, index) =>
             [id, OverseerCombat.formationPosition(index, players.length)]));
         for (const id of [...players, ...enemies]) {

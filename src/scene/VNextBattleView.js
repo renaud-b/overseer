@@ -128,8 +128,17 @@
         const base = p(65, 300);
         // Detection is measured in simulation units; the panel mask clips its visible edge.
         const detectionRadius = OverseerVNextThreats.radius(this.model) * b.w / 1000;
-        g.lineStyle(1, 0x91ced1, OverseerVNextThreats.active(this.model) ? 0.67 : 0.44)
+        g.lineStyle(1, 0x91ced1, 0.44)
             .strokeCircle(base.x, base.y, detectionRadius);
+        const sweepRadius=OverseerVNextThreats.sweepRadius(this.model);
+        if(sweepRadius>0) {
+            // The battlefield uses an anisotropic (1000 x 600) simulation projection.
+            // Project both axes so the rendered wave crosses a unit when ECS marks it.
+            // The existing panel geometry mask removes the ring outside the screen.
+            const rx=sweepRadius*b.w/1000,ry=sweepRadius*b.h/600;
+            g.lineStyle(5,0x91ced1,0.08).strokeEllipse(base.x,base.y,rx*2,ry*2);
+            g.lineStyle(1.7,0x91ced1,0.72).strokeEllipse(base.x,base.y,rx*2,ry*2);
+        }
         const coreColor = this.baseHealthColor();
         if (OverseerVNextArtifactEffects.state(this.model).shieldPoints > 0) {
             g.lineStyle(2, 0x69d9a0, 0.9).strokeCircle(base.x, base.y, 29);

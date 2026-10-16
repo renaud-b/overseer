@@ -69,7 +69,7 @@ class Display {
     lineBetween(x1, y1, x2, y2) { this.drawCalls.push({ type: 'lineBetween', x1, y1, x2, y2, color: this.lineColor }); return this; }
     fillCircle(x, y, r) { this.drawCalls.push({ type: 'fillCircle', x, y, r }); return this; }
     strokeCircle(x, y, r) { this.drawCalls.push({ type: 'strokeCircle', x, y, r, color: this.lineColor }); return this; }
-    strokeEllipse() { return this; }
+    strokeEllipse(x, y, width, height) { this.drawCalls.push({type:'strokeEllipse',x,y,width,height,color:this.lineColor}); return this; }
     strokeRect() { return this; }
     strokePoints(points) { this.drawCalls.push({ type: 'strokePoints', points, color: this.lineColor }); return this; }
     fillRect() { return this; }
@@ -1817,22 +1817,30 @@ test('terminal overload is absent from reward proposals until core laser is equi
  savedEntries.clear();
 });
 
-test('perception amplifier draws its simulated pulse and triggers only when observed',()=>{
+test('perception amplifier renders a traveling radar wave clipped inside battlefield',()=>{
+    savedEntries.clear();
     const scene=new VNextScene();scene.create();
-    const baseRadius=threats.radius(scene.model);
-    assert.equal(baseRadius,350);
+    assert.equal(threats.radius(scene.model),350);
     assert.ok(cards.REWARD_CARDS.includes('perception_amplifier'));
-    cards.grant(scene.model,'perception_amplifier');
     const id=preview.placeBuilding(scene.model,'perception_amplifier',6);
     preview.setObserved(scene.model,[6]);
     scene.buildUi();
-    const radiusDrawn=()=>scene.battleGraphics.drawCalls.find(call=>
-        call.type==='strokeCircle'&&call.color===0x91ced1 &&
-        Math.abs(call.x-(scene.battleBounds.x+scene.battleBounds.w*65/1000))<0.1)?.r;
-    assert.ok(Math.abs(radiusDrawn()-350*scene.battleBounds.w/1000)<1e-6);
+    const core=()=>scene.battleGraphics.drawCalls.find(c=>
+        c.type==='strokeCircle'&&c.color===0x91ced1);
+    const wave=()=>scene.battleGraphics.drawCalls.filter(c=>
+        c.type==='strokeEllipse'&&c.color===0x91ced1);
+    const baseX=scene.battleBounds.x+scene.battleBounds.w*65/1000;
+    assert.ok(Math.abs(core().r-350*scene.battleBounds.w/1000)<1e-6);
+    assert.equal(wave().length,0,'no radar wave at radius zero');
     scene.world.set(scene.model.game,'PerceptionPulse',{phaseMs:2500});
     scene.paintBattle();
-    assert.ok(Math.abs(radiusDrawn()-500*scene.battleBounds.w/1000)<1e-6);
+    assert.ok(Math.abs(core().r-350*scene.battleBounds.w/1000)<1e-6);
+    assert.equal(wave().length,2,'thin wavefront with a discreet glow');
+    const perimeter=wave().at(-1);
+    assert.ok(Math.abs(perimeter.width-1020*scene.battleBounds.w/1000)<1e-6);
+    assert.ok(Math.abs(perimeter.height-1020*scene.battleBounds.h/600)<1e-6);
+    assert.ok(Math.abs(perimeter.x-baseX)<1e-6);
+    assert.equal(scene.battleGraphics.mask,scene.battleMask,'existing geometry mask clips sweep');
     scene.selectSpeed(0);
     const phase=scene.world.get(scene.model.game,'PerceptionPulse').phaseMs;
     scene.update(0,300);
@@ -1841,9 +1849,11 @@ test('perception amplifier draws its simulated pulse and triggers only when obse
     preview.setObserved(scene.model,[]);
     scene.paintBattle();
     assert.equal(threats.radius(scene.model),350);
-    assert.ok(scene.world.has(id));
+    assert.equal(wave().length,0,'the wave disappears off vision');
+    assert.equal(scene.world.has(id),true);
     const saved=saves.restore(saves.capture(scene),World);
     assert.equal(saved.model.world.get(saved.model.game,'PerceptionPulse').phaseMs,phase);
+    savedEntries.clear();
 });
 
 test('amplifier can be chosen in wave building rewards and describes the pulse',()=>{
@@ -1854,7 +1864,7 @@ test('amplifier can be chosen in wave building rewards and describes the pulse',
     const card=scene.ui.find(o=>o.getData?.('reward')==='perception_amplifier');
     assert.ok(card);
     card.handlers.pointerover();
-    assert.ok(scene.tooltipObjects.some(o=>o.value==='RAYON : 350 → 500'));
+    assert.ok(scene.tooltipObjects.some(o=>o.value==='RADAR : BALAYAGE DU CHAMP ENTIER'));
     card.handlers.pointerout();
     assert.equal(scene.chooseReward('perception_amplifier'),true);
     assert.ok(cards.cards(scene.model).includes('perception_amplifier'));
@@ -1908,11 +1918,12 @@ test('Cryopump makes observed perception pulse faster without changing baseline 
  const pump=preview.placeBuilding(scene.model,'cryopump',7);
  const amp=preview.placeBuilding(scene.model,'perception_amplifier',6);
  preview.setObserved(scene.model,[6,7]);
- const old=threats.radius(scene.model);
+ const old=threats.sweepRadius(scene.model);
  scene.update(0,60);
  const phase=scene.world.get(scene.model.game,'PerceptionPulse').phaseMs;
  assert.equal(phase,72);
- assert.ok(threats.radius(scene.model)>old);
+ assert.ok(threats.sweepRadius(scene.model)>old);
+ assert.equal(threats.radius(scene.model),350);
  preview.setObserved(scene.model,[6]);
  scene.update(0,60);
  assert.equal(scene.world.get(scene.model.game,'PerceptionPulse').phaseMs,132);
@@ -2435,5 +2446,27 @@ test('a full collection still gets rare artifact rewards after previous queued w
  const option=scene.activeReward.options[0];
  assert.equal(scene.chooseReward(option),true);
  assert.equal(scene.activeReward.pendingArtifact,option.slice(9));
+ savedEntries.clear();
+});
+
+test('radar marks distant targets in real scene simulation only when the ring crosses them',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ preview.placeBuilding(scene.model,'perception_amplifier',6);
+ preview.setObserved(scene.model,[6]);
+ scene.spawnEnemyUnit('basic_monster',0,1);
+ const id=scene.battleUnits.at(-1);
+ scene.world.get(id,'Position').x=820;
+ scene.world.get(id,'Position').y=300;
+ scene.world.get(id,'Movement').speed=0;
+ scene.world.get(id,'Health').hp=20;
+ scene.world.get(id,'Health').maxHp=20;
+ scene.world.get(id,'Combat').damage=0;
+ assert.equal(scene.world.get(id,'ThreatMark'),undefined);
+ for(let i=0;i<55;i++)scene.update(0,60); // radius ~673, still short of 755.
+ assert.equal(scene.world.get(id,'ThreatMark'),undefined);
+ for(let i=0;i<12;i++)scene.update(0,60); // radius ~820, passes the enemy.
+ assert.equal(scene.world.get(id,'ThreatMark').remainingMs,2000);
+ assert.equal(threats.radius(scene.model),350);
  savedEntries.clear();
 });
