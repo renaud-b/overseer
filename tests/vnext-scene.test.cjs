@@ -99,19 +99,20 @@ test('VNext vision upgrade spends ECS Data, exposes a disabled button and respec
     const resources = scene.world.get(scene.model.game, 'Resources');
     assert.equal(scene.visionRules.level, 0);
     assert.equal(scene.visionUpgradeButton.value, '▲ VISION');
-    assert.equal(scene.visionUpgradeCostLabel.value, '0/10 DONNÉES');
+    assert.equal(scene.visionUpgradeCostLabel.value, '0/30 DONNÉES');
     assert.equal(scene.tryUpgradeVision(), false);
     assert.equal(scene.visionRules.level, 0);
     assert.equal(scene.model.tiles.filter(id => scene.world.get(id, 'Watched').active).length, 3);
 
-    resources.data = 85; // Test injection until a Data-producing building exists.
-    for (const [level, remaining] of [[1, 75], [2, 50], [3, 0]]) {
+    resources.data = 360; // Test funding independent of the optional Data-producing building.
+    for (const [level, remaining, nextCost] of [[1, 330, 90], [2, 240, 240], [3, 0, null]]) {
         const button = scene.visionUpgradeButton;
         scene.updateVisionUpgradeButton();
         assert.equal(button.color, '#b58aff');
         button.handlers.pointerdown();
         assert.equal(scene.visionRules.level, level);
         assert.equal(resources.data, remaining);
+        if (nextCost !== null) assert.equal(scene.visionUpgradeCostLabel.value, `${remaining}/${nextCost} DONNÉES`);
         assert.equal(scene.model.tiles.filter(id => scene.world.get(id, 'Watched').active).length, level + 3);
         assert.equal(saves.read(saveStorage).attention.level, level);
     }
@@ -127,7 +128,7 @@ test('vision upgrade keeps rotation and clamps attention when the larger shape r
     const scene = new VNextScene();
     scene.create();
     const resources = scene.world.get(scene.model.game, 'Resources');
-    resources.data = 85;
+    resources.data = 360;
     assert.equal(scene.changeAttention(2, 2), true);
     assert.equal(scene.changeAttention(0, 0, true), true);
     assert.equal(scene.visionRules.patternIndex, 1);
@@ -154,7 +155,7 @@ test('Continue restores upgraded vision and old save files still restore level z
     savedEntries.clear();
     const running = new VNextScene();
     running.create();
-    running.world.get(running.model.game, 'Resources').data = 85;
+    running.world.get(running.model.game, 'Resources').data = 120;
     assert.equal(running.tryUpgradeVision(), true);
     assert.equal(running.tryUpgradeVision(), true);
     assert.equal(running.changeAttention(0, 0, true), true);
@@ -167,7 +168,7 @@ test('Continue restores upgraded vision and old save files still restore level z
     assert.equal(resumed.visionRules.level, 2);
     assert.equal(resumed.visionRules.patternIndex, running.visionRules.patternIndex);
     assert.deepEqual(resumed.model.tiles.map(id => resumed.world.get(id, 'Watched').active), previouslyWatched);
-    assert.equal(resumed.world.get(resumed.model.game, 'Resources').data, 50);
+    assert.equal(resumed.world.get(resumed.model.game, 'Resources').data, 0);
 
     const oldSave = saves.capture(running, 1720000000000);
     delete oldSave.attention.level;
