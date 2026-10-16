@@ -757,6 +757,26 @@ class VNextScene extends Phaser.Scene {
         if (changed) this.saveCurrentGame();
     }
 
+    // Reclaim dead ECS entities only after wave completion has been resolved.
+    // A living wave keeps exactly its living members; cleared waves are removed
+    // by checkWaveClears(), which grants their rewards before references vanish.
+    cleanupDeadUnits() {
+        const dead = new Set(this.battleUnits.filter(id =>
+            !this.world.has(id) || this.world.get(id, 'Health')?.hp <= 0));
+        if (!dead.size) return false;
+        this.battleUnits = this.battleUnits.filter(id => !dead.has(id));
+        for (const id of dead) {
+            if (this.world.has(id)) this.world.destroy(id);
+        }
+        for (const [number, members] of this.waveMembers) {
+            const alive = members.filter(id => !dead.has(id));
+            if (alive.length) this.waveMembers.set(number, alive);
+            else this.waveMembers.delete(number);
+        }
+        this.saveCurrentGame();
+        return true;
+    }
+
     chooseReward(type) {
         if (!this.activeReward || !this.activeReward.options.includes(type)) return false;
         if (!OverseerVNextCards.grant(this.model, type)) return false;
@@ -960,7 +980,8 @@ class VNextScene extends Phaser.Scene {
         }
         if (this.baseHp <= 0) { this.finishRun(); return; }
         OverseerCombat.separateUnits(this.world, this.battleUnits);
-        this.paintBattle();
         this.checkWaveClears();
+        this.cleanupDeadUnits();
+        this.paintBattle();
     }
 }
