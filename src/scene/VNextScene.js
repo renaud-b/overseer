@@ -90,7 +90,10 @@ class VNextScene extends Phaser.Scene {
             { id: 'components', label: 'Composants', glyph: 'factory', source: 'factory', color: 0xf4ba58 },
             { id: 'data', label: 'Données', glyph: 'laboratory', pending: true, color: 0xb58aff }
         ];
-        this.lastResourceChanges = {}; // Transient HUD feedback, not economy state.
+        // Presentation-only throughput samples. Never persist or infer production from HUD state.
+        this.resourceRateHistory = [];
+        this.resourceRateClockMs = 0;
+        this.productionPopups = []; // Presentation only.
         this.hoveredTile = null;
         this.tooltipObjects = [];
         this.waveTooltipObjects = [];
@@ -152,6 +155,7 @@ class VNextScene extends Phaser.Scene {
         this.hideResourceTooltip();
         this.hideWaveTooltip();
         this.ui.forEach(object => object.destroy());
+        this.clearProductionPopups();
         this.ui = [];
         const w = this.scale.width, h = this.scale.height;
         const m = 16, gap = 12, mainTop = 82, mainBottom = h - 86;
@@ -554,6 +558,60 @@ class VNextScene extends Phaser.Scene {
         if (placed !== null) this.saveCurrentGame();
     }
 
+    clearProductionPopups() {
+        for (const popup of this.productionPopups || []) {
+            popup.icon.destroy();
+            popup.label.destroy();
+        }
+        this.productionPopups = [];
+    }
+
+    showProductionPopup(event) {
+        if (event.type !== 'production' || !this.world.has(event.building) || !this.gridLayout) return;
+        const slot = this.world.get(event.building, 'GridSlot')?.index;
+        if (!Number.isInteger(slot) || slot < 0 || slot >= 25) return;
+        const recipe = OverseerVNextEconomy.PROTOTYPE_RECIPES[event.buildingType];
+        if (!recipe) return;
+        const { x, y, cell } = this.gridLayout;
+        const cx = x + (slot % 5 + 0.5) * cell;
+        const cy = y + (Math.floor(slot / 5) + 0.5) * cell;
+        for (const [resource, amount] of Object.entries(recipe.produces)) {
+            if (!amount || resource.startsWith('unit_')) continue;
+            const style = this.resourceStyles.find(item => item.id === resource && !item.pending);
+            if (!style) continue;
+            const icon = this.add.graphics().setDepth(100);
+            this.drawResourceIcon(icon, style, cx - 15, cy - cell * 0.29, 7);
+            const label = this.add.text(cx - 4, cy - cell * 0.29 - 8, `+${amount}`, {
+                fontFamily: 'monospace', fontSize: '12px',
+                color: `#${style.color.toString(16).padStart(6, '0')}`
+            }).setDepth(100);
+            this.productionPopups.push({ icon, label, elapsedMs: 0, startY: cy - cell * 0.29 });
+        }
+        while (this.productionPopups.length > 24) {
+            const oldest = this.productionPopups.shift();
+            oldest.icon.destroy();
+            oldest.label.destroy();
+        }
+    }
+
+    updateProductionPopups(delta) {
+        if (delta <= 0) return;
+        for (const popup of this.productionPopups) {
+            popup.elapsedMs += delta;
+            const progress = Math.min(1, popup.elapsedMs / 850);
+            const rise = progress * 24;
+            const alpha = 1 - progress;
+            popup.icon.setY(-rise).setAlpha(alpha);
+            popup.label.setY(popup.startY - 8 - rise).setAlpha(alpha);
+        }
+        this.productionPopups = this.productionPopups.filter(popup => {
+            if (popup.elapsedMs < 850) return true;
+            popup.icon.destroy();
+            popup.label.destroy();
+            return false;
+        });
+    }
+
     drawResourceIcon(g, style, x, y, radius = 10) {
         if (style.glyph !== 'cooling') {
             this.drawGlyph(g, style.glyph, x, y, style.color, radius);
@@ -638,8 +696,8 @@ class VNextScene extends Phaser.Scene {
         });
     }
 
-    // Statuses report real ECS activation/blockage. A recent delta reports only
-    // the last actual balance change, never a fabricated continuous rate.
+    // Statuses report real ECS activation/blockage. The rate indicator uses
+    // actual balance changes over simulation time, not projected recipe output.
     resourceActivity(source) {
         const buildings = this.world.query('Building', 'GridSlot')
             .filter(id => this.world.get(id, 'Building').type === source);
@@ -654,13 +712,31 @@ class VNextScene extends Phaser.Scene {
     }
 
     noteResourceChanges(previous, dt) {
+        // Only samples taken around an actual economy step count. Card grants and
+        // direct resource edits never become fake production or consumption rates.
+        this.resourceRateClockMs += dt;
         const balance = this.world.get(this.model.game, 'Resources');
+        const changes = {};
         for (const id of ['energy', 'matter', 'components']) {
-            const old = this.lastResourceChanges[id];
-            if (old) old.remainingMs -= dt;
             const change = balance[id] - previous[id];
-            if (change) this.lastResourceChanges[id] = { change, remainingMs: 2300 };
+            if (change) changes[id] = change;
         }
+        if (Object.keys(changes).length) {
+            this.resourceRateHistory.push({ atMs: this.resourceRateClockMs, changes });
+        }
+        const cutoff = this.resourceRateClockMs - 6000;
+        while (this.resourceRateHistory.length && this.resourceRateHistory[0].atMs <= cutoff) {
+            this.resourceRateHistory.shift();
+        }
+    }
+
+    resourceRatePerSecond(id) {
+        // Simulation seconds, so x1/x3/x5 change how fast time passes, not the units.
+        const windowMs = Math.min(6000, this.resourceRateClockMs);
+        if (windowMs <= 0) return 0;
+        const net = this.resourceRateHistory.reduce((sum, item) =>
+            sum + (item.changes[id] || 0), 0);
+        return net * 1000 / windowMs;
     }
 
     updateResourceHud() {
@@ -670,11 +746,9 @@ class VNextScene extends Phaser.Scene {
             if (style.pending) continue;
             this.resourceLabels[style.id]?.setText(String(balance[style.id]));
             this.compactResources?.[style.id]?.setText(String(balance[style.id]));
-            const recent = this.lastResourceChanges[style.id];
-            const delta = recent?.remainingMs > 0
-                ? `${recent.change > 0 ? '+' : ''}${recent.change}` : '—';
-            const color = recent?.remainingMs > 0
-                ? (recent.change > 0 ? '#69e5ac' : '#ff9e8c') : '#7898aa';
+            const rate = Number(this.resourceRatePerSecond(style.id).toFixed(1));
+            const delta = `${rate > 0 ? '+' : ''}${rate.toFixed(1)}/s`;
+            const color = rate > 0 ? '#69e5ac' : rate < 0 ? '#ff6674' : '#7898aa';
             for (const status of [this.resourceStatusLabels[style.id], this.compactResourceDeltas?.[style.id]]) {
                 status?.setText(delta);
                 status?.setColor(color);
@@ -1074,8 +1148,10 @@ class VNextScene extends Phaser.Scene {
         const economyEvents = OverseerVNextEconomy.step(this.model, dt);
         for (const event of economyEvents) {
             if (event.type === 'unit-produced') this.spawnFriendlyUnit(event.unitType);
+            if (event.type === 'production') this.showProductionPopup(event);
         }
         this.noteResourceChanges(previousResources, dt);
+        this.updateProductionPopups(Math.min(60, Math.max(0, delta)));
         this.updateResourceHud();
         this.paintBoard();
         const players = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'player' && this.world.get(id, 'Health').hp > 0);

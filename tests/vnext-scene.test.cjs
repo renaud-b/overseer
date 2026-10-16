@@ -32,6 +32,8 @@ class Display {
     setInteractive() { this.interactive = true; return this; }
     setPadding() { return this; }
     setPosition(x, y) { this.x = x; this.y = y; return this; }
+    setY(value) { this.y = value; return this; }
+    setAlpha(value) { this.alpha = value; return this; }
     setDepth(value) { this.depth = value; return this; }
     setData(name, value) { this.data[name] = value; return this; }
     getData(name) { return this.data[name]; }
@@ -149,7 +151,7 @@ test('resource glyphs and values remain available before construction', () => {
     assert.equal(scene.resourceLabels.energy.color, '#35d8ef');
     assert.equal(scene.resourceLabels.matter.color, '#39dd92');
     assert.equal(scene.resourceLabels.components.color, '#f4ba58');
-    assert.equal(scene.resourceStatusLabels.energy.value, '—');
+    assert.equal(scene.resourceStatusLabels.energy.value, '0.0/s');
 });
 
 test('resource HUD updates when starter reactor is placed and observed', () => {
@@ -159,15 +161,14 @@ test('resource HUD updates when starter reactor is placed and observed', () => {
     scene.clickTile(6);
     for (let i = 0; i < 34; i++) scene.update(0, 60);
     assert.equal(scene.resourceLabels.energy.value, '2');
-    assert.equal(scene.resourceStatusLabels.energy.value, '+2');
+    assert.equal(scene.resourceStatusLabels.energy.value, '+1.0/s');
     scene.changeAttention(1, 0);
-    scene.lastResourceChanges.energy.remainingMs = 0;
-    scene.updateResourceHud();
-    assert.equal(scene.resourceStatusLabels.energy.value, '—');
+    for (let i = 0; i < 110; i++) scene.update(0, 60); // Rate window expires out of vision.
+    assert.equal(scene.resourceStatusLabels.energy.value, '0.0/s');
     scene.scale.width = 800;
     scene.buildUi();
     assert.equal(scene.compactResources.energy.value, '2');
-    assert.equal(scene.compactResourceDeltas.energy.value, '—');
+    assert.equal(scene.compactResourceDeltas.energy.value, '0.0/s');
 });
 
 test('starter factory displays waiting state without unearned resources', () => {
@@ -177,7 +178,7 @@ test('starter factory displays waiting state without unearned resources', () => 
     scene.clickTile(11);
     for (let i = 0; i < 60; i++) scene.update(0, 60);
     assert.equal(scene.resourceLabels.components.value, '0');
-    assert.equal(scene.resourceStatusLabels.components.value, '—');
+    assert.equal(scene.resourceStatusLabels.components.value, '0.0/s');
 });
 
 test('building tooltip distinguishes free placement from per-unit production costs', () => {
@@ -263,7 +264,7 @@ test('card hover shares building recipe tooltip with grid hover', () => {
     assert.ok(previous.every(object => object.destroyed));
 });
 
-test('compact resource HUD shows only icon, count and real recent delta', () => {
+test('compact resource HUD shows icon, count and measured net rate per simulation second', () => {
     const scene = new VNextScene();
     scene.create();
     const allText = scene.ui.filter(o => typeof o.value === 'string').map(o => o.value);
@@ -274,11 +275,75 @@ test('compact resource HUD shows only icon, count and real recent delta', () => 
     scene.clickTile(6);
     for (let i = 0; i < 34; i++) scene.update(0, 60);
     assert.equal(scene.resourceLabels.energy.value, '2');
-    assert.equal(scene.resourceStatusLabels.energy.value, '+2');
+    assert.equal(scene.resourceStatusLabels.energy.value, '+1.0/s');
+    assert.equal(scene.resourceStatusLabels.energy.color, '#69e5ac');
     scene.scale.width = 800;
     scene.buildUi();
     assert.equal(scene.compactResources.energy.value, '2');
-    assert.equal(scene.compactResourceDeltas.energy.value, '+2');
+    assert.equal(scene.compactResourceDeltas.energy.value, '+1.0/s');
+});
+
+test('resource rates include real consumption, pause without decay and return to zero out of vision', () => {
+    const scene = new VNextScene();
+    scene.create();
+    assert.equal(scene.resourceStatusLabels.energy.value, '0.0/s');
+    assert.equal(scene.resourceStatusLabels.energy.color, '#7898aa');
+    scene.selectedType = 'factory';
+    scene.clickTile(6);
+    const resources = scene.world.get(scene.model.game, 'Resources');
+    resources.energy = 8;
+    resources.matter = 8;
+    for (let i = 0; i < 50; i++) scene.update(0, 60); // One 3-second cycle.
+    assert.equal(scene.resourceStatusLabels.energy.value, '-0.7/s');
+    assert.equal(scene.resourceStatusLabels.matter.value, '-0.7/s');
+    assert.equal(scene.resourceStatusLabels.components.value, '+0.3/s');
+    assert.equal(scene.resourceStatusLabels.energy.color, '#ff6674');
+    assert.equal(scene.resourceStatusLabels.components.color, '#69e5ac');
+    scene.selectSpeed(0);
+    scene.update(0, 5000); // Pausing freezes the simulation-time window.
+    assert.equal(scene.resourceStatusLabels.energy.value, '-0.7/s');
+    scene.selectSpeed(1);
+    assert.equal(scene.changeAttention(2, 0), true); // Move the factory outside vision.
+    for (let i = 0; i < 110; i++) scene.update(0, 60);
+    assert.equal(scene.resourceStatusLabels.energy.value, '0.0/s');
+    assert.equal(scene.resourceStatusLabels.energy.color, '#7898aa');
+});
+
+test('production emits a colored icon and amount that rise, fade and expire', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.selectedType = 'reactor';
+    scene.clickTile(6);
+    for (let i = 0; i < 34; i++) scene.update(0, 60);
+    assert.equal(scene.productionPopups.length, 1);
+    const popup = scene.productionPopups[0];
+    assert.equal(popup.label.value, '+2');
+    assert.equal(popup.label.color, '#35d8ef');
+    const startY = popup.label.y;
+    scene.updateProductionPopups(350);
+    assert.ok(popup.label.y < startY);
+    assert.ok(popup.label.alpha < 1);
+    scene.selectSpeed(0);
+    const frozenY = popup.label.y;
+    scene.update(0, 250);
+    assert.equal(popup.label.y, frozenY);
+    scene.updateProductionPopups(500);
+    assert.equal(scene.productionPopups.length, 0);
+    assert.ok(popup.icon.destroyed && popup.label.destroyed);
+});
+
+test('production popups are bounded and cleared on UI rebuild', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.selectedType = 'reactor';
+    scene.clickTile(6);
+    const id = preview.buildingAt(scene.model, 6);
+    for (let i = 0; i < 40; i++) scene.showProductionPopup({ type: 'production', building: id, buildingType: 'reactor' });
+    assert.equal(scene.productionPopups.length, 24);
+    const old = [...scene.productionPopups];
+    scene.buildUi();
+    assert.equal(scene.productionPopups.length, 0);
+    assert.ok(old.every(p => p.icon.destroyed && p.label.destroyed));
 });
 
 test('resource panel narrows and reveals each resource name only on hover', () => {
