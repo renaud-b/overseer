@@ -34,6 +34,7 @@ const saveStorage = {
 const ROOT = path.resolve(__dirname, '..');
 const brandSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBrand.js'), 'utf8');
 const visionSource = fs.readFileSync(path.join(ROOT, 'src/scene/entities/Vision.js'), 'utf8');
+const tooltipSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextTooltips.js'), 'utf8');
 const sceneSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextScene.js'), 'utf8');
 
 class Display {
@@ -92,7 +93,7 @@ class FakeScene {
 }
 const OverseerVNextBrand = vm.runInNewContext(brandSource + '\nOverseerVNextBrand;', {});
 const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
-const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
+const VNextScene = vm.runInNewContext(tooltipSource + '\n' + sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
     OverseerECS: { World }, OverseerCombat: combat, OverseerHitEffects: hitEffects,
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
