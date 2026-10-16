@@ -91,7 +91,8 @@ class VNextScene extends Phaser.Scene {
             { id: 'data', label: 'Données', glyph: 'laboratory', pending: true, color: 0xb58aff }
         ];
         this.lastResourceChanges = {};
-        this.techDrag = null; // Transient HUD feedback, not economy state.
+        this.techDrag = null;
+        this.zoneParticles=[]; // Transient HUD feedback, not economy state.
         this.hoveredTile = null;
         this.tooltipObjects = [];
         this.waveTooltipObjects = [];
@@ -620,8 +621,7 @@ class VNextScene extends Phaser.Scene {
     }
 
     castTechnology(type,target) {
-        // Overridden by the zone implementation in the next stacked PR.
-        this.lastTechnologyCast={type,target};
+        return OverseerVNextZones.cast(this.model,type,target);
     }
 
     drawBattlePanel() {
@@ -632,6 +632,7 @@ class VNextScene extends Phaser.Scene {
         const g = this.keep(this.add.graphics());
         const b = this.battleBounds;
         g.lineStyle(1, 0x1c3949, 0.5).lineBetween(b.x + b.w * 0.52, b.y, b.x + b.w * 0.52, b.y + b.h);
+        this.zoneGraphics = this.keep(this.add.graphics());
         this.battleGraphics = this.keep(this.add.graphics());
         this.battleParticleGraphics = this.keep(this.add.graphics());
         this.battleActionGraphics = this.keep(this.add.graphics());
@@ -1016,9 +1017,35 @@ class VNextScene extends Phaser.Scene {
         }
     }
 
+    paintTechnologyZones(dt=0) {
+        const g=this.zoneGraphics,b=this.battleBounds;
+        if(!g||!b)return;
+        g.clear();
+        const toScreen=(x,y)=>({x:b.x+x*b.w/1000,y:b.y+y*b.h/600});
+        for(const id of this.world.query('TechnologyZone')) {
+            const zone=this.world.get(id,'TechnologyZone'),p=toScreen(zone.x,zone.y);
+            const r=zone.radius*b.w/1000;
+            g.fillStyle(0x34bb79,0.09).fillCircle(p.x,p.y,r);
+            g.lineStyle(1.5,0x69d9a0,0.75).strokeCircle(p.x,p.y,r);
+            // Decorative plus particles are renderer-only, independent of healing ticks.
+            if(dt>0 && this.zoneParticles.length<36) {
+                const angle=Math.random()*Math.PI*2,rad=Math.sqrt(Math.random())*r;
+                this.zoneParticles.push({x:p.x+Math.cos(angle)*rad,y:p.y+Math.sin(angle)*rad,life:700});
+            }
+        }
+        this.zoneParticles=this.zoneParticles.filter(p=>p.life>0);
+        for(const p of this.zoneParticles) {
+            p.y-=dt*0.018;p.life-=dt;
+            g.lineStyle(1,0x9ff3bb,Math.max(0,p.life/700));
+            g.lineBetween(p.x-3,p.y,p.x+3,p.y);g.lineBetween(p.x,p.y-3,p.x,p.y+3);
+        }
+    }
+
     paintBattle() {
         if (!this.battleGraphics || !this.battleBounds) return;
         const g = this.battleGraphics, b = this.battleBounds;
+        this.paintTechnologyZones(this.zoneFrameMs||0);
+        this.zoneFrameMs=0;
         g.clear();
         const p = (x, y) => ({ x: b.x + b.w * x / 1000, y: b.y + b.h * y / 600 });
         const base = p(65, 300);
@@ -1118,6 +1145,9 @@ class VNextScene extends Phaser.Scene {
         for (const event of economyEvents) {
             if (event.type === 'unit-produced') this.spawnFriendlyUnit(event.unitType);
         }
+        const zoneEvents=OverseerVNextZones.step(this.model,dt);
+        for(const event of zoneEvents) this.actionEffects.heal({x:event.x,y:event.y},{x:event.x,y:event.y},0x69d9a0);
+        this.zoneFrameMs=Math.min(60,Math.max(0,delta));
         this.noteResourceChanges(previousResources, dt);
         this.updateResourceHud();
         this.paintBoard();

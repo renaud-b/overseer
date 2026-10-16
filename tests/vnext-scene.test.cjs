@@ -15,6 +15,7 @@ const battleActions = require('../src/scene/effects/BattleActionEffects.js');
 const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
 const technologies = require('../src/core/VNextTechnologies.js');
+const zones = require('../src/core/VNextZones.js');
 const saves = require('../src/core/VNextSave.js');
 const savedEntries = new Map();
 const saveStorage = {
@@ -84,7 +85,7 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextSave: saves, localStorage: saveStorage, Vision, OverseerVNextBrand
+    OverseerVNextWaves: waves, OverseerVNextTechnologies: technologies, OverseerVNextZones: zones, OverseerVNextSave: saves, localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
 test('scene begins with exactly four unspent cards and empty base', () => {
@@ -856,5 +857,5 @@ test('laboratory research appears as draggable one-shot card and invalid drop pr
  const b=scene.battleBounds;
  scene.onDragEnd({x:b.x+b.w/2,y:b.y+b.h/2},card);
  assert.equal(technologies.inventory(scene.model).items.length,0);
- assert.equal(scene.lastTechnologyCast.type,'healing_field');
+ assert.equal(scene.world.query('TechnologyZone').length,1);
 });
