@@ -7,26 +7,26 @@ globalThis.OverseerVNextPreview = preview;
 const hand = require('../src/core/VNextCards.js');
 const make = () => preview.createModel(World);
 
-test('a new game starts with six distinct building cards', () => {
+test('a new game starts with four distinct building cards', () => {
     const model = make();
-    assert.deepEqual(hand.cards(model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
+    assert.deepEqual(hand.cards(model), ['reactor', 'extractor', 'factory', 'barracks']);
     assert.equal(model.world.query('Building').length, 0);
-    assert.deepEqual(hand.cards(model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
+    assert.deepEqual(hand.cards(model), ['reactor', 'extractor', 'factory', 'barracks']);
 });
 test('cards are removed only after successful placement', () => {
     const model = make();
     assert.equal(hand.play(model, 'reactor', 25), null);
     assert.equal(hand.play(model, 'unknown', 6), null);
-    assert.deepEqual(hand.cards(model), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
+    assert.deepEqual(hand.cards(model), ['reactor', 'extractor', 'factory', 'barracks']);
     assert.ok(hand.play(model, 'reactor', 6));
     assert.equal(hand.play(model, 'factory', 6), null);
-    assert.deepEqual(hand.cards(model), ['extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
+    assert.deepEqual(hand.cards(model), ['extractor', 'factory', 'barracks']);
     assert.equal(hand.play(model, 'reactor', 7), null);
     const barracks = hand.play(model, 'barracks', 11);
     assert.ok(barracks);
-    assert.deepEqual(hand.cards(model), ['extractor', 'factory', 'laboratory', 'compute_node']);
+    assert.deepEqual(hand.cards(model), ['extractor', 'factory']);
     assert.equal(preview.moveBuilding(model, barracks, 12), true);
-    assert.deepEqual(hand.cards(model), ['extractor', 'factory', 'laboratory', 'compute_node']);
+    assert.deepEqual(hand.cards(model), ['extractor', 'factory']);
 });
 test('placing the barracks spends only its card; 25 components and 15 energy fund a soldier', () => {
     const economy = require('../src/core/VNextEconomy.js');
@@ -51,22 +51,24 @@ test('placing the barracks spends only its card; 25 components and 15 energy fun
     assert.deepEqual({ ...resources }, { energy: 0, matter: 0, components: 0, data: 0 });
 });
 
-test('compute node is a free one-shot starter card and an available reward', () => {
+test('compute node is not initially available, but a rewarded card remains free to place', () => {
     const model = make();
     const resources = require('../src/core/VNextEconomy.js').initialize(model);
     resources.energy = 2; resources.components = 1; resources.matter = 1;
     const previous = { ...resources };
+    assert.equal(hand.play(model, 'compute_node', 6), null);
+    assert.ok(hand.REWARD_CARDS.includes('compute_node'));
+    assert.equal(hand.grant(model, 'compute_node'), true);
     const id = hand.play(model, 'compute_node', 6);
     assert.ok(id);
     assert.deepEqual(resources, previous, 'placing is free');
     assert.equal(hand.play(model, 'compute_node', 7), null);
-    assert.ok(hand.REWARD_CARDS.includes('compute_node'));
 });
 
 test('each game has an independent hand', () => {
     const a = make(), b = make();
     hand.play(a, 'reactor', 6);
-    assert.deepEqual(hand.cards(b), ['reactor', 'extractor', 'factory', 'barracks', 'laboratory', 'compute_node']);
+    assert.deepEqual(hand.cards(b), ['reactor', 'extractor', 'factory', 'barracks']);
 });
 
 test('extractor is one-shot and enables the matter side of the starting economy', () => {
@@ -74,7 +76,7 @@ test('extractor is one-shot and enables the matter side of the starting economy'
     assert.ok(hand.play(model, 'extractor', 7));
     assert.equal(hand.play(model, 'extractor', 8), null);
     assert.equal(preview.buildingAt(model, 7) !== null, true);
-    assert.deepEqual(hand.cards(model), ['reactor', 'factory', 'barracks', 'laboratory', 'compute_node']);
+    assert.deepEqual(hand.cards(model), ['reactor', 'factory', 'barracks']);
 });
 
 test('reward grants exactly one additional one-shot card', () => {
@@ -87,11 +89,23 @@ test('reward grants exactly one additional one-shot card', () => {
     assert.equal(hand.play(model, 'factory', 8), null);
 });
 
-test('laboratory is a one-shot starter building card without construction cost', () => {
+test('laboratory remains a one-shot reward building without construction cost', () => {
     const model = make();
+    assert.equal(hand.play(model, 'laboratory', 9), null);
+    assert.ok(hand.REWARD_CARDS.includes('laboratory'));
+    assert.equal(hand.grant(model, 'laboratory'), true);
     const laboratory = hand.play(model, 'laboratory', 9);
     assert.ok(laboratory);
     assert.equal(preview.buildingAt(model, 9), laboratory);
     assert.equal(hand.play(model, 'laboratory', 10), null);
-    assert.deepEqual(hand.cards(model), ['reactor', 'extractor', 'factory', 'barracks', 'compute_node']);
+    assert.deepEqual(hand.cards(model), ['reactor', 'extractor', 'factory', 'barracks']);
+});
+
+test('initialization does not strip laboratory or compute node from an existing save', () => {
+    const model = make();
+    model.world.set(model.game, 'BuildingHand', {
+        cards: ['reactor', 'laboratory', 'compute_node']
+    });
+    assert.deepEqual(hand.cards(model), ['reactor', 'laboratory', 'compute_node']);
+    assert.deepEqual(hand.initialize(model).cards, ['reactor', 'laboratory', 'compute_node']);
 });
