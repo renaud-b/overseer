@@ -1387,3 +1387,46 @@ test('technology reward hover displays effect details above the reward overlay',
     scene.chooseReward('tech:berserk');
     assert.ok(old.every(o => o.destroyed));
 });
+
+
+test('Surcharge uses a base drop and Surcadencement uses a battlefield drop without wasting invalid casts', () => {
+    const scene = new VNextScene();
+    scene.create();
+    technologies.inventory(scene.model).items.push('overload', 'overclock');
+    scene.buildUi();
+    const overload = scene.ui.find(o => o.getData?.('technology') === 'overload');
+    assert.ok(overload);
+    scene.onDragEnd({x:-12,y:-12},overload);
+    assert.ok(technologies.inventory(scene.model).items.includes('overload'));
+    const l=scene.layout;
+    scene.onDragEnd({x:l.boardX+l.boardW/2,y:l.mainTop+110},overload);
+    assert.equal(zones.active(scene.model,'overload'),true);
+    assert.ok(!technologies.inventory(scene.model).items.includes('overload'));
+    const overclock=scene.ui.find(o => o.getData?.('technology') === 'overclock');
+    assert.ok(overclock);
+    const b=scene.battleBounds;
+    scene.onDragEnd({x:b.x+b.w/2,y:b.y+b.h/2},overclock);
+    assert.equal(zones.speedMultiplier(scene.model),1.5);
+    assert.ok(!technologies.inventory(scene.model).items.includes('overclock'));
+    const saved=saves.restore(saves.capture(scene),World);
+    assert.equal(zones.speedMultiplier(saved.model),1.5);
+});
+
+test('new technologies show accurate tooltips in inventory and reward choice', () => {
+    const scene = new VNextScene();
+    scene.create();
+    technologies.inventory(scene.model).items.push('overclock','overload');
+    scene.buildUi();
+    for(const [type,expected] of [['overclock','Déplacement : +50 %'],['overload','Production : ×2']]){
+        const label=scene.ui.find(o=>o.getData?.('technology')===type);
+        assert.ok(label);
+        label.handlers.pointerover();
+        assert.ok(scene.technologyTooltipObjects.some(o=>o.value===expected));
+        label.handlers.pointerout();
+    }
+    scene.activeReward={number:1,options:['tech:overclock','tech:overload','tech:healing_field']};
+    scene.buildUi();
+    const reward=scene.ui.find(o=>o.getData?.('reward')==='tech:overload');
+    reward.handlers.pointerover();
+    assert.ok(scene.technologyTooltipObjects.some(o=>o.value==='SURCHARGE'));
+});
