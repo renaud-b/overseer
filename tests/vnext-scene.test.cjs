@@ -149,7 +149,7 @@ test('resource glyphs and values remain available before construction', () => {
     assert.equal(scene.resourceLabels.energy.color, '#35d8ef');
     assert.equal(scene.resourceLabels.matter.color, '#39dd92');
     assert.equal(scene.resourceLabels.components.color, '#f4ba58');
-    assert.equal(scene.resourceStatusLabels.energy.value, '—');
+    assert.equal(scene.resourceStatusLabels.energy.value, '0.0/s');
 });
 
 test('resource HUD updates when starter reactor is placed and observed', () => {
@@ -159,11 +159,11 @@ test('resource HUD updates when starter reactor is placed and observed', () => {
     scene.clickTile(6);
     for (let i = 0; i < 34; i++) scene.update(0, 60);
     assert.equal(scene.resourceLabels.energy.value, '2');
-    assert.equal(scene.resourceStatusLabels.energy.value, '+2');
+    assert.equal(scene.resourceStatusLabels.energy.value, '+1.0/s');
     scene.changeAttention(1, 0);
     scene.lastResourceChanges.energy.remainingMs = 0;
     scene.updateResourceHud();
-    assert.equal(scene.resourceStatusLabels.energy.value, '—');
+    assert.equal(scene.resourceStatusLabels.energy.value, '0.0/s');
     scene.scale.width = 800;
     scene.buildUi();
     assert.equal(scene.compactResources.energy.value, '2');
@@ -177,7 +177,7 @@ test('starter factory displays waiting state without unearned resources', () => 
     scene.clickTile(11);
     for (let i = 0; i < 60; i++) scene.update(0, 60);
     assert.equal(scene.resourceLabels.components.value, '0');
-    assert.equal(scene.resourceStatusLabels.components.value, '—');
+    assert.equal(scene.resourceStatusLabels.components.value, '0.0/s');
 });
 
 test('building tooltip distinguishes free placement from per-unit production costs', () => {
