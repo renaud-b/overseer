@@ -167,9 +167,9 @@
                 label(x + pad, y + 125, 'ACTIVATION : SOUS VISION', 10, '#87b9e8');
                 label(x + pad, y + 150, 'BONUS SEUL, AUCUN MALUS', 10, '#819eaf');
             } else if (type === 'perception_amplifier') {
-                label(x + pad, y + 101, 'RAYON : 350 → 500', 11, '#91ced1');
-                label(x + pad, y + 125, 'PULSATION : 5 S (PLUS RAPIDE SI FROID)', 10, '#91ced1');
-                label(x + pad, y + 150, 'CIBLES MARQUÉES : MÉMOIRE 2 S', 9, '#819eaf');
+                label(x + pad, y + 101, 'RADAR : BALAYAGE DU CHAMP ENTIER', 10, '#91ced1');
+                label(x + pad, y + 125, 'UNE ONDE / 5 S (PLUS VITE SI FROID)', 10, '#91ced1');
+                label(x + pad, y + 150, 'DÉTECTION 350 · MARQUE 2 S', 9, '#819eaf');
             } else if (type === 'laboratory') {
                 label(x + pad, y + 105, 'PRODUIT : TECHNOLOGIE DE SOIN', 10, '#69d9a0');
                 label(x + pad, y + 128, '1 TECHNOLOGIE / 30 S SOUS VISION', 10, '#b58aff');
