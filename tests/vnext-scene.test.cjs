@@ -37,6 +37,9 @@ const visionSource = fs.readFileSync(path.join(ROOT, 'src/scene/entities/Vision.
 const tooltipSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextTooltips.js'), 'utf8');
 const boardSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBoardView.js'), 'utf8');
 const battleViewSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextBattleView.js'), 'utf8');
+const vNextHudViewSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextHudView.js'), 'utf8');
+const vNextWaveViewSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextWaveView.js'), 'utf8');
+const vNextRewardViewSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextRewardView.js'), 'utf8');
 const sceneSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextScene.js'), 'utf8');
 
 class Display {
@@ -95,7 +98,7 @@ class FakeScene {
 }
 const OverseerVNextBrand = vm.runInNewContext(brandSource + '\nOverseerVNextBrand;', {});
 const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
-const VNextScene = vm.runInNewContext(tooltipSource + '\n' + boardSource + '\n' + battleViewSource + '\n' + sceneSource + '\nVNextScene;', {
+const VNextScene = vm.runInNewContext(tooltipSource + '\n' + boardSource + '\n' + battleViewSource + '\n' + vNextHudViewSource + '\n' + vNextWaveViewSource + '\n' + vNextRewardViewSource + '\n' + sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
     OverseerECS: { World }, OverseerCombat: combat, OverseerHitEffects: hitEffects,
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
@@ -2194,4 +2197,32 @@ test('extracted battle view clips every layer and releases obsolete Phaser objec
     assert.ok(newMask.destroyed);
     assert.equal(scene.battleMask, null);
     scene.releaseBattleView(); // Destruction is safe even when called twice.
+});
+
+
+test('extracted HUD and wave timeline repaint without rewriting the ECS world', () => {
+    const scene = new VNextScene();
+    scene.create();
+    const before = scene.world.serialize();
+    const previousResourceObjects = Object.values(scene.resourceLabels);
+    scene.updateResourceHud();
+    scene.updateWaveTimeline();
+    scene.paintWaveTimeline();
+    assert.deepEqual(scene.world.serialize(), before, 'HUD and timeline must be projections only');
+    scene.scale.width = 1000;
+    scene.scale.height = 710;
+    scene.buildUi();
+    assert.ok(previousResourceObjects.every(o => o.destroyed), 'HUD labels are disposed on resize');
+    assert.deepEqual(scene.world.serialize(), before, 'HUD rebuild must not replace ECS state');
+});
+
+test('extracted reward view never chooses a reward while drawing choices', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.activeReward = scene.rewardForWave(1);
+    const original = JSON.stringify(scene.activeReward);
+    const before = scene.world.serialize();
+    scene.buildUi();
+    assert.equal(JSON.stringify(scene.activeReward), original);
+    assert.deepEqual(scene.world.serialize(), before);
 });
