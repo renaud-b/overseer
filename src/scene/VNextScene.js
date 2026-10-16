@@ -79,6 +79,7 @@ class VNextScene extends Phaser.Scene {
         this.autosaveElapsed = 0;
         this.ui = [];
         this.hitEffects = new OverseerHitEffects.HitEffects(); // Renderer-only state; never saved to ECS.
+        this.actionEffects = new OverseerBattleActionEffects.BattleActionEffects();
         this.types = OverseerVNextBuildings.BUILDINGS;
         // The resource HUD borrows glyphs and colors from the corresponding buildings.
         // Cooling and data are placeholders: they have no ECS balances or simulation yet.
@@ -120,6 +121,7 @@ class VNextScene extends Phaser.Scene {
         if (typeof window !== 'undefined') window.addEventListener?.('pagehide', this.onPageHide);
         this.events.once('shutdown', () => {
             this.hitEffects.clear();
+            this.actionEffects.clear();
             this.scale.off('resize', this.buildUi, this);
             if (typeof window !== 'undefined') window.removeEventListener?.('pagehide', this.onPageHide);
             this.input.keyboard.off('keydown', this.onKey, this);
@@ -597,6 +599,7 @@ class VNextScene extends Phaser.Scene {
         g.lineStyle(1, 0x1c3949, 0.5).lineBetween(b.x + b.w * 0.52, b.y, b.x + b.w * 0.52, b.y + b.h);
         this.battleGraphics = this.keep(this.add.graphics());
         this.battleParticleGraphics = this.keep(this.add.graphics());
+        this.battleActionGraphics = this.keep(this.add.graphics());
         this.battleStatus = this.text(l.battleX + 15, mainBottom - 38, '', 11, '#8eabbc');
     }
 
@@ -846,6 +849,8 @@ class VNextScene extends Phaser.Scene {
     }
 
     resetBattle() {
+        this.hitEffects.clear();
+        this.actionEffects.clear();
         (this.battleUnits || []).forEach(id => { if (this.world.has(id)) this.world.destroy(id); });
         this.battleUnits = [];
         this.baseHp = 100;
@@ -892,6 +897,44 @@ class VNextScene extends Phaser.Scene {
         this.battleUnits.push(id);
     }
 
+    battleUnitStyle(id) {
+        const type = this.world.get(id, 'PreviewUnit')?.type;
+        const side = this.world.get(id, 'Faction')?.side;
+        return OverseerBattleUnitStyles.styleFor(type, side);
+    }
+
+    drawBattleUnit(g, style, x, y, r, color) {
+        g.lineStyle(2, color, 0.98);
+        if (style.shape === 'shield') {
+            g.strokePoints([
+                { x, y: y - r }, { x: x + r * 0.78, y: y - r * 0.52 },
+                { x: x + r * 0.63, y: y + r * 0.4 }, { x, y: y + r },
+                { x: x - r * 0.63, y: y + r * 0.4 }, { x: x - r * 0.78, y: y - r * 0.52 }
+            ], true);
+        } else if (style.shape === 'diamond') {
+            g.strokePoints([
+                { x, y: y - r }, { x: x + r * 0.65, y },
+                { x, y: y + r }, { x: x - r * 0.65, y }
+            ], true);
+            g.lineStyle(1, color, 0.9).lineBetween(x - r, y, x + r, y);
+        } else if (style.shape === 'hexagon') {
+            g.strokePoints(Array.from({ length: 6 }, (_, i) => {
+                const a = (i * Math.PI / 3) + Math.PI / 6;
+                return { x: x + Math.cos(a) * r, y: y + Math.sin(a) * r };
+            }), true);
+            g.fillStyle(color, 0.62).fillRect(x - r * 0.32, y - r * 0.32, r * 0.64, r * 0.64);
+        } else if (style.shape === 'drone') {
+            g.strokeCircle(x, y, r * 0.75);
+            g.lineStyle(1, color, 0.85).lineBetween(x - r * 0.34, y, x + r * 0.34, y);
+            g.lineBetween(x, y - r * 0.34, x, y + r * 0.34);
+        } else if (style.shape === 'triangle') {
+            g.strokeTriangle(x, y - r, x + r, y + r, x - r, y + r);
+        } else {
+            g.strokeCircle(x, y, r * 0.8);
+            g.fillStyle(color, 0.5).fillCircle(x, y, r * 0.26);
+        }
+    }
+
     paintBattle() {
         if (!this.battleGraphics || !this.battleBounds) return;
         const g = this.battleGraphics, b = this.battleBounds;
@@ -912,15 +955,9 @@ class VNextScene extends Phaser.Scene {
             const visual = this.hitEffects.view(id);
             q.x += visual.x * r;
             q.y += visual.y * r;
-            const baseColor = side === 'player' ? 0x38d9f1 : 0xff5c79;
-            const color = OverseerHitEffects.tintColor(baseColor, visual.flash);
-            g.lineStyle(2, color, 0.98);
-            if (side === 'player') {
-                g.strokeTriangle(q.x, q.y - r, q.x + r, q.y + r, q.x - r, q.y + r);
-            } else {
-                g.strokeCircle(q.x, q.y, r * 0.8);
-                g.fillStyle(color, 0.5).fillCircle(q.x, q.y, r * 0.26);
-            }
+            const style = this.battleUnitStyle(id);
+            const color = OverseerHitEffects.tintColor(style.color, visual.flash);
+            this.drawBattleUnit(g, style, q.x, q.y, r, color);
             g.fillStyle(0x23404e, 0.8).fillRect(q.x - 11, q.y - r - 9, 22, 3);
             g.fillStyle(side === 'player' ? 0x44dc91 : 0xff5e79, 1)
                 .fillRect(q.x - 11, q.y - r - 9, 22 * Math.max(0, hp.hp / hp.maxHp), 3);
@@ -934,6 +971,27 @@ class VNextScene extends Phaser.Scene {
                 if (q.x < b.x || q.x > b.x + b.w || q.y < b.y || q.y > b.y + b.h) continue;
                 fragments.fillStyle(bit.color, bit.alpha);
                 fragments.fillRect(q.x - bit.size / 2, q.y - bit.size / 2, bit.size, bit.size);
+            }
+        }
+        const actions = this.battleActionGraphics;
+        if (actions) {
+            actions.clear();
+            const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+            const within = point => ({
+                x: clamp(point.x, b.x, b.x + b.w),
+                y: clamp(point.y, b.y, b.y + b.h)
+            });
+            for (const effect of this.actionEffects.visuals()) {
+                const start = within(p(effect.from.x, effect.from.y));
+                const end = within(p(effect.to.x, effect.to.y));
+                if (effect.kind === 'laser') {
+                    actions.lineStyle(3, effect.color, effect.alpha * 0.27)
+                        .lineBetween(start.x, start.y, end.x, end.y);
+                    actions.lineStyle(1, 0xffffff, effect.alpha * 0.92)
+                        .lineBetween(start.x, start.y, end.x, end.y);
+                    actions.lineStyle(1, effect.color, effect.alpha)
+                        .strokeCircle(end.x, end.y, 2.5);
+                }
             }
         }
         if (this.battleStatus) {
@@ -979,11 +1037,13 @@ class VNextScene extends Phaser.Scene {
                 if (event.type === 'base-attack') this.baseHp = Math.max(0, this.baseHp - event.damage);
                 if (event.type === 'attack' && this.world.has(event.attacker) && this.world.has(event.target)) {
                     // Snapshot directions at impact time; simulation positions never receive recoil.
-                    const side = this.world.get(event.target, 'Faction').side;
+                    const attackerPosition = this.world.get(event.attacker, 'Position');
+                    const targetPosition = this.world.get(event.target, 'Position');
+                    const targetStyle = this.battleUnitStyle(event.target);
+                    if (event.ranged) this.actionEffects.laser(
+                        attackerPosition, targetPosition, this.battleUnitStyle(event.attacker).color);
                     this.hitEffects.hit(event.target,
-                        this.world.get(event.attacker, 'Position'),
-                        this.world.get(event.target, 'Position'),
-                        side === 'player' ? 0x38d9f1 : 0xff5c79);
+                        attackerPosition, targetPosition, targetStyle.color);
                 }
             }
         }
@@ -991,6 +1051,7 @@ class VNextScene extends Phaser.Scene {
         OverseerCombat.separateUnits(this.world, this.battleUnits);
         // Wall-clock duration makes impacts readable at x1/x3/x5. Pause freezes them.
         this.hitEffects.update(Math.min(60, Math.max(0, delta)));
+        this.actionEffects.update(Math.min(60, Math.max(0, delta)));
         this.paintBattle();
         this.checkWaveClears();
     }

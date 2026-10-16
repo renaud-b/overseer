@@ -10,6 +10,8 @@ const catalog = require('../src/core/VNextBuildings.js');
 const cards = require('../src/core/VNextCards.js');
 const combat = require('../src/core/CombatSystem.js');
 const hitEffects = require('../src/scene/effects/HitEffects.js');
+const battleStyles = require('../src/scene/effects/BattleUnitStyles.js');
+const battleActions = require('../src/scene/effects/BattleActionEffects.js');
 const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
 const saves = require('../src/core/VNextSave.js');
@@ -78,6 +80,7 @@ const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
 const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
     OverseerECS: { World }, OverseerCombat: combat, OverseerHitEffects: hitEffects,
+    OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
     OverseerVNextWaves: waves, OverseerVNextSave: saves, localStorage: saveStorage, Vision, OverseerVNextBrand
@@ -630,4 +633,48 @@ test('combat hits drive a renderer-only recoil/flash and pause freezes the anima
     scene.update(0, 200);
     assert.deepEqual(scene.hitEffects.view(defender), reaction);
     assert.ok(Number.isFinite(scene.world.get(defender, 'Position').x));
+});
+
+test('all allied unit types render distinctive colors and silhouettes, including spawned units', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.spawnFriendlyUnit('unit_mecha');
+    scene.paintBattle();
+    const types = ['unit_guard', 'unit_sniper', 'unit_mecha', 'unit_dronoid'];
+    const observed = types.map(type => {
+        const id = scene.battleUnits.find(id => scene.world.get(id, 'PreviewUnit')?.type === type);
+        assert.ok(id, `Missing ${type}`);
+        return scene.battleUnitStyle(id);
+    });
+    assert.equal(new Set(observed.map(x => x.color)).size, 4);
+    assert.equal(new Set(observed.map(x => x.shape)).size, 4);
+    for (const style of observed) {
+        assert.ok(scene.battleGraphics.drawCalls.some(call => call.color === style.color),
+            `No rendered stroke for ${style.shape}`);
+    }
+});
+
+test('ranged attack emits a laser and HitEffects from one confirmed hit, without delayed damage', () => {
+    const scene = new VNextScene();
+    scene.create();
+    scene.spawnEnemyUnit('basic_monster', 0, 1);
+    const enemy = scene.battleUnits.at(-1);
+    const sniper = scene.battleUnits.find(id =>
+        scene.world.get(id, 'PreviewUnit')?.type === 'unit_sniper');
+    const sniperPosition = scene.world.get(sniper, 'Position');
+    Object.assign(scene.world.get(enemy, 'Position'), { x: sniperPosition.x + 20, y: sniperPosition.y });
+    scene.world.get(sniper, 'Combat').elapsedMs = 5000;
+    const before = scene.world.get(enemy, 'Health').hp;
+    scene.update(0, 16);
+
+    assert.ok(scene.world.get(enemy, 'Health').hp < before);
+    const beam = scene.actionEffects.visuals().find(effect => effect.kind === 'laser');
+    assert.ok(beam, 'the renderer receives a laser on a ranged attack');
+    assert.equal(beam.color, battleStyles.styleFor('unit_sniper', 'player').color);
+    assert.equal(scene.hitEffects.fragments()[0].color, battleStyles.styleFor('basic_monster', 'enemy').color);
+    assert.ok(scene.battleActionGraphics.drawCalls.some(call => call.type === 'lineBetween'));
+    const paused = scene.actionEffects.visuals();
+    scene.selectSpeed(0);
+    scene.update(0, 250);
+    assert.deepEqual(scene.actionEffects.visuals(), paused);
 });
