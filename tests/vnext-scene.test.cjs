@@ -1931,6 +1931,9 @@ test('battlefield hover shows live ally and enemy ECS stats without changing sim
 
     scene.spawnEnemyUnit('ranged_monster',0,1);
     const enemy=scene.battleUnits.at(-1);
+    // The test fixture gives all enemies melee attacks; use ranged ECS values here.
+    scene.world.get(enemy,'Combat').attackType='ranged';
+    scene.world.get(enemy,'Combat').cooldownMs=2000;
     zone.handlers.pointermove(point(enemy));
     assert.equal(scene.battleTooltipId,enemy);
     assert.match(scene.battleTooltipTitle.value,/TIREUR DISTANT.*ENNEMI/);
