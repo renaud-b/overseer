@@ -25,6 +25,7 @@ const threats = require('../src/core/VNextThreats.js');
 const cooling = require('../src/core/VNextCooling.js');
 const saves = require('../src/core/VNextSave.js');
 const visionUpgrades = require('../src/core/VNextVision.js');
+const talentProgression = require('../src/core/TalentProgression.js');
 const savedEntries = new Map();
 const saveStorage = {
     getItem: key => savedEntries.get(key) ?? null,
@@ -107,7 +108,7 @@ const VNextScene = vm.runInNewContext(tooltipSource + '\n' + boardSource + '\n' 
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextMemoryShards: shards, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextArtifactEffects: artifactEffects, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextCooling: cooling, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
+    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextMemoryShards: shards, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextArtifactEffects: artifactEffects, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextCooling: cooling, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades, OverseerTalentProgression: talentProgression,
     localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
