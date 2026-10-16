@@ -113,8 +113,7 @@ test('MainMenu is first for returning and first-time players', () => {
     for (const lang of [null, 'fr']) {
         let config;
         const scenes = {
-            MainMenuScene, VNextScene: class {}, GameScene: class {}, OptionsScene: class {},
-            TalentScene: class {}, LegacyMainMenuScene: class {}, HomeScene: class {}
+            MainMenuScene, VNextScene: class {}, TalentScene: class {}
         };
         const context = {
             ...scenes,
@@ -129,7 +128,7 @@ test('MainMenu is first for returning and first-time players', () => {
         vm.runInNewContext(read('src/main.js'), context);
         assert.equal(config.scene[0], MainMenuScene);
         assert.equal(config.scene[1], scenes.VNextScene);
-        assert.ok(config.scene.includes(scenes.LegacyMainMenuScene));
+        assert.deepEqual(Array.from(config.scene), [MainMenuScene, scenes.VNextScene, scenes.TalentScene]);
     }
 });
 
@@ -185,13 +184,11 @@ test('resize cleans old display objects without losing buttons', () => {
     for (const label of ['START A GAME', 'TALENTS', 'OPTIONS']) buttonFor(scene, label);
 });
 
-test('legacy menu is kept under an independent scene key', () => {
-    const source = read('src/scene/LegacyMainMenuScene.js');
-    assert.match(source, /class LegacyMainMenuScene extends Phaser.Scene/);
-    assert.match(source, /key: 'LegacyMainMenuScene'/);
+test('main menu is the only entry point loaded in the browser', () => {
     const html = read('index.html');
     assert.ok(html.indexOf('src/scene/VNextBrand.js') < html.indexOf('src/scene/MainMenuScene.js'));
-    assert.ok(html.includes('src/scene/LegacyMainMenuScene.js'));
+    for (const retired of ['LegacyMainMenuScene.js', 'GameScene.js', 'HomeScene.js', 'OptionsScene.js'])
+        assert.ok(!html.includes('src/scene/' + retired));
 });
 
 
