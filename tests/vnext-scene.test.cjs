@@ -409,7 +409,7 @@ test('building tooltip distinguishes free placement from per-unit production cos
     assert.ok(old.every(o => o.destroyed));
     assert.ok(!scene.tooltipObjects.some(o => typeof o.value === 'string' && /COÛT DE CONSTRUCTION|COÛT DE POSE|POSE :/.test(o.value)));
     assert.ok(scene.tooltipObjects.some(o => o.value === 'COÛT PAR UNITÉ'));
-    assert.ok(scene.tooltipObjects.some(o => o.value === 'CYCLE : 5s / UNITÉ'));
+    assert.ok(scene.tooltipObjects.some(o => o.value === 'CYCLE : 5.0s / UNITÉ'));
     assert.ok(scene.tooltipObjects.some(o => o.value === '25'));
     assert.ok(scene.tooltipObjects.some(o => o.value === '15'));
     assert.ok(scene.tooltipObjects.some(o => /^UNITÉS \d+\/\d+$/.test(o.value)));
@@ -1872,8 +1872,8 @@ test('Cryopump shows immediate coverage and a cooling tooltip without heat',()=>
  assert.equal(scene.resourceStatusLabels.cooling.value,'1 CRYO');
  cooling.step(scene.model,2000);
  scene.paintBoard();
- assert.equal(cooling.heat(scene.model,reactor),0);
- assert.equal(cooling.heat(scene.model,pump),0);
+ assert.equal(cooling.bonus(scene.model,reactor),0.2);
+ assert.equal(scene.world.query('BuildingHeat').length,0);
  scene.showBuildingTooltip(7);
  assert.ok(scene.tooltipObjects.some(o=>o.value==='PORTÉE : 8 CASES VOISINES'));
  scene.hideBuildingTooltip();
@@ -1883,11 +1883,11 @@ test('Cryopump shows immediate coverage and a cooling tooltip without heat',()=>
  assert.equal(scene.resourceStatusLabels.cooling.value,'0 CRYO');
  assert.equal(cooling.bonus(scene.model,reactor),0);
  scene.selectSpeed(0);
- const heat=cooling.heat(scene.model,reactor);
  scene.update(0,500);
- assert.equal(cooling.heat(scene.model,reactor),heat);
+ assert.equal(scene.world.query('BuildingHeat').length,0);
  const resumed=saves.restore(saves.capture(scene),World);
- assert.equal(resumed.model.world.get(reactor,'BuildingHeat').percent,heat);
+ assert.equal(resumed.model.world.query('BuildingHeat').length,0);
+ assert.equal(cooling.bonus(resumed.model,reactor),0);
 });
 
 test('Cryopump appears in building reward choices but does not change the starter hand',()=>{
