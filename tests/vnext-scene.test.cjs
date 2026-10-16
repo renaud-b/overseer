@@ -2582,8 +2582,9 @@ test('Intégrité préservée restores the core on real wave clear, plays healin
  scene.checkWaveClears();
  assert.equal(scene.baseHp,96);
  assert.ok(scene.actionEffects.visuals().some(v=>v.kind==='heal'));
- assert.equal(scene.checkWaveClears(),false,'wave completion is not paid twice');
- assert.equal(scene.baseHp,96);
+ scene.checkWaveClears();
+ assert.equal(scene.waveMembers.has(1),false,'cleared waves are removed once');
+ assert.equal(scene.baseHp,96,'wave completion is not paid twice');
  const snapshot=saves.restore(saves.capture(scene),World);
  assert.equal(snapshot.baseHp,96);
  assert.ok(artifacts.list(snapshot.model).includes('pristine_repair'));
