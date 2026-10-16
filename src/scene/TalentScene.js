@@ -161,7 +161,7 @@ class TalentScene extends Phaser.Scene {
         this.text(keep,x+16,b.area.y+128,talent.description|| (desc===descKey?'Effet à préciser pour VNext.':desc),12,'#adc6d3',{wordWrap:{width:w-32},lineSpacing:5});
         const unlocked=this.progress.unlocked.includes(talent.id);
         const parent=talent.parent&&talent.parent!=='root'?talent.parent:null;
-        const prereq=(parent&&!this.progress.unlocked.includes(parent))||(talent.prerequisites||[]).some(id=>!this.progress.unlocked.includes(id));
+        const prereq=(parent&&!this.progress.unlocked.includes(parent))||(talent.prerequisites||[]).some(id=>!this.progress.unlocked.includes(id))||(talent.anyPrerequisites?.length&&!talent.anyPrerequisites.some(id=>this.progress.unlocked.includes(id)))||(talent.excludes||[]).some(id=>this.progress.unlocked.includes(id));
         const affordable=OverseerTalentProgression.canUnlock(this.progress,talent);
         const foot=b.area.y+h-119;
         this.text(keep,x+16,foot,'PRÉREQUIS : '+(parent?this.name(parent):'NOYAU'),10,p.muted,{wordWrap:{width:w-32}});
