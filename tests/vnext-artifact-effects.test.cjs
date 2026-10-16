@@ -265,3 +265,131 @@ test('catalogue and deterministic artifact offerings include the three new ids',
  }
  for(const id of ['hyperfocus','recycle','mark_chain'])assert.ok(offering.has('artifact:'+id));
 });
+
+test('Réseau parasitaire grants only progress to one directly adjacent unobserved machine', () => {
+ const m=model(),reactor=preview.placeBuilding(m,'reactor',6);
+ const neighbor=preview.placeBuilding(m,'factory',7);
+ preview.placeBuilding(m,'extractor',12); // Diagonal, not eligible.
+ economy.initialize(m);
+ artifacts.add(m,'parasite_network');
+ preview.setObserved(m,[6]);
+ const events=effects.production(m,2000,economy);
+ const pulses=events.filter(e=>e.type==='artifact-network');
+ assert.equal(events.filter(e=>e.type==='production').length,1);
+ assert.equal(pulses.length,1);
+ assert.equal(pulses[0].from,reactor);
+ assert.equal(pulses[0].building,neighbor);
+ assert.equal(pulses[0].gainedMs,600);
+ assert.equal(m.world.get(neighbor,'Production').elapsedMs,600);
+ assert.equal(resources(m).components,0);
+ // Once observed, the neighbor is not aided, but its accumulated work is retained.
+ preview.setObserved(m,[6,7]);
+ const next=effects.production(m,2000,economy);
+ assert.equal(next.filter(e=>e.type==='artifact-network').length,0);
+ assert.equal(m.world.get(neighbor,'Production').elapsedMs,2600);
+});
+test('Réseau parasitaire never manufactures a unit, reserves resources or cascades from Echo', () => {
+ const m=model(),reactor=preview.placeBuilding(m,'reactor',6);
+ const barracks=preview.placeBuilding(m,'barracks',7);
+ economy.initialize(m);
+ artifacts.add(m,'parasite_network');
+ preview.setObserved(m,[6]);
+ const events=effects.production(m,20000,economy);
+ assert.equal(events.filter(e=>e.type==='artifact-network').length,5);
+ assert.equal(events.filter(e=>e.type==='unit-produced').length,0);
+ assert.equal(m.world.get(barracks,'Production').elapsedMs,5000);
+ assert.equal(resources(m).components,0);
+ // Even a ready unobserved barracks waits until observed, then pays at completion.
+ resources(m).components=25;resources(m).energy=15;
+ preview.setObserved(m,[7]);
+ const next=effects.production(m,1,economy);
+ assert.equal(next.filter(e=>e.type==='unit-produced').length,1);
+ assert.equal(resources(m).components,0);
+ assert.equal(resources(m).energy,0);
+ // Echo can produce off vision, but it never triggers the parasitic network.
+ const isolated=model(),other=preview.placeBuilding(isolated,'extractor',6);
+ preview.placeBuilding(isolated,'reactor',7);
+ economy.initialize(isolated);
+ artifacts.add(isolated,'echo');artifacts.add(isolated,'parasite_network');
+ const echo=effects.production(isolated,20000,economy);
+ assert.ok(echo.some(e=>e.artifact==='echo'));
+ assert.equal(echo.filter(e=>e.type==='artifact-network').length,0);
+ assert.equal(isolated.world.get(other,'Production').elapsedMs,0);
+});
+test('Surcharge terminale arcs to at most two nearby living enemies only on a killing laser hit', () => {
+ const m=model();artifacts.add(m,'core_laser');artifacts.add(m,'terminal_overload');
+ const victim=unit(m,'enemy',200,300,3),close=unit(m,'enemy',208,300,5);
+ const closer=unit(m,'enemy',205,305,5),far=unit(m,'enemy',390,300,5);
+ const hit=effects.laser(m,15000);
+ assert.equal(hit.target,victim);
+ assert.equal(m.world.get(victim,'Health').hp,0);
+ assert.deepEqual(hit.chains.map(e=>e.target),[closer,close]);
+ assert.equal(m.world.get(close,'Health').hp,3);
+ assert.equal(m.world.get(closer,'Health').hp,3);
+ assert.equal(m.world.get(far,'Health').hp,5);
+ assert.equal(effects.laser(m,0),null); // No recursive or repeated discharge.
+});
+test('Surcharge terminale without a killing shot or without the core laser does nothing', () => {
+ const m=model();artifacts.add(m,'core_laser');artifacts.add(m,'terminal_overload');
+ const victim=unit(m,'enemy',150,300,10);
+ unit(m,'enemy',160,300,10);
+ assert.deepEqual(effects.laser(m,15000).chains,[]);
+ assert.equal(m.world.get(victim,'Health').hp,7);
+ const disabled=model();artifacts.add(disabled,'terminal_overload');
+ unit(disabled,'enemy',150,300,2);
+ assert.equal(effects.laser(disabled,50000),null);
+});
+test('Transfert vital heals nearest injured survivor by at most 30% max HP once', () => {
+ const m=model();artifacts.add(m,'vital_transfer');
+ const dead=unit(m,'player',200,200,0);
+ const healthy=unit(m,'player',201,200,10);
+ const target=unit(m,'player',205,200,10);
+ m.world.get(target,'Health').hp=4;
+ const far=unit(m,'player',275,200,10);
+ m.world.get(far,'Health').hp=1;
+ const events=effects.vital(m,[dead]);
+ assert.equal(events.length,1);
+ assert.equal(events[0].target,target);
+ assert.equal(events[0].amount,3);
+ assert.equal(m.world.get(target,'Health').hp,7);
+ assert.equal(m.world.get(healthy,'Health').hp,10);
+ assert.equal(m.world.get(far,'Health').hp,1);
+ assert.deepEqual(effects.vital(m,[dead]),[]);
+ const second=unit(m,'player',201,202,0);
+ m.world.get(target,'Health').hp=9.5;
+ assert.equal(effects.vital(m,[second])[0].amount,0.5);
+ assert.equal(m.world.get(target,'Health').hp,10);
+});
+test('Transfert vital never revives dead allies or heals enemies', () => {
+ const m=model();artifacts.add(m,'vital_transfer');
+ const dead=unit(m,'player',100,100,0);
+ const corpse=unit(m,'player',101,100,0);
+ const foe=unit(m,'enemy',102,100,10);
+ m.world.get(foe,'Health').hp=1;
+ assert.deepEqual(effects.vital(m,[dead,corpse]),[]);
+ assert.equal(m.world.get(corpse,'Health').hp,0);
+ assert.equal(m.world.get(foe,'Health').hp,1);
+});
+test('the three new artefacts join rewards without changing the six-slot cap', () => {
+ const rewards=require('../src/core/VNextRewards.js');
+ for(const id of ['terminal_overload','parasite_network','vital_transfer']) {
+  assert.ok(artifacts.IDS.includes(id));
+  assert.ok(artifacts.get(id)?.description);
+ }
+ const m=model();
+ assert.equal(artifacts.available(m).includes('terminal_overload'),false);
+ artifacts.add(m,'core_laser');
+ assert.equal(artifacts.available(m).includes('terminal_overload'),true);
+ const observed=new Set();
+ for(let wave=3;wave<200;wave++) {
+  const r=rewards.create(wave,95,['reactor','factory','barracks'],
+   ['berserk','healing_field','stasis_field'],artifacts.available(m),artifacts.list(m));
+  for(const stage of r.stages.filter(s=>s.kind==='artifact'))
+   for(const choice of stage.options)observed.add(choice);
+ }
+ for(const id of ['terminal_overload','parasite_network','vital_transfer'])
+  assert.ok(observed.has('artifact:'+id));
+ for(const id of artifacts.IDS)artifacts.add(m,id);
+ assert.equal(artifacts.list(m).length,6);
+ assert.deepEqual(artifacts.available(m).includes('terminal_overload'),false);
+});

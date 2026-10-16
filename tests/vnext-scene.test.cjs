@@ -1704,3 +1704,83 @@ test('a marked enemy killed during combat transfers designation before ECS clean
  assert.equal(scene.world.get(next,'ThreatMark').remainingMs,2000);
  savedEntries.clear();
 });
+
+test('network artefact visualises actual adjacent off-vision progress without granting materials', () => {
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ scene.selectedType='reactor';scene.clickTile(6);
+ scene.selectedType='factory';scene.clickTile(7);
+ preview.setObserved(scene.model,[6]); // Test the unobserved-neighbor state explicitly.
+ assert.equal(artifacts.add(scene.model,'parasite_network'),true);
+ for(let i=0;i<34;i++)scene.update(0,60);
+ const factory=preview.buildingAt(scene.model,7);
+ const progress=scene.world.get(factory,'Production');
+ assert.ok(progress.elapsedMs>=600);
+ assert.equal(scene.world.get(scene.model.game,'Resources').components,0);
+ assert.ok(scene.productionPopups.some(p=>p.label.value.includes('%')));
+ const before=progress.elapsedMs;
+ scene.selectSpeed(0);
+ scene.update(0,5000);
+ assert.equal(progress.elapsedMs,before);
+ savedEntries.clear();
+});
+test('terminal laser discharge adds only two visible bolts to living nearby enemies', () => {
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ artifacts.add(scene.model,'core_laser');artifacts.add(scene.model,'terminal_overload');
+ const ids=[];
+ for(let i=0;i<4;i++){
+  scene.spawnEnemyUnit('basic_monster',i,4);
+  const id=scene.battleUnits.at(-1);
+  scene.world.get(id,'Position').x=230+i*12;
+  scene.world.get(id,'Position').y=300;
+  scene.world.get(id,'Health').hp=i===0?3:10;
+  scene.world.get(id,'Health').maxHp=10;
+  ids.push(id);
+ }
+ artifactEffects.state(scene.model).laserMs=artifactEffects.LASER_MS;
+ scene.update(0,60);
+ assert.equal(scene.world.get(ids[0],'Health').hp<=0,true);
+ assert.equal(scene.world.get(ids[1],'Health').hp,8);
+ assert.equal(scene.world.get(ids[2],'Health').hp,8);
+ assert.equal(scene.world.get(ids[3],'Health').hp,10);
+ assert.equal(scene.actionEffects.visuals().filter(v=>v.kind==='laser'&&v.color===0x62e7e1).length,3);
+ savedEntries.clear();
+});
+test('vital transfer heals an injured ally through ECS death cleanup and draws support beam', () => {
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ artifacts.add(scene.model,'vital_transfer');
+ const [victim,ally]=scene.battleUnits;
+ const injured=scene.world.get(ally,'Health');
+ injured.hp=injured.maxHp/2;
+ scene.world.get(victim,'Health').hp=0;
+ const before=injured.hp;
+ assert.equal(scene.cleanupDeadUnits(),true);
+ assert.equal(injured.hp,Math.min(injured.maxHp,before+injured.maxHp*0.3));
+ assert.ok(scene.actionEffects.visuals().some(e=>e.kind==='heal'));
+ assert.equal(scene.cleanupDeadUnits(),false);
+ savedEntries.clear();
+});
+test('terminal overload is absent from reward proposals until core laser is equipped', () => {
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ const before=artifacts.available(scene.model);
+ assert.equal(before.includes('terminal_overload'),false);
+ const optionsBefore=new Set();
+ for(let n=3;n<200;n++){
+  const reward=scene.rewardForWave(n);
+  for(const stage of reward.stages.filter(s=>s.kind==='artifact'))
+   for(const opt of stage.options)optionsBefore.add(opt);
+ }
+ assert.equal(optionsBefore.has('artifact:terminal_overload'),false);
+ artifacts.add(scene.model,'core_laser');
+ const after=new Set();
+ for(let n=3;n<200;n++){
+  const reward=scene.rewardForWave(n);
+  for(const stage of reward.stages.filter(s=>s.kind==='artifact'))
+   for(const opt of stage.options)after.add(opt);
+ }
+ assert.equal(after.has('artifact:terminal_overload'),true);
+ savedEntries.clear();
+});
