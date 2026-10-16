@@ -408,3 +408,79 @@ test('the three new artefacts join rewards without changing the six-slot cap', (
  assert.equal(artifacts.list(m).length,6);
  assert.deepEqual(artifacts.available(m).includes('terminal_overload'),false);
 });
+
+test('Directive de protection marks a real core aggressor, expires in simulation time and never invents a target',()=>{
+ const m=model(),enemy=unit(m,'enemy',120,300,8);
+ artifacts.add(m,'defense_directive');
+ assert.equal(effects.defense(m,enemy),true);
+ assert.equal(m.world.get(enemy,'GuardPriority').remainingMs,3000);
+ effects.combatTimers(m,1250);
+ assert.equal(m.world.get(enemy,'GuardPriority').remainingMs,1750);
+ const clone=World.restore(m.world.serialize());
+ assert.equal(clone.get(enemy,'GuardPriority').remainingMs,1750);
+ effects.combatTimers(m,1750);
+ assert.equal(m.world.get(enemy,'GuardPriority'),undefined);
+ m.world.get(enemy,'Health').hp=0;
+ assert.equal(effects.defense(m,enemy),false);
+});
+test('Directive de protection prioritizes the attacker for a nearby defender without changing base damage',()=>{
+ const combat=require('../src/core/CombatSystem.js'),m=model();
+ const defender=unit(m,'player',120,300,8),near=unit(m,'enemy',160,300,8),aggressor=unit(m,'enemy',215,300,8);
+ for(const id of [defender,near,aggressor]){
+  m.world.set(id,'Movement',{speed:0});
+  m.world.set(id,'Combat',{damage:1,range:20,attackType:'melee',cooldownMs:1000,
+   elapsedMs:0,detectionRadius:400});
+ }
+ artifacts.add(m,'defense_directive');effects.defense(m,aggressor);
+ combat.stepUnit(m.world,defender,100,{opponents:[near,aggressor],centralDetection:true});
+ assert.equal(m.world.get(defender,'Combat').targetId,aggressor);
+ effects.combatTimers(m,3000);
+ combat.stepUnit(m.world,defender,100,{opponents:[near,aggressor],centralDetection:true});
+ assert.equal(m.world.get(defender,'Combat').targetId,near);
+});
+test('Production défectueuse mutates only fifth paid manufactured unit, persists its counter',()=>{
+ const m=model();artifacts.add(m,'defective');
+ const spend={spent:{components:25,energy:15}};
+ for(let i=1;i<=5;i++){
+  const id=unit(m,'player',100+i,100,8);
+  m.world.set(id,'Combat',{damage:2,cooldownMs:500});
+  const mutated=effects.manufactured(m,id,spend);
+  assert.equal(mutated,i===5);
+  assert.equal(m.world.get(id,'Health').maxHp,i===5?6:8);
+  assert.equal(m.world.get(id,'Combat').damage,i===5?3:2);
+ }
+ assert.equal(effects.state(m).manufacturedCount,5);
+ const restore=World.restore(m.world.serialize());
+ assert.equal(restore.get(m.game,'ArtifactEffects').manufacturedCount,5);
+ const free=unit(m,'player',200,300,8);
+ m.world.set(free,'Combat',{damage:2});
+ assert.equal(effects.manufactured(m,free,null),false);
+ assert.equal(effects.state(m).manufacturedCount,5);
+});
+test('Contamination synthétique adds bounded zones, never hurts allies and expires after four seconds',()=>{
+ const m=model(),dead=unit(m,'enemy',100,100,0),enemy=unit(m,'enemy',120,100,8),
+ ally=unit(m,'player',120,100,8),far=unit(m,'enemy',330,100,8);
+ artifacts.add(m,'corrosion');
+ assert.equal(effects.contamination(m,[dead]).length,1);
+ assert.equal(effects.corrosionStep(m,999).length,0);
+ assert.equal(effects.corrosionStep(m,1).length,1);
+ assert.equal(m.world.get(enemy,'Health').hp,7);
+ assert.equal(m.world.get(ally,'Health').hp,8);
+ assert.equal(m.world.get(far,'Health').hp,8);
+ effects.corrosionStep(m,3000);
+ assert.equal(m.world.get(enemy,'Health').hp,4);
+ assert.equal(effects.state(m).corrosionZones.length,0);
+ assert.deepEqual(effects.corrosionStep(m,1000),[]);
+});
+test('Corrosion zones survive save restore and stop growing at twelve zones',()=>{
+ const m=model();artifacts.add(m,'corrosion');
+ for(let i=0;i<20;i++){const id=unit(m,'enemy',i*5,100,0);effects.contamination(m,[id]);}
+ assert.equal(effects.state(m).corrosionZones.length,12);
+ effects.corrosionStep(m,1250);
+ const copy=World.restore(m.world.serialize()),restored={...m,world:copy};
+ assert.equal(effects.state(restored).corrosionZones[0].remainingMs,2750);
+ assert.equal(effects.valid(effects.state(restored)),true);
+ const corrupted=JSON.parse(JSON.stringify(effects.state(restored)));
+ corrupted.corrosionZones[0].remainingMs=-1;
+ assert.equal(effects.valid(corrupted),false);
+});

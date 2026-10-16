@@ -7,6 +7,8 @@ const CORE={x:65,y:300}, LASER_RADIUS=350, LASER_DAMAGE=3;
 const BURST_RADIUS=80, BURST_DAMAGE=2, SHIELD_HP=15, RECOVERY_HP=5;
 const FOCUS_BONUS=0.4, RECYCLE_RATE=0.25, MARK_MS=2000;
 const TERMINAL_DAMAGE=2, TERMINAL_RADIUS=110, NETWORK_RATE=0.2, VITAL_RATE=0.3;
+const DEFENSE_MS=3000, DEFENSE_RADIUS=250, CORROSION_MS=4000, CORROSION_TICK_MS=1000;
+const CORROSION_RADIUS=65, CORROSION_DAMAGE=1, MAX_CORROSION_ZONES=12;
 function owns(model,id){return model.world.get(model.game,'ArtifactCollection')?.ids.includes(id)===true;}
 function observed(model) {
  return model.world.query('Building','GridSlot').filter(id=>{
@@ -20,7 +22,8 @@ function state(model) {
   world.set(model.game,'ArtifactEffects',{
    echoMs:0,echoIndex:0,laserMs:0,duplicateMs:0,
    observed:observed(model),grace:{},waveHp:{},
-   waveNumber:0,shieldUsedWave:-1,shieldPoints:0
+   waveNumber:0,shieldUsedWave:-1,shieldPoints:0,
+   manufacturedCount:0,corrosionZones:[]
   });
  }
  return world.get(model.game,'ArtifactEffects');
@@ -36,7 +39,12 @@ function valid(s) {
   obj(s.waveHp)&&Object.entries(s.waveHp).every(([wave,hp])=>/^[1-9]\d*$/.test(wave)&&num(hp,0,100))&&
   Number.isSafeInteger(s.waveNumber)&&s.waveNumber>=0&&
   Number.isSafeInteger(s.shieldUsedWave)&&s.shieldUsedWave>=-1&&
-  num(s.shieldPoints,0,SHIELD_HP);
+  num(s.shieldPoints,0,SHIELD_HP)&&
+  (s.manufacturedCount===undefined||Number.isSafeInteger(s.manufacturedCount)&&s.manufacturedCount>=0)&&
+  (s.corrosionZones===undefined||Array.isArray(s.corrosionZones)&&
+   s.corrosionZones.length<=MAX_CORROSION_ZONES&&s.corrosionZones.every(z=>
+    obj(z)&&Number.isFinite(z.x)&&Number.isFinite(z.y)&&
+    num(z.remainingMs,0,CORROSION_MS)&&num(z.elapsedMs,0,CORROSION_TICK_MS)));
 }
 function syncAttention(model) {
  const s=state(model), now=observed(model), current=new Set(now);
@@ -301,7 +309,79 @@ function propagate(model,deadIds) {
  }
  return events;
 }
+
+function manufactured(model,id,event) {
+ if(!owns(model,'defective')||!event?.spent||!model.world.has(id))return false;
+ const s=state(model);
+ s.manufacturedCount=(s.manufacturedCount||0)+1;
+ if(s.manufacturedCount%5!==0)return false;
+ const world=model.world,h=world.get(id,'Health'),combat=world.get(id,'Combat');
+ if(!h||!combat)return false;
+ h.maxHp=Math.max(1,Math.round(h.maxHp*0.75));
+ h.hp=Math.min(h.hp,h.maxHp);
+ combat.damage=Math.max(1,Math.round(combat.damage*1.5));
+ world.set(id,'DefectiveUnit',{unstable:true});
+ return true;
+}
+function defense(model,attacker) {
+ if(!owns(model,'defense_directive'))return false;
+ const world=model.world;
+ if(!world.has(attacker)||world.get(attacker,'Faction')?.side!=='enemy'||world.get(attacker,'Health')?.hp<=0)
+  return false;
+ world.set(attacker,'GuardPriority',{remainingMs:DEFENSE_MS});
+ return true;
+}
+function combatTimers(model,dt) {
+ if(!Number.isFinite(dt)||dt<0)throw Error('Invalid artifact combat delta');
+ for(const id of model.world.query('GuardPriority')){
+  const mark=model.world.get(id,'GuardPriority');
+  mark.remainingMs=Math.max(0,mark.remainingMs-dt);
+  if(mark.remainingMs===0)model.world.remove(id,'GuardPriority');
+ }
+}
+function contamination(model,deadIds) {
+ if(!owns(model,'corrosion'))return [];
+ const world=model.world,s=state(model);
+ if(!s.corrosionZones)s.corrosionZones=[];
+ const events=[];
+ for(const id of deadIds) {
+  if(s.corrosionZones.length>=MAX_CORROSION_ZONES)break;
+  if(!world.has(id)||world.get(id,'Faction')?.side!=='enemy'||world.get(id,'Health')?.hp>0)continue;
+  const p=world.get(id,'Position');
+  if(!p)continue;
+  s.corrosionZones.push({x:p.x,y:p.y,remainingMs:CORROSION_MS,elapsedMs:0});
+  events.push({type:'artifact-corrosion-zone',from:{x:p.x,y:p.y}});
+ }
+ return events;
+}
+function corrosionStep(model,dt) {
+ if(!Number.isFinite(dt)||dt<0)throw Error('Invalid corrosion delta');
+ const s=state(model),zones=s.corrosionZones||[];
+ if(!zones.length||!dt)return [];
+ const events=[],world=model.world;
+ for(const z of zones) {
+  const activeMs=Math.min(dt,z.remainingMs);
+  z.elapsedMs+=activeMs;
+  z.remainingMs=Math.max(0,z.remainingMs-dt);
+  while(z.elapsedMs>=CORROSION_TICK_MS) {
+   z.elapsedMs-=CORROSION_TICK_MS;
+   for(const id of world.query('Faction','Position','Health')){
+    if(world.get(id,'Faction').side!=='enemy')continue;
+    const hp=world.get(id,'Health');
+    if(hp.hp<=0)continue;
+    const p=world.get(id,'Position');
+    if(Math.hypot(p.x-z.x,p.y-z.y)>CORROSION_RADIUS)continue;
+    hp.hp-=CORROSION_DAMAGE;
+    events.push({type:'artifact-corrosion-hit',target:id,damage:CORROSION_DAMAGE,
+     from:{x:z.x,y:z.y},to:{x:p.x,y:p.y}});
+   }
+  }
+ }
+ s.corrosionZones=zones.filter(z=>z.remainingMs>0);
+ return events;
+}
 const api={state,valid,syncAttention,focusedBuilding,network,production,startWave,baseHit,clearWave,laser,deaths,
+ manufactured,defense,combatTimers,contamination,corrosionStep,DEFENSE_MS,DEFENSE_RADIUS,CORROSION_MS,CORROSION_RADIUS,
  recycle,propagate,vital,FOCUS_BONUS,RECYCLE_RATE,MARK_MS,TERMINAL_DAMAGE,TERMINAL_RADIUS,NETWORK_RATE,VITAL_RATE,
  ECHO_MS,GRACE_MS,LASER_MS,DUPLICATE_MS,SHIELD_HP,LASER_RADIUS};
 root.OverseerVNextArtifactEffects=api;

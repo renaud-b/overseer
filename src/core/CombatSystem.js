@@ -23,11 +23,14 @@ function stepUnit(world,id,delta,options={}){
  const detection=combat.detectionRadius;
  const central=options.centralDetection && faction.side==='player';
  const eligible=opponents.filter(o=>central
-   ? Boolean(world.get(o.id,'ThreatMark')) || distance(position,o.position)<=55
+   ? Boolean(world.get(o.id,'ThreatMark')) || Boolean(world.get(o.id,'GuardPriority')) ||
+     distance(position,o.position)<=55
    : distance(position,o.position)<detection);
  // Retain the previous marked target until it disappears, not merely until a closer enemy arrives.
+ const defensive=central && distance(position,{x:65,y:300})<=250 &&
+  eligible.find(o=>world.get(o.id,'GuardPriority'));
  const locked=central && eligible.find(o=>o.id===combat.targetId);
- const candidate=locked || eligible.sort((a,b)=>distance(position,a.position)-distance(position,b.position))[0];
+ const candidate=defensive || locked || eligible.sort((a,b)=>distance(position,a.position)-distance(position,b.position))[0];
  if (central) combat.targetId=candidate?.id ?? null;
  const target=combat.behavior==='base_rusher'?null:candidate;
  const events=[];

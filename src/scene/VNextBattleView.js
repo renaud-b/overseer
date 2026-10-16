@@ -98,6 +98,11 @@
                 this.zoneParticles.push({x:p.x+Math.cos(angle)*rad,y:p.y+Math.sin(angle)*rad,life:700});
             }
         }
+        for(const zone of OverseerVNextArtifactEffects.state(this.model).corrosionZones||[]) {
+            const p=toScreen(zone.x,zone.y),r=65*b.w/1000;
+            g.fillStyle(0x91bb70,0.11).fillCircle(p.x,p.y,r);
+            g.lineStyle(1,0x91bb70,0.7).strokeCircle(p.x,p.y,r);
+        }
         this.zoneParticles=this.zoneParticles.filter(p=>p.life>0);
         for(const p of this.zoneParticles) {
             p.y-=dt*0.018;p.life-=dt;
@@ -157,9 +162,13 @@
                 g.lineStyle(1,0x62e7e1,0.65).strokeCircle(q.x,q.y,r*1.45);
             }
             if(berserk){g.lineStyle(1,0xf4a261,0.8).strokeCircle(q.x,q.y,r*1.5);}
+            if(this.world.get(id,'DefectiveUnit'))g.lineStyle(1,0xf4ba58,0.9).strokeCircle(q.x,q.y,r*1.6);
             this.drawBattleUnit(g, style, q.x, q.y, (berserk ? r * 1.16 : r) * (style.size || 1), color);
             if(this.world.hasComponent(id,'TemporaryAlly')) {
                 g.lineStyle(1,0x44dc91,0.7).strokeCircle(q.x,q.y,r*1.65);
+            }
+            if (side === 'enemy' && this.world.get(id, 'GuardPriority')) {
+                g.lineStyle(2,0x62e7e1,0.88).strokeRect(q.x-r-6,q.y-r-6,(r+6)*2,(r+6)*2);
             }
             if (side === 'enemy' && this.world.get(id, 'ThreatMark')) {
                 g.lineStyle(1.5, 0xff6674, 0.92).strokeRect(

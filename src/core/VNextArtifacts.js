@@ -30,7 +30,13 @@
         { id: 'parasite_network', label: 'Réseau parasitaire', symbol: 'orbit', color: 0xb58aff,
           description: 'À chaque production observée, un bâtiment voisin hors vision gagne 20 % d’avancement sur son cycle.' },
         { id: 'vital_transfer', label: 'Transfert vital', symbol: 'diamond', color: 0x69d9a0,
-          description: 'À la mort d’un allié, l’allié vivant blessé le plus proche récupère 30 % de ses PV maximaux.' }
+          description: 'À la mort d’un allié, l’allié vivant blessé le plus proche récupère 30 % de ses PV maximaux.' },
+        { id: 'defense_directive', label: 'Directive de protection', symbol: 'diamond', color: 0x62e7e1,
+          description: 'Lorsque le noyau est attaqué, les alliés proches ciblent prioritairement son agresseur pendant 3 s.' },
+        { id: 'defective', label: 'Production défectueuse', symbol: 'triangle', color: 0xf4ba58,
+          description: 'Une unité militaire fabriquée sur cinq inflige 50 % de dégâts supplémentaires, mais perd 25 % de PV max.' },
+        { id: 'corrosion', label: 'Contamination synthétique', symbol: 'orbit', color: 0x91bb70,
+          description: 'La mort d’un ennemi laisse pendant 4 s une zone corrosive (rayon 65), infligeant 1 dégât par seconde.' }
     ].map(entry => Object.freeze(entry)));
     const IDS = Object.freeze(CATALOG.map(entry => entry.id));
     function get(id) { return CATALOG.find(artifact => artifact.id === id) || null; }

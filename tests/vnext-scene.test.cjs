@@ -2255,3 +2255,38 @@ test('scene can restart on same Phaser instance with extracted run and input han
     assert.notStrictEqual(scene.world, oldWorld);
     assert.equal(scene.runFinished, false);
 });
+
+test('defective military production changes the fifth produced unit, not the starter lineup',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ artifacts.add(scene.model,'defective');
+ const starters=[...scene.battleUnits];
+ for(let i=1;i<=5;i++){
+  const id=scene.spawnFriendlyUnit('unit_guard',{type:'unit-produced',unitType:'unit_guard',
+   spent:{components:25,energy:15}});
+  const health=scene.world.get(id,'Health'),combat=scene.world.get(id,'Combat');
+  assert.equal(Boolean(scene.world.get(id,'DefectiveUnit')),i===5);
+  if(i===5){assert.equal(health.maxHp,4);assert.equal(combat.damage,2);}
+ }
+ for(const id of starters)assert.equal(scene.world.get(id,'DefectiveUnit'),undefined);
+ assert.equal(scene.saveCurrentGame(),true);
+ const restored=new VNextScene();restored.init({resume:true});restored.create();
+ assert.equal(artifactEffects.state(restored.model).manufacturedCount,5);
+ savedEntries.clear();
+});
+test('corrosion from enemy death renders a clipped battlefield zone and pauses with simulation',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ artifacts.add(scene.model,'corrosion');
+ scene.spawnEnemyUnit('basic_monster',0,1);
+ const enemy=scene.battleUnits.at(-1);
+ scene.world.get(enemy,'Health').hp=0;
+ assert.equal(scene.cleanupDeadUnits(),true);
+ assert.equal(artifactEffects.state(scene.model).corrosionZones.length,1);
+ scene.paintBattle();
+ assert.ok(scene.zoneGraphics.drawCalls.some(x=>x.type==='strokeCircle'&&x.color===0x91bb70));
+ scene.selectSpeed(0);
+ scene.update(0,4000);
+ assert.equal(artifactEffects.state(scene.model).corrosionZones[0].remainingMs,4000);
+ savedEntries.clear();
+});

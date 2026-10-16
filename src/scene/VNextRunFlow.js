@@ -113,6 +113,7 @@
         if (!dead.size) return false;
         OverseerVNextArtifactEffects.recycle(this.model, [...dead]);
         OverseerVNextArtifactEffects.propagate(this.model, [...dead]);
+        OverseerVNextArtifactEffects.contamination(this.model,[...dead]);
         for(const transfer of OverseerVNextArtifactEffects.vital(this.model,[...dead])) {
             this.actionEffects.heal(transfer.from,transfer.to,0x69d9a0);
         }
@@ -206,6 +207,7 @@
                 resources: { ...productionEvent.spent }
             });
         }
+        OverseerVNextArtifactEffects.manufactured(this.model,id,productionEvent);
         this.battleUnits.push(id);
         return id;
     }
