@@ -28,6 +28,27 @@ test('cards are removed only after successful placement', () => {
     assert.equal(preview.moveBuilding(model, barracks, 12), true);
     assert.deepEqual(hand.cards(model), ['extractor', 'factory']);
 });
+test('placing the barracks spends only its card; 25 components and 15 energy fund a soldier', () => {
+    const economy = require('../src/core/VNextEconomy.js');
+    const model = make();
+    const resources = economy.initialize(model);
+    resources.components = 25;
+    resources.energy = 15;
+    const placed = hand.play(model, 'barracks', 6);
+    assert.ok(placed);
+    assert.deepEqual({ ...resources }, { energy: 15, matter: 0, components: 25 });
+    assert.ok(!hand.cards(model).includes('barracks'));
+    assert.deepEqual(economy.step(model, 60), [], 'out of vision, construction does not fabricate a unit');
+    assert.deepEqual({ ...resources }, { energy: 15, matter: 0, components: 25 });
+
+    preview.setObserved(model, [6]);
+    const events = economy.step(model, 60);
+    assert.equal(events.length, 1);
+    assert.equal(events[0].type, 'unit-produced');
+    assert.equal(events[0].unitType, 'unit_guard');
+    assert.deepEqual({ ...resources }, { energy: 0, matter: 0, components: 0 });
+});
+
 test('each game has an independent hand', () => {
     const a = make(), b = make();
     hand.play(a, 'reactor', 6);
