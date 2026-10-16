@@ -2,8 +2,25 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const {World}=require('../src/core/World.js');
-const {stepUnit,separateUnits}=require('../src/core/CombatSystem.js');
+const {stepUnit,separateUnits,formationPosition}=require('../src/core/CombatSystem.js');
 function unit(w,x,side,extras={}) { const id=w.create();w.set(id,'Position',{x,y:0});w.set(id,'Health',{hp:10,maxHp:10});w.set(id,'Faction',{side});w.set(id,'Movement',{speed:30});w.set(id,'Combat',{damage:2,range:20,attackType:'melee',cooldownMs:1000,elapsedMs:0,detectionRadius:100,behavior:null,...extras});return id;}
+test('guard posts face the battlefield, spread apart, and are deterministic', () => {
+ const first=Array.from({length:12},(_,i)=>formationPosition(i,12));
+ assert.deepEqual(first,Array.from({length:12},(_,i)=>formationPosition(i,12)));
+ assert.ok(first.every(p=>p.x>=65 && p.x<=1000 && p.y>=0 && p.y<=600));
+ assert.equal(new Set(first.map(p=>p.x+':'+p.y)).size,first.length);
+ assert.ok(first.some(p=>p.y<300) && first.some(p=>p.y>300));
+});
+test('allied units return to individual guard posts after combat, while healer remains autonomous',()=>{
+ const world=new World();
+ const first=unit(world,360,'player'),second=unit(world,340,'player');
+ const p1=formationPosition(0,2),p2=formationPosition(1,2);
+ stepUnit(world,first,1000,{opponents:[],patrol:p1,centralDetection:true});
+ stepUnit(world,second,1000,{opponents:[],patrol:p2,centralDetection:true});
+ assert.ok(world.get(first,'Position').x<360);
+ assert.ok(world.get(second,'Position').x<340);
+ assert.notDeepEqual(p1,p2);
+});
 test('melee movement and attack, data only',()=>{const w=new World();let p=unit(w,0,'player'),e=unit(w,50,'enemy');stepUnit(w,p,1000,{opponents:[e]});assert.ok(w.get(p,'Position').x>0);assert.equal(w.get(e,'Health').hp,10);const ev=stepUnit(w,p,1000,{opponents:[e]});assert.equal(ev[0].type,'attack');assert.equal(w.get(e,'Health').hp,8);});
 test('base rusher ignores opposing unit',()=>{const w=new World();let r=unit(w,0,'enemy',{behavior:'base_rusher'}),p=unit(w,5,'player');stepUnit(w,r,1000,{opponents:[p],base:{x:100,y:0}});assert.equal(w.get(p,'Health').hp,10);assert.equal(w.get(r,'Position').x,30);});
 test('enemy attacking base reports damage without Phaser',()=>{const w=new World();let e=unit(w,0,'enemy');const ev=stepUnit(w,e,1000,{base:{x:10,y:0}});assert.deepEqual(ev.map(x=>x.type),['base-attack']);});

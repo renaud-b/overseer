@@ -1329,13 +1329,15 @@ class VNextScene extends Phaser.Scene {
         const players = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'player' && this.world.get(id, 'Health').hp > 0);
         const enemies = this.battleUnits.filter(id => this.world.has(id) && this.world.get(id, 'Faction').side === 'enemy' && this.world.get(id, 'Health').hp > 0);
         OverseerVNextThreats.update(this.world, enemies, dt);
+        const posts = new Map(players.map((id, index) =>
+            [id, OverseerCombat.formationPosition(index, players.length)]));
         for (const id of [...players, ...enemies]) {
             if (this.world.get(id, 'Health').hp <= 0) continue;
             const side = this.world.get(id, 'Faction').side;
             const events = OverseerCombat.stepUnit(this.world, id, dt, {
                 opponents: side === 'player' ? enemies : players,
                 base: side === 'enemy' && this.baseHp > 0 ? { x: 65, y: 300 } : null,
-                patrol: side === 'player' ? { x: 280, y: 300 } : null,
+                patrol: side === 'player' ? posts.get(id) : null,
                 allies: side === 'player' ? players : [],
                 centralDetection: side === 'player'
             });
