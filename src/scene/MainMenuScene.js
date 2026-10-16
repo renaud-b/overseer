@@ -32,10 +32,8 @@ class MainMenuScene extends Phaser.Scene {
         this.objects = [];
         this.transitioning = false;
         this.confirmingNewGame = false;
-        this.reducedMotion = (typeof OverseerGameSettings !== 'undefined' &&
-            OverseerGameSettings.read(this.saveStorage()).reducedMotion) ||
-            (typeof window !== 'undefined' &&
-            !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+        this.reducedMotion = typeof window !== 'undefined' &&
+            !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
         this.cameras.main.fadeIn(280, 8, 18, 28);
         this.drawMenu();
         this.scale.on('resize', this.drawMenu, this);
@@ -300,8 +298,6 @@ class MainMenuScene extends Phaser.Scene {
         if (this.transitioning || this.optionsModal) return;
         this.optionsModal = new OverseerOptionsModal(this, () => {
             this.optionsModal = null;
-            this.reducedMotion = OverseerGameSettings.read(this.saveStorage()).reducedMotion ||
-                (typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
             this.drawMenu();
         });
         this.optionsModal.open();
