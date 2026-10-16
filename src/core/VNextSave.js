@@ -11,27 +11,6 @@
             (typeof require === 'function' ? require('./VNextCards.js') : null);
         const technologies = root.OverseerVNextTechnologies ||
             (typeof require === 'function' ? require('./VNextTechnologies.js') : null);
-        // Optional run-scoped meta-progression snapshot. Fractional remainders
-        // are simulation data and must survive Continue without rounding.
-        const progression = world.get(game,'ProductionTalents');
-        if (progression) {
-            const validIds=['production_extraction','production_components','production_efficiency','production_automation'];
-            requireValid(Array.isArray(progression.ids) &&
-                new Set(progression.ids).size===progression.ids.length &&
-                progression.ids.every(id=>validIds.includes(id)) &&
-                progression.fractions && typeof progression.fractions==='object' &&
-                !Array.isArray(progression.fractions), 'production talents');
-            for (const [entityId,entry] of Object.entries(progression.fractions)) {
-                requireValid(/^\d+$/.test(entityId) && world.has(Number(entityId)) &&
-                    world.hasComponent(Number(entityId),'Building') &&
-                    entry && typeof entry==='object' &&
-                    ['inputs','outputs'].every(kind => entry[kind] &&
-                        typeof entry[kind]==='object' && !Array.isArray(entry[kind]) &&
-                        Object.entries(entry[kind]).every(([key,value]) =>
-                            ['energy','matter','components','data'].includes(key) &&
-                            number(value,0,1) && value < 1)), 'production fractions');
-            }
-        }
         const artifacts = root.OverseerVNextArtifacts ||
             (typeof require === 'function' ? require('./VNextArtifacts.js') : null);
         return [...(cards?.REWARD_CARDS || cards?.STARTER_CARDS || []),
@@ -106,6 +85,27 @@
         requireValid(resources && ['energy', 'matter', 'components'].every(id =>
             number(resources[id])) &&
             (resources.data === undefined || number(resources.data)), 'resources');
+        // Optional run-scoped meta-progression snapshot. Fractional remainders
+        // are simulation data and must survive Continue without rounding.
+        const progression = world.get(game,'ProductionTalents');
+        if (progression) {
+            const validIds=['production_extraction','production_components','production_efficiency','production_automation'];
+            requireValid(Array.isArray(progression.ids) &&
+                new Set(progression.ids).size===progression.ids.length &&
+                progression.ids.every(id=>validIds.includes(id)) &&
+                progression.fractions && typeof progression.fractions==='object' &&
+                !Array.isArray(progression.fractions), 'production talents');
+            for (const [entityId,entry] of Object.entries(progression.fractions)) {
+                requireValid(/^\d+$/.test(entityId) && world.has(Number(entityId)) &&
+                    world.hasComponent(Number(entityId),'Building') &&
+                    entry && typeof entry==='object' &&
+                    ['inputs','outputs'].every(kind => entry[kind] &&
+                        typeof entry[kind]==='object' && !Array.isArray(entry[kind]) &&
+                        Object.entries(entry[kind]).every(([key,value]) =>
+                            ['energy','matter','components','data'].includes(key) &&
+                            number(value,0,1) && value < 1)), 'production fractions');
+            }
+        }
         const artifacts = root.OverseerVNextArtifacts ||
             (typeof require === 'function' ? require('./VNextArtifacts.js') : null);
         const artifactCollection = world.get(game, 'ArtifactCollection');
