@@ -135,7 +135,7 @@
         const { x: gx, y: gy, cell } = this.gridLayout;
         const cx = gx + (index % 5 + 0.5) * cell;
         const cy = gy + (Math.floor(index / 5) + 0.5) * cell;
-        this.renderBuildingTooltip(type, cx + cell * 0.48, cy - 92);
+        this.renderBuildingTooltip(type, cx + cell * 0.48, cy - 92, id);
     },
 
     showCardTooltip(type, x, y) {
@@ -143,7 +143,7 @@
         this.renderBuildingTooltip(type, x + 12, y);
     },
 
-    renderBuildingTooltip(type, anchorX, anchorY) {
+    renderBuildingTooltip(type, anchorX, anchorY, buildingId = null) {
         const info = OverseerVNextBuildings.getBuilding(type);
         if (!info) return;
         const recipe = OverseerVNextEconomy.PROTOTYPE_RECIPES[type];
@@ -159,20 +159,22 @@
             keepTip(this.add.text(tx, ty, content, { fontFamily: 'monospace', fontSize: `${size}px`, color }).setDepth(211));
         label(x + 41, y + 14, info.label, 15, '#e3f0f5');
         label(x + pad, y + 48, info.description, 11, '#a6bfce');
-        const entity=this.world.query('Building').find(id=>this.world.get(id,'Building').type===type);
-        if(entity)label(x + pad, y + 79,`CHALEUR : ${Math.round(OverseerVNextCooling.heat(this.model,entity))}%`,10,'#f4ba58');
+        const rate = buildingId ? OverseerVNextCooling.bonus(this.model, buildingId) : 0;
+        const active = buildingId ? OverseerVNextCooling.observed(this.model, buildingId) : false;
+        if(buildingId)label(x + pad, y + 79, rate ? `CRYOPOMPE : +${Math.round(rate*100)}% CADENCE` :
+            active ? 'REFROIDISSEMENT : AUCUN BONUS' : 'HORS VISION : BONUS INACTIF',10,rate?'#87b9e8':'#819eaf');
         if (!recipe) {
             if (type === 'cryopump') {
                 label(x + pad, y + 101, 'PORTÉE : 8 CASES VOISINES', 10, '#87b9e8');
                 label(x + pad, y + 125, 'ACTIVATION : SOUS VISION', 10, '#87b9e8');
-                label(x + pad, y + 150, 'BONUS SEUL, AUCUN MALUS', 10, '#819eaf');
+                label(x + pad, y + 150, 'BONUS IMMÉDIAT +20%, SANS MALUS', 10, '#819eaf');
             } else if (type === 'perception_amplifier') {
                 label(x + pad, y + 101, 'RAYON : 350 → 500', 11, '#91ced1');
                 label(x + pad, y + 125, 'PULSATION : 5 S (PLUS RAPIDE SI FROID)', 10, '#91ced1');
                 label(x + pad, y + 150, 'CIBLES MARQUÉES : MÉMOIRE 2 S', 9, '#819eaf');
             } else if (type === 'laboratory') {
                 label(x + pad, y + 105, 'PRODUIT : TECHNOLOGIE DE SOIN', 10, '#69d9a0');
-                label(x + pad, y + 128, '1 TECHNOLOGIE / 30 S SOUS VISION', 10, '#b58aff');
+                label(x + pad, y + 128, `1 TECHNOLOGIE / ${(30/(1+rate)).toFixed(1)} S SOUS VISION`, 10, '#b58aff');
                 label(x + pad, y + 151, 'INVENTAIRE : PANNEAU DE DROITE', 9, '#819eaf');
             } else label(x + pad, y + 105, 'PRODUCTION NON SIMULÉE', 11, '#819eaf');
             return;
@@ -191,11 +193,11 @@
         const inputs = Object.entries(recipe.consumes);
         drawItems(OverseerVNextEconomy.MILITARY[type] ? 'COÛT PAR UNITÉ' : 'CONSOMME / CYCLE', inputs, y + 99);
         if (OverseerVNextEconomy.MILITARY[type]) {
-            label(x + pad, y + 142, `CYCLE : ${recipe.cycleMs / 1000}s / UNITÉ`, 10, '#819eaf');
+            label(x + pad, y + 142, `CYCLE : ${(recipe.cycleMs / (1000*(1+rate))).toFixed(1)}s / UNITÉ`, 10, '#819eaf');
             label(x + 18, y + 162, `UNITÉS ${OverseerVNextEconomy.aliveUnits(this.model, type)}/${OverseerVNextEconomy.unitCapacity(this.model, type)}`, 11, '#62e7e1');
         } else {
             drawItems('PRODUIT / CYCLE', Object.entries(recipe.produces).filter(([key]) => !key.startsWith('unit_')), y + 138);
-            label(x + width - 78, y + 168, `${recipe.cycleMs / 1000}s/cycle`, 9, '#819eaf');
+            label(x + width - 78, y + 168, `${(recipe.cycleMs/(1000*(1+rate))).toFixed(1)}s/cycle`, 9, '#819eaf');
         }
     },
 
