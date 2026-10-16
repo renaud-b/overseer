@@ -15,6 +15,7 @@ const battleActions = require('../src/scene/effects/BattleActionEffects.js');
 const economy = require('../src/core/VNextEconomy.js');
 const waves = require('../src/core/VNextWaves.js');
 const telemetry = require('../src/core/VNextWaveTelemetry.js');
+const shards = require('../src/core/VNextMemoryShards.js');
 const technologies = require('../src/core/VNextTechnologies.js');
 const rewards = require('../src/core/VNextRewards.js');
 const artifacts = require('../src/core/VNextArtifacts.js');
@@ -97,7 +98,7 @@ const VNextScene = vm.runInNewContext(sceneSource + '\nVNextScene;', {
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextArtifactEffects: artifactEffects, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextCooling: cooling, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
+    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextMemoryShards: shards, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextArtifactEffects: artifactEffects, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextCooling: cooling, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
     localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
@@ -2007,4 +2008,53 @@ test('unit hit testing respects clipping, nearest glyph, overlays and scene rebu
     assert.ok(graphics.y>=rebuilt.y && graphics.y<rebuilt.y+rebuilt.h);
     scene.battleHoverZone.handlers.pointermove({x:rebuilt.x+rebuilt.w-2,y:rebuilt.y+rebuilt.h-2});
     assert.equal(scene.battleTooltipId,null,'moving to empty field hides tooltip');
+});
+
+test('clearing a wave immediately grants exactly one persistent shard before the card choice',()=>{
+    savedEntries.clear();
+    saveStorage.setItem('memoryShards','4');
+    const scene=new VNextScene();scene.create();
+    const wave=waves.wave(1,scene.waveClock.seed);
+    scene.waveClock.number=1;
+    scene.triggerWave(wave);
+    assert.equal(shards.balance(saveStorage),4,'wave spawn is not a payout');
+    const enemyIds=[...scene.waveMembers.get(1)];
+    scene.world.get(enemyIds[0],'Health').hp=0;
+    scene.checkWaveClears();
+    assert.equal(shards.balance(saveStorage),4,'partial wave cannot be credited');
+    for(const id of enemyIds)scene.world.get(id,'Health').hp=0;
+    scene.checkWaveClears();
+    assert.equal(scene.activeReward.number,1);
+    assert.equal(shards.balance(saveStorage),5);
+    assert.equal(scene.shardLabel.value,'ÉCLATS DE MÉMOIRE  5');
+    assert.ok(scene.ui.some(o=>typeof o.value==='string'&&o.value.includes('+1 ÉCLAT DE MÉMOIRE')));
+    assert.equal(shards.awarded(scene.model,1),true);
+    scene.checkWaveClears();
+    assert.equal(shards.balance(saveStorage),5,'no second payout after another update');
+    const saved=saves.read(saveStorage);
+    assert.ok(saved);
+    assert.deepEqual(saves.restore(saved,World).model.world.get(scene.model.game,'WaveShardRewards').claimed,[1]);
+    const resumed=new VNextScene();resumed.init({resume:true});resumed.create();
+    assert.equal(shards.balance(saveStorage),5);
+    assert.equal(shards.awarded(resumed.model,1),true);
+    resumed.checkWaveClears();
+    assert.equal(shards.balance(saveStorage),5,'Continue cannot duplicate previous payout');
+    assert.equal(resumed.shardLabel.value,'ÉCLATS DE MÉMOIRE  5');
+    savedEntries.clear();
+});
+test('memory shards persist across defeat and fresh games without touching talent data',()=>{
+    savedEntries.clear();
+    saveStorage.setItem('memoryShards','13');
+    saveStorage.setItem('unlockedTalents','["root","vision_boost"]');
+    const defeated=new VNextScene();defeated.create();
+    assert.equal(defeated.shardLabel.value,'ÉCLATS DE MÉMOIRE  13');
+    defeated.baseHp=0;
+    defeated.update(0,16);
+    assert.equal(saves.read(saveStorage),null);
+    assert.equal(shards.balance(saveStorage),13);
+    assert.equal(saveStorage.getItem('unlockedTalents'),'["root","vision_boost"]');
+    const fresh=new VNextScene();fresh.init({resume:false});fresh.create();
+    assert.equal(fresh.shardLabel.value,'ÉCLATS DE MÉMOIRE  13');
+    assert.equal(shards.balance(saveStorage),13);
+    savedEntries.clear();
 });

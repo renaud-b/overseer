@@ -79,6 +79,10 @@ class MainMenuScene extends Phaser.Scene {
 
         g.lineStyle(1, 0x2c6373, 0.7).lineBetween(cx - 120, subtitleY + 35, cx + 120, subtitleY + 35);
         g.fillStyle(0x62e7e1, 0.85).fillRect(cx - 14, subtitleY + 33, 28, 3);
+        keep(this.add.text(cx, subtitleY + 59,
+            `ÉCLATS DE MÉMOIRE  ${OverseerVNextMemoryShards.balance(this.saveStorage())}`, {
+                fontFamily: brand.fontFamily, fontSize: '12px', color: '#f5b94f'
+            }).setOrigin(0.5));
 
         const top = Math.max(subtitleY + 100, h * 0.49);
         const spacing = Math.min(78, Math.max(57, (h - top - 65) / 3));

@@ -10,6 +10,7 @@ const root = path.resolve(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const brand = vm.runInNewContext(read('src/scene/VNextBrand.js') + '\nOverseerVNextBrand;', {});
 const save = require('../src/core/VNextSave.js');
+const shards = require('../src/core/VNextMemoryShards.js');
 const { World } = require('../src/core/World.js');
 const preview = require('../src/core/VNextPreview.js');
 const cards = require('../src/core/VNextCards.js');
@@ -88,7 +89,7 @@ class FakeScene {
 const MainMenuScene = vm.runInNewContext(
     read('src/scene/MainMenuScene.js') + '\nMainMenuScene;',
     { Phaser: { Scene: FakeScene }, OverseerVNextBrand: brand,
-        OverseerVNextSave: save, localStorage }
+        OverseerVNextSave: save, OverseerVNextMemoryShards: shards, localStorage }
 );
 
 function buttonFor(scene, label) {
@@ -377,5 +378,17 @@ test('modal survives resize; New game never deletes persistent talents', () => {
     buttonFor(menu, 'RECOMMENCER').button.handlers.pointerdown();
     assert.equal(localStorage.getItem('unlockedTalents'), '["root"]');
     assert.equal(localStorage.getItem('memoryShards'), '12');
+    items.clear();
+});
+
+test('the main menu shows the existing persistent shard balance without a save',()=>{
+    items.clear();
+    localStorage.setItem('memoryShards','23');
+    const menu=new MainMenuScene();menu.create();
+    assert.ok(menu.objects.some(o=>o.value==='ÉCLATS DE MÉMOIRE  23'));
+    assert.ok(menu.objects.some(o=>o.value==='START A GAME'));
+    localStorage.setItem('memoryShards','24');
+    menu.drawMenu();
+    assert.ok(menu.objects.some(o=>o.value==='ÉCLATS DE MÉMOIRE  24'));
     items.clear();
 });

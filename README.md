@@ -36,6 +36,14 @@ Le menu propose **Continuer** lorsqu'une sauvegarde VNext valide existe. **Nouve
 - En cas de stockage désactivé / saturé, le retour au menu est retenu si la sauvegarde échoue. Une sauvegarde incompatible ou illisible ne propose pas Continuer.
 - Le système est local à ce navigateur et cette origine : pas de compte, synchronisation, migrations automatiques ni garantie de conservation en mode privé.
 
+## Monnaie persistante : Éclats de mémoire (VNext)
+
+Chaque vague **entièrement éliminée** crédite **1 Éclat de mémoire** (valeur d'essai), indépendamment des cartes/technologies/artefacts reçus. Le crédit arrive dès que la vague est vaincue, **avant** le choix de récompense. Une vague commencée mais inachevée, ou une défaite avant sa fin, ne rapporte rien.
+
+VNext réutilise la monnaie déjà stockée sous la clé locale `memoryShards` et utilisée par l'écran **Talents** : il n'y a **pas** de deuxième portefeuille. Le solde apparaît dans le menu, dans la colonne des cartes et dans la fenêtre de récompense. Il reste disponible après une défaite, « Continuer » ou « Nouvelle partie », sans effacer les talents acquis. Les numéros de vagues crédités pendant la partie sont également conservés dans l'ECS afin d'empêcher un double gain après une reprise normale.
+
+Le taux de 1 Éclat par vague est **provisoire** ; aucun prix de talent ni règle de difficulté n'est modifié. Cette monnaie dépend du `localStorage` du navigateur : si celui-ci refuse l'écriture, le gain ne peut pas être garanti. La progression n'est pas synchronisée entre appareils.
+
 ## Boucle de jeu actuelle
 
 1. Construire sur une **grille logique 5 × 5**.
