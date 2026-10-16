@@ -6,7 +6,7 @@ test('laboratory creates one-shot researched technologies only under vision, wit
  preview.setObserved(m,[6]);assert.equal(tech.step(m,6000).length,0);
  preview.setObserved(m,[]);tech.step(m,30000);
  assert.equal(m.world.get(id,'Research').elapsedMs,6000);
- preview.setObserved(m,[6]);const events=tech.step(m,6000);
+ preview.setObserved(m,[6]);const events=tech.step(m,tech.RESEARCH_MS-6000);
  assert.equal(events.length,1);assert.deepEqual(tech.inventory(m).items,['healing_field']);
  assert.equal(tech.consume(m,'healing_field'),true);assert.equal(tech.consume(m,'healing_field'),false);
  assert.deepEqual(tech.inventory(m).items,[]);
