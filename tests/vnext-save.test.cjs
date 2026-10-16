@@ -59,6 +59,7 @@ test('save / restore is a JSON round trip, including combat, pending reward and 
     assert.deepEqual(restored.waveClock, scene.waveClock);
     assert.deepEqual(restored.attention, scene.attention);
     assert.equal(restored.patternIndex, 2);
+    assert.equal(restored.visionLevel, 0);
     assert.equal(restored.baseHp, 72);
     assert.equal(restored.speed, 3);
     assert.equal(restored.lastSpeed, 2);
@@ -67,6 +68,24 @@ test('save / restore is a JSON round trip, including combat, pending reward and 
     assert.equal(nextId, scene.world.nextId);
     restored.model.world.get(scene.battleUnits[0], 'Health').hp = 1;
     assert.equal(scene.world.get(scene.battleUnits[0], 'Health').hp, 6);
+});
+
+test('vision level is optional for old saves and rejects malformed levels', () => {
+    const slot = storage();
+    const scene = runningScene();
+    scene.visionRules.level = 2;
+    const resources = scene.world.get(scene.model.game, 'Resources');
+    resources.data = 123;
+    assert.equal(save.write(scene, slot), true);
+    const raw = save.read(slot);
+    assert.equal(save.restore(raw, World).visionLevel, 2);
+    assert.equal(save.restore(raw, World).model.world.get(scene.model.game, 'Resources').data, 123);
+    delete raw.attention.level;
+    assert.equal(save.restore(raw, World).visionLevel, 0);
+    raw.attention.level = 4;
+    assert.throws(() => save.restore(raw, World), /attention/);
+    slot.setItem(save.KEY, JSON.stringify(raw));
+    assert.equal(save.read(slot), null);
 });
 
 test('malformed, incompatible and incomplete saves never allow Continue', () => {
