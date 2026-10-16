@@ -397,9 +397,13 @@ class VNextScene extends Phaser.Scene {
         };
         const inputs = Object.entries(recipe.consumes);
         drawItems(OverseerVNextEconomy.MILITARY[type] ? 'COÛT PAR UNITÉ' : 'CONSOMME / CYCLE', inputs, y + 99);
-        drawItems(OverseerVNextEconomy.MILITARY[type] ? 'FABRIQUE / UNITÉ' : 'PRODUIT / CYCLE', Object.entries(recipe.produces).filter(([key]) => !key.startsWith('unit_')), y + 138);
-        if (OverseerVNextEconomy.MILITARY[type]) label(x + 18, y + 162, `UNITÉS ${OverseerVNextEconomy.aliveUnits(this.model, type)}/${OverseerVNextEconomy.unitCapacity(this.model, type)}`, 11, '#62e7e1');
-        else label(x + width - 78, y + 168, `${recipe.cycleMs / 1000}s/cycle`, 9, '#819eaf');
+        if (OverseerVNextEconomy.MILITARY[type]) {
+            label(x + pad, y + 142, `CYCLE : ${recipe.cycleMs / 1000}s / UNITÉ`, 10, '#819eaf');
+            label(x + 18, y + 162, `UNITÉS ${OverseerVNextEconomy.aliveUnits(this.model, type)}/${OverseerVNextEconomy.unitCapacity(this.model, type)}`, 11, '#62e7e1');
+        } else {
+            drawItems('PRODUIT / CYCLE', Object.entries(recipe.produces).filter(([key]) => !key.startsWith('unit_')), y + 138);
+            label(x + width - 78, y + 168, `${recipe.cycleMs / 1000}s/cycle`, 9, '#819eaf');
+        }
     }
 
     drawGlyph(g, type, x, y, color, r) {
