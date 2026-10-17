@@ -9,7 +9,7 @@ const FOCUS_BONUS=0.4, RECYCLE_RATE=0.25, MARK_MS=2000;
 const TERMINAL_DAMAGE=2, TERMINAL_RADIUS=110, NETWORK_RATE=0.2, VITAL_RATE=0.3;
 const DEFENSE_MS=3000, DEFENSE_RADIUS=250, CORROSION_MS=4000, CORROSION_TICK_MS=1000;
 const RELAY_MS=20000, ANTICIPATION_MS=5000, EVOLUTION_CAP=5;
-const CORROSION_RADIUS=65, CORROSION_DAMAGE=1, MAX_CORROSION_ZONES=12;
+const CORROSION_RADIUS=65, CORROSION_DAMAGE=1, MAX_CORROSION_ZONES=12, CORROSION_CHANCE=0.30;
 function owns(model,id){return model.world.get(model.game,'ArtifactCollection')?.ids.includes(id)===true;}
 function observed(model) {
  return model.world.query('Building','GridSlot').filter(id=>{
@@ -24,7 +24,7 @@ function state(model) {
    echoMs:0,echoIndex:0,laserMs:0,duplicateMs:0,
    observed:observed(model),grace:{},waveHp:{},
    waveNumber:0,shieldUsedWave:-1,shieldPoints:0,
-   manufacturedCount:0,corrosionZones:[],
+   manufacturedCount:0,corrosionZones:[],corrosionSeed:137,
    relayTarget:null,relayRemainingMs:RELAY_MS,relaySeed:137,
    anticipationMs:0,waveDamaged:{}
   });
@@ -44,6 +44,7 @@ function valid(s) {
   Number.isSafeInteger(s.shieldUsedWave)&&s.shieldUsedWave>=-1&&
   num(s.shieldPoints,0,SHIELD_HP)&&
   (s.manufacturedCount===undefined||Number.isSafeInteger(s.manufacturedCount)&&s.manufacturedCount>=0)&&
+  (s.corrosionSeed===undefined||Number.isSafeInteger(s.corrosionSeed)&&s.corrosionSeed>=0&&s.corrosionSeed<=0xffffffff)&&
   (s.corrosionZones===undefined||Array.isArray(s.corrosionZones)&&
    s.corrosionZones.length<=MAX_CORROSION_ZONES&&s.corrosionZones.every(z=>
     obj(z)&&Number.isFinite(z.x)&&Number.isFinite(z.y)&&
@@ -473,7 +474,7 @@ function corrosionStep(model,dt) {
 }
 const api={state,valid,syncAttention,focusedBuilding,network,relayCandidates,relayActive,relay,production,startWave,baseHit,clearWave,laser,deaths,
  RELAY_MS,ANTICIPATION_MS,EVOLUTION_CAP,
- manufactured,defense,combatTimers,contamination,corrosionStep,DEFENSE_MS,DEFENSE_RADIUS,CORROSION_MS,CORROSION_RADIUS,
+ manufactured,defense,combatTimers,contamination,corrosionStep,DEFENSE_MS,DEFENSE_RADIUS,CORROSION_MS,CORROSION_RADIUS,CORROSION_CHANCE,
  recycle,propagate,vital,FOCUS_BONUS,RECYCLE_RATE,MARK_MS,TERMINAL_DAMAGE,TERMINAL_RADIUS,NETWORK_RATE,VITAL_RATE,
  ECHO_MS,GRACE_MS,LASER_MS,DUPLICATE_MS,SHIELD_HP,LASER_RADIUS};
 root.OverseerVNextArtifactEffects=api;
