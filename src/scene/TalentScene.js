@@ -13,8 +13,9 @@ class TalentScene extends Phaser.Scene {
     }
     init(data={}) {this.fromMenu=data.fromMenu!==false;}
     preload() {
-        const lang=(typeof window!=='undefined'&&window.selectedLanguage)||'en';
-        this.load.json('gameTexts','assets/game_texts_'+lang+'.json');
+        // This dashboard's controls are French-only: keep legacy talent labels
+        // in French too, whatever language was selected elsewhere in the app.
+        this.load.json('gameTexts','assets/game_texts_fr.json');
     }
     storage() {try{return localStorage;}catch(_){return null;}}
     translate(key) {return this.gameTexts?.ui?.[key]||key;}
