@@ -2740,3 +2740,23 @@ test('a fresh run without defense investments keeps the original lineup',()=>{
  assert.equal(scene.battleUnits.length,3);
  savedEntries.clear();
 });
+
+test('defense specialist is awarded once on new run, retained by Continue and remains free',()=>{
+ for(const [talent,type] of [['defense_marksman','unit_sniper'],['defense_medic','unit_dronoid']]){
+  savedEntries.clear();
+  savedEntries.set('unlockedTalents',JSON.stringify(['root','starter_base_hp','starter_reinforcement',talent]));
+  const scene=new VNextScene();scene.create();
+  const count=()=>scene.battleUnits.filter(id=>scene.world.get(id,'PreviewUnit')?.type===type).length;
+  assert.equal(scene.baseHp,120);
+  assert.equal(count(),2);
+  assert.equal(scene.battleUnits.length,5);
+  assert.ok(scene.battleUnits.every(id=>!scene.world.hasComponent(id,'ManufacturedCost')));
+  const previous=[...scene.battleUnits];
+  const raw=saves.capture(scene),restored=saves.restore(raw,World);
+  assert.equal(restored.battleUnits.length,5);
+  scene.init({resume:true});scene.create();
+  assert.equal(count(),2);
+  assert.deepEqual([...scene.battleUnits],previous);
+ }
+ savedEntries.clear();
+});

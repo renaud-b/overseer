@@ -10,6 +10,8 @@ const trees = {
                 { id: 'starter_drone', parent: 'starter_base_hp', x: 250, y: 480, cost: 8, legacy: true },
                 { id: 'starter_reinforcement', parent: 'starter_base_hp', x: 250, y: 480, cost: 8, description: 'Commencer chaque partie avec un Soldat supplémentaire.' },
                 { id: 'starter_guard', parent: 'starter_drone', x: 250, y: 660, cost: 12, legacy: true },
+                { id: 'defense_marksman', parent: 'starter_reinforcement', excludes: ['defense_medic'], x: 205, y: 660, cost: 12, description: 'Commencer chaque partie avec un Tireur supplémentaire (voie offensive).' },
+                { id: 'defense_medic', parent: 'starter_reinforcement', excludes: ['defense_marksman'], x: 295, y: 660, cost: 12, description: 'Commencer chaque partie avec un Drone soigneur supplémentaire (voie soutien).' },
 
                 // Branche Vision
                 { id: 'vision_boost', parent: 'root', x: 550, y: 300, cost: 5 },

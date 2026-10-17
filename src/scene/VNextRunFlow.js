@@ -201,6 +201,8 @@
             ['player', 'unit_dronoid', 230, 425]
         ];
         if (defense?.extraGuard) lineup.push(['player', 'unit_guard', 220, 245]);
+        if (defense?.extraMarksman) lineup.push(['player', 'unit_sniper', 245, 355]);
+        else if (defense?.extraMedic) lineup.push(['player', 'unit_dronoid', 210, 385]);
         lineup.forEach(([side, type, x, y]) => {
             const config = (side === 'player' ? stats.units : stats.enemies).find(d => d.id === type);
             if (!config) return;

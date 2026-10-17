@@ -155,7 +155,10 @@
             number(waveClock.elapsedMs) && integer(waveClock.seed, 0, 0xffffffff), 'wave clock');
         const defense=world.get(game,'DefenseTalents');
         requireValid(!defense || (typeof defense.reinforced==='boolean' &&
-            typeof defense.extraGuard==='boolean'), 'defense talents');
+            typeof defense.extraGuard==='boolean' &&
+            (defense.extraMarksman===undefined||typeof defense.extraMarksman==='boolean') &&
+            (defense.extraMedic===undefined||typeof defense.extraMedic==='boolean') &&
+            !(defense.extraMarksman&&defense.extraMedic)), 'defense talents');
         requireValid(number(data.baseHp, Number.EPSILON, defense?.reinforced ? 120 : 100) &&
             SPEEDS.includes(data.speed) && SPEEDS.includes(data.lastSpeed) &&
             data.lastSpeed > 0, 'base / speed');
