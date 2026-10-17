@@ -166,7 +166,9 @@ class VNextScene extends Phaser.Scene {
             const defense = OverseerTalentProgression.read(this.saveStorage()).unlocked;
             this.world.set(this.model.game, 'DefenseTalents', {
                 reinforced: defense.includes('starter_base_hp'),
-                extraGuard: defense.includes('starter_reinforcement')
+                extraGuard: defense.includes('starter_reinforcement'),
+                extraMarksman: defense.includes('defense_marksman'),
+                extraMedic: defense.includes('defense_medic')
             });
             OverseerVNextCards.initialize(this.model);
             OverseerVNextTechnologies.inventory(this.model);
