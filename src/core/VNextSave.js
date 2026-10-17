@@ -105,6 +105,14 @@
             occupied.add(slot);
         }
 
+        // Optional new per-building repair timers: legacy saves need no migration.
+        for(const id of world.query('MaintenanceCycle')) {
+            const status=world.get(id,'MaintenanceCycle');
+            requireValid(world.get(id,'Building')?.type==='maintenance' &&
+                number(status.elapsedMs,0,30000) && status.elapsedMs<30000,
+                'maintenance cycle');
+        }
+
         // Older saves may carry obsolete heat state. It no longer changes gameplay.
         for (const id of world.query('BuildingHeat')) {
             const heat = world.get(id, 'BuildingHeat');
