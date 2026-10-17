@@ -89,7 +89,8 @@ class TalentScene extends Phaser.Scene {
             return;
         }
         const tree=(this.talentTrees[box.id]||[]).filter(t=>t.id!=='root'&&(!t.legacy||this.progress.unlocked.includes(t.id)));
-        const positions=this.domainPositions(tree,box);
+        const positions=box.id==='foundation'?this.foundationPositions(tree,box):this.domainPositions(tree,box);
+        if(box.id==='foundation')this.foundationHeadings(keep,g,box);
         // Connections are strictly inside each domain, with a small root hub per panel.
         for(const node of tree){
             const c=positions.get(node.id),parent=positions.get(node.parent);
@@ -112,9 +113,51 @@ class TalentScene extends Phaser.Scene {
             circle.on('pointerdown',()=>{this.selectedId=box.id+':'+node.id;this.render();});
             this.text(keep,xy.x,xy.y,this.glyph(node.id),10,unlocked?'#c4fff5':'#9bb6c4').setOrigin(.5);
             // One short caption per node, clipped by size rather than rendered outside its panel.
-            const name=this.name(node.id),limit=Math.max(8,Math.floor((box.w/(box.id==='foundation'?4:3))/7));
+            const name=box.id==='foundation'?this.foundationCaption(node.id):this.name(node.id);
+            const limit=box.id==='foundation'?Math.max(7,Math.floor(box.w/4/6)):Math.max(8,Math.floor(box.w/3/7));
             this.text(keep,xy.x,xy.y+r+4,name.length>limit?name.slice(0,limit-1)+'…':name,9,unlocked?'#d9edf2':'#9bb1c0').setOrigin(.5,0);
         }
+    }
+    foundationCaption(id) {
+        return ({
+            starter_base_hp:'Noyau +PV',starter_reinforcement:'Renfort +1',
+            vision_boost:'Vision I',resource_node_scanner:'Vision II',artifact_scanner:'Vision III',
+            production_extraction:'Extraction',production_components:'Composants',
+            production_efficiency:'Efficacité',production_automation:'Automat.',
+            starter_tech:'Recherche I',starter_spell_building:'Recherche II',
+            spell_charge_boost:'Recherche III'
+        })[id]||this.name(id);
+    }
+    foundationHeadings(keep,g,box) {
+        const labels=['DÉFENSE','VISION','PRODUCTION','TECHNO.'];
+        labels.forEach((label,i)=>{
+            const left=box.x+i*box.w/4,center=left+box.w/8;
+            if(i)g.lineStyle(1,box.color,.12).lineBetween(left,box.y+35,left,box.y+box.h-9);
+            this.text(keep,center,box.y+37,label,Math.max(8,Math.min(10,box.w/45)),'#a9c8d3').setOrigin(.5,0);
+        });
+    }
+    foundationPositions(tree,box) {
+        const positions=new Map([['root',{x:box.x+box.w/2,y:box.y+30}]]);
+        const cols=[
+            ['starter_base_hp','starter_reinforcement','starter_drone','starter_guard'],
+            ['vision_boost','resource_node_scanner','artifact_scanner'],
+            ['production_extraction','production_components','production_efficiency','production_automation'],
+            ['starter_tech','starter_spell_building','spell_charge_boost']
+        ];
+        const baseY=box.y+76,dy=Math.max(34,(box.h-116)/3);
+        cols.forEach((ids,i)=>{
+            const x=box.x+(i+.5)*box.w/4;
+            ids.forEach((id,j)=>{
+                if(!tree.some(n=>n.id===id))return;
+                const depth=id==='production_automation'?2:
+                    ['production_components','production_efficiency','starter_reinforcement','starter_drone'].includes(id)?1:
+                    ['starter_guard','artifact_scanner','spell_charge_boost'].includes(id)?2:j;
+                const dx=id==='production_components'?-box.w/22:
+                    id==='production_efficiency'?box.w/22:0;
+                positions.set(id,{x:x+dx,y:baseY+depth*dy});
+            });
+        });
+        return positions;
     }
     domainPositions(tree,box) {
         const result=new Map(),rootX=box.x+box.w/2,rootY=box.y+41;
