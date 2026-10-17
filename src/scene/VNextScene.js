@@ -22,6 +22,41 @@ class VNextScene extends Phaser.Scene {
         if (this.runFinished || this.saveCurrentGame()) this.scene.start('MainMenuScene');
     }
 
+    memoryShardsBalance() {
+        return OverseerVNextMemoryShards.balance(this.saveStorage());
+    }
+
+    openPauseMenu() {
+        if (this.pauseMenu || this.optionsModal || this.activeReward || this.runFinished) return;
+        this.pauseMenu = new OverseerVNextPauseMenu(this, () => {
+            this.pauseMenu = null;
+        });
+        this.pauseMenu.open();
+    }
+
+    openOptionsFromPause() {
+        if (!this.pauseMenu || this.optionsModal || this.runFinished) return;
+        // Keep the paused session menu underneath options; closing options restores it.
+        this.optionsModal = new OverseerOptionsModal(this, () => {
+            this.optionsModal = null;
+        });
+        this.optionsModal.open();
+    }
+
+    abandonRun() {
+        if (!this.pauseMenu || !this.pauseMenu.confirm || this.runFinished) return false;
+        // Do not leave the session playable if persistence cannot be cleared.
+        if (!OverseerVNextSave.clear(this.saveStorage())) {
+            this.note?.setText('Abandon impossible : sauvegarde non effacée');
+            return false;
+        }
+        this.runFinished = true; // Blocks pagehide and any late autosave.
+        this.pauseMenu.close(true);
+        this.pauseMenu = null;
+        this.scene.start('MainMenuScene');
+        return true;
+    }
+
     finishRun() {
         if (this.runFinished) return;
         if (this.model) {
@@ -82,6 +117,7 @@ class VNextScene extends Phaser.Scene {
         this.baseHp = restored?.baseHp ?? 100;
         this.runFinished = false;
         this.optionsModal = null;
+        this.pauseMenu = null;
         this.autosaveElapsed = 0;
         this.ui = [];
         this.hitEffects = new OverseerHitEffects.HitEffects(); // Renderer-only state; never saved to ECS.
@@ -145,6 +181,8 @@ class VNextScene extends Phaser.Scene {
         this.events.once('shutdown', () => {
             this.optionsModal?.close(true);
             this.optionsModal = null;
+            this.pauseMenu?.close(true);
+            this.pauseMenu = null;
             this.hitEffects.clear();
             this.actionEffects.clear();
             this.releaseBattleView();
@@ -248,7 +286,7 @@ class VNextScene extends Phaser.Scene {
     }
 
     selectSpeed(speed) {
-        if (this.optionsModal || this.activeReward) return; // A choice cannot unpause the simulation.
+        if (this.optionsModal || this.pauseMenu || this.activeReward) return; // A choice cannot unpause the simulation.
         if (speed === 0 && this.speed > 0) this.lastSpeed = this.speed;
         this.speed = speed;
         this.buildUi();
