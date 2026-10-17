@@ -900,7 +900,7 @@ test('military specialty rewards include all three new production cards', () => 
     }
 });
 
-test('VNext shares its title with the menu and MENU returns there', () => {
+test('VNext shares its title with the menu and MENU opens a paused session', () => {
     const scene = new VNextScene();
     scene.create();
     const labels = scene.ui.filter(o => typeof o.value === 'string').map(o => o.value);
@@ -908,10 +908,12 @@ test('VNext shares its title with the menu and MENU returns there', () => {
     assert.ok(labels.includes(OverseerVNextBrand.subtitle));
     let destination = null;
     scene.scene.start = key => { destination = key; };
-    const menu = scene.ui.find(o => o.value === 'MENU');
+    const menu = scene.ui.find(o => o.value === 'Ⅱ MENU');
     assert.ok(menu);
     menu.handlers.pointerdown();
-    assert.equal(destination, 'MainMenuScene');
+    assert.ok(scene.pauseMenu);
+    assert.equal(destination, null,'menu must not leave the session automatically');
+    scene.pauseMenu.close();
 });
 
 
