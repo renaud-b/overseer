@@ -45,6 +45,8 @@ const vNextInputSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextInput.j
 const vNextRunFlowSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextRunFlow.js'), 'utf8');
 const vNextSimulationSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextSimulation.js'), 'utf8');
 const sceneSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextScene.js'), 'utf8');
+const pauseSource = fs.readFileSync(path.join(ROOT, 'src/scene/VNextPauseMenu.js'), 'utf8');
+const optionsSource = fs.readFileSync(path.join(ROOT, 'src/scene/OptionsModal.js'), 'utf8');
 
 class Display {
     constructor(x = 0, y = 0) { this.x = x; this.y = y; this.handlers = {}; this.data = {}; this.drawCalls = []; }
@@ -102,7 +104,7 @@ class FakeScene {
 }
 const OverseerVNextBrand = vm.runInNewContext(brandSource + '\nOverseerVNextBrand;', {});
 const Vision = vm.runInNewContext(visionSource + '\nVision;', {});
-const VNextScene = vm.runInNewContext(tooltipSource + '\n' + boardSource + '\n' + battleViewSource + '\n' + vNextHudViewSource + '\n' + vNextWaveViewSource + '\n' + vNextRewardViewSource + '\n' + vNextInputSource + '\n' + vNextRunFlowSource + '\n' + vNextSimulationSource + '\n' + sceneSource + '\nVNextScene;', {
+const VNextScene = vm.runInNewContext(optionsSource + '\n' + pauseSource + '\n' + tooltipSource + '\n' + boardSource + '\n' + battleViewSource + '\n' + vNextHudViewSource + '\n' + vNextWaveViewSource + '\n' + vNextRewardViewSource + '\n' + vNextInputSource + '\n' + vNextRunFlowSource + '\n' + vNextSimulationSource + '\n' + sceneSource + '\nVNextScene;', {
     Phaser: { Scene: FakeScene }, window: { keyboardLayout: 'azerty', selectedLanguage: 'fr' },
     OverseerECS: { World }, OverseerCombat: combat, OverseerHitEffects: hitEffects,
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
@@ -898,7 +900,7 @@ test('military specialty rewards include all three new production cards', () => 
     }
 });
 
-test('VNext shares its title with the menu and MENU returns there', () => {
+test('VNext shares its title with the menu and MENU opens a paused session', () => {
     const scene = new VNextScene();
     scene.create();
     const labels = scene.ui.filter(o => typeof o.value === 'string').map(o => o.value);
@@ -906,10 +908,12 @@ test('VNext shares its title with the menu and MENU returns there', () => {
     assert.ok(labels.includes(OverseerVNextBrand.subtitle));
     let destination = null;
     scene.scene.start = key => { destination = key; };
-    const menu = scene.ui.find(o => o.value === 'MENU');
+    const menu = scene.ui.find(o => o.value === 'Ⅱ MENU');
     assert.ok(menu);
     menu.handlers.pointerdown();
-    assert.equal(destination, 'MainMenuScene');
+    assert.ok(scene.pauseMenu);
+    assert.equal(destination, null,'menu must not leave the session automatically');
+    scene.pauseMenu.close();
 });
 
 
@@ -2656,5 +2660,55 @@ test('maintenance will not store healing at full HP and stops after attention mo
  scene.baseHp=93;preview.setObserved(scene.model,[]);
  scene.update(0,60);
  assert.equal(scene.world.get(id,'MaintenanceCycle').elapsedMs,0,'out of vision stays idle');
+ savedEntries.clear();
+});
+
+test('session menu pauses simulation, Escape closes it, options remain nested',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ assert.ok(scene.ui.some(o=>o.value==='Ⅱ MENU'));
+ assert.ok(!scene.ui.some(o=>o.value==='⚙'));
+ const before=scene.waveClock.elapsedMs;
+ scene.onKey({code:'Escape',key:'Escape',preventDefault(){}});
+ assert.ok(scene.pauseMenu);
+ scene.update(0,2000);
+ assert.equal(scene.waveClock.elapsedMs,before);
+ const speed=scene.speed;
+ scene.onKey({code:'Space',key:' ',preventDefault(){}});
+ assert.equal(scene.speed,speed);
+ scene.openOptionsFromPause();
+ assert.ok(scene.optionsModal);
+ scene.onKey({code:'Escape',key:'Escape'});
+ assert.equal(scene.optionsModal,null);
+ assert.ok(scene.pauseMenu);
+ scene.onKey({code:'Escape',key:'Escape'});
+ assert.equal(scene.pauseMenu,null);
+ scene.update(0,60);
+ assert.ok(scene.waveClock.elapsedMs>before);
+ savedEntries.clear();
+});
+test('abandon demands confirmation and preserves persistent shards and talents',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ saveStorage.setItem('memoryShards','28');
+ saveStorage.setItem('unlockedTalents','["root"]');
+ assert.ok(saves.read(saveStorage));
+ scene.openPauseMenu();
+ assert.equal(scene.abandonRun(),false);
+ scene.pauseMenu.objects.find(o=>o.value==='ABANDONNER LA PARTIE').handlers.pointerdown();
+ assert.equal(scene.pauseMenu.confirm,true);
+ scene.onKey({code:'Escape',key:'Escape'});
+ assert.equal(scene.pauseMenu.confirm,false);
+ scene.pauseMenu.objects.find(o=>o.value==='ABANDONNER LA PARTIE').handlers.pointerdown();
+ scene.pauseMenu.objects.find(o=>o.value==='CONFIRMER').handlers.pointerdown();
+ assert.equal(scene.runFinished,true);
+ assert.equal(scene.pauseMenu,null);
+ assert.equal(saveStorage.getItem(saves.KEY),null);
+ assert.equal(saveStorage.getItem('memoryShards'),'28');
+ assert.equal(saveStorage.getItem('unlockedTalents'),'["root"]');
+ assert.equal(scene.saveCurrentGame(),false);
+ scene.onPageHide();
+ scene.update(0,60000);
+ assert.equal(saveStorage.getItem(saves.KEY),null);
  savedEntries.clear();
 });

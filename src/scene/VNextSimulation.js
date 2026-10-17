@@ -11,7 +11,7 @@
             scene.autosaveElapsed %= OverseerVNextSave.AUTOSAVE_MS;
             scene.saveCurrentGame();
         }
-        if (scene.speed === 0 || scene.activeReward || scene.optionsModal || !scene.battleUnits) return;
+        if (scene.speed === 0 || scene.activeReward || scene.optionsModal || scene.pauseMenu || !scene.battleUnits) return;
         const dt = Math.min(delta, 60) * scene.speed;
         for (const wave of OverseerVNextWaves.advance(scene.waveClock, dt)) scene.triggerWave(wave);
         scene.updateWaveTimeline();
