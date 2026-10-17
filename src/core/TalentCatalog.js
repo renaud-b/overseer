@@ -22,10 +22,10 @@ const trees = {
                 { id: 'extra_alloy', parent: 'extra_scrap', x: 850, y: 660, cost: 12, legacy: true },
 
                 // Branche Production VNext : visible, mais non achetable tant que les effets ECS ne sont pas actifs.
-                { id: 'production_extraction', parent: 'root', x: 850, y: 300, cost: 5, planned: true, description: '+20 % de rendement en matière et énergie (proposition).' },
-                { id: 'production_components', parent: 'production_extraction', x: 800, y: 480, cost: 8, planned: true, description: '+25 % de production de composants (proposition).' },
-                { id: 'production_efficiency', parent: 'production_extraction', x: 900, y: 480, cost: 8, planned: true, description: '-15 % d’intrants sur les conversions industrielles (proposition).' },
-                { id: 'production_automation', parent: 'production_components', prerequisites: ['production_efficiency'], x: 850, y: 660, cost: 12, planned: true, description: '+10 % de cadence des bâtiments économiques observés (proposition).' },
+                { id: 'production_extraction', parent: 'root', x: 850, y: 300, cost: 5, description: '+20 % de rendement en matière et énergie (proposition).' },
+                { id: 'production_components', excludes: ['production_efficiency'], parent: 'production_extraction', x: 800, y: 480, cost: 8, description: '+25 % de production de composants (proposition).' },
+                { id: 'production_efficiency', excludes: ['production_components'], parent: 'production_extraction', x: 900, y: 480, cost: 8, description: '-15 % d’intrants sur les conversions industrielles (proposition).' },
+                { id: 'production_automation', parent: 'production_extraction', anyPrerequisites: ['production_components', 'production_efficiency'], x: 850, y: 660, cost: 12, description: '+10 % de cadence des bâtiments économiques observés (proposition).' },
 
                 // Branche Technologie
                 { id: 'starter_tech', parent: 'root', x: 1150, y: 300, cost: 8 },
