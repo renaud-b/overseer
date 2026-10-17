@@ -621,3 +621,19 @@ test('shielded hits do not count as core damage for perfect defense',()=>{
  assert.equal(hit.absorbed,8);
  assert.deepEqual(effects.clearWave(m,1,28),{hp:33,healed:5});
 });
+
+test('Vision memory stacks additively with lingering and does not affect watched timers',()=>{
+ const tech=require('../src/core/VNextTechnologies.js');
+ for(const artifact of [false,true]){
+  const m=model(),reactor=preview.placeBuilding(m,'reactor',6),lab=preview.placeBuilding(m,'laboratory',7);
+  m.world.set(m.game,'VisionTalents',{residual:true});
+  if(artifact)artifacts.add(m,'lingering');
+  preview.setObserved(m,[6,7]);effects.production(m,100,economy);
+  preview.setObserved(m,[]);
+  const ev=effects.production(m,artifact?4000:1000,economy);
+  assert.equal(ev.filter(e=>e.type==='production').length,artifact?2:0);
+  tech.step(m,artifact?4000:1000,null,{},effects.state(m).lastGraceMs);
+  assert.equal(m.world.get(lab,'Research').elapsedMs,artifact?4000:1000);
+  assert.equal(Object.keys(effects.state(m).grace).length,0);
+ }
+});
