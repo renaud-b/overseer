@@ -337,8 +337,8 @@
     "talent_vision_boost_label": "Amélioration de la Vision",
     "talent_vision_boost_description": "Commencez avec +1 tuile de vision active.",
 
-    "talent_resource_node_scanner_label": "Scanner de ressources",
-    "talent_resource_node_scanner_description": "Permet de détecter des nœuds de ressources spéciaux augmentant la production.",
+    "talent_resource_node_scanner_label": "Mémoire de vision",
+    "talent_resource_node_scanner_description": "Les bâtiments restent actifs 1 s après être sortis de la vision, ou 4 s avec Mémoire résiduelle.",
 
     "talent_artifact_scanner_label": "Scanner d’artefacts",
     "talent_artifact_scanner_description": "Augmente vos chances d’obtenir des artefacts après chaque vague.",

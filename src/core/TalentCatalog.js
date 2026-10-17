@@ -15,7 +15,7 @@ const trees = {
 
                 // Branche Vision
                 { id: 'vision_boost', parent: 'root', x: 550, y: 300, cost: 5 },
-                { id: 'resource_node_scanner', parent: 'vision_boost', x: 550, y: 480, cost: 10 },
+                { id: 'resource_node_scanner', parent: 'vision_boost', x: 550, y: 480, cost: 10, description: 'Les bâtiments restent actifs 1 s après avoir quitté la vision (+3 s supplémentaires avec Mémoire résiduelle).' },
                 { id: 'artifact_scanner', parent: 'resource_node_scanner', x: 550, y: 660, cost: 12 },
 
                 // Branche Economie

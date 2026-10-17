@@ -15,7 +15,8 @@ function step(model,dt,focusedBuildingId=null,coolingBonuses={},relayMs={}) {
   if(model.world.get(id,'Building').type!=='laboratory')continue;
   const slot=model.world.get(id,'GridSlot').index;
   const watched=model.world.get(model.tiles[slot],'Watched').active;
-  const activeMs=watched?dt:Math.min(dt,relayMs[id]||0);
+  const graceMs=model.world.get(model.game,'ArtifactEffects')?.lastGraceMs?.[id]||0;
+  const activeMs=watched?dt:Math.min(dt,Math.max(relayMs[id]||0,graceMs));
   if(!activeMs)continue;
   if(!model.world.hasComponent(id,'Research'))model.world.set(id,'Research',{elapsedMs:0});
   const state=model.world.get(id,'Research');

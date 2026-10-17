@@ -153,6 +153,8 @@
         const waveClock = data.waveClock;
         requireValid(waveClock && integer(waveClock.number, 0) &&
             number(waveClock.elapsedMs) && integer(waveClock.seed, 0, 0xffffffff), 'wave clock');
+        const visionTalents=world.get(game,'VisionTalents');
+        requireValid(!visionTalents || typeof visionTalents.residual==='boolean', 'vision talents');
         const defense=world.get(game,'DefenseTalents');
         requireValid(!defense || (typeof defense.reinforced==='boolean' &&
             typeof defense.extraGuard==='boolean' &&

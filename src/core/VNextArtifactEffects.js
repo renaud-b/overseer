@@ -2,7 +2,7 @@
 'use strict';
 // Pure simulation rules. The inventory is in ArtifactCollection; timers/live effects
 // live in a separate ECS component so a saved run cannot reset passive cooldowns.
-const ECHO_MS=20000, GRACE_MS=3000, LASER_MS=15000, DUPLICATE_MS=30000;
+const ECHO_MS=20000, GRACE_MS=3000, TALENT_GRACE_MS=1000, LASER_MS=15000, DUPLICATE_MS=30000;
 const CORE={x:65,y:300}, LASER_RADIUS=350, LASER_DAMAGE=3;
 const BURST_RADIUS=80, BURST_DAMAGE=2, SHIELD_HP=15, RECOVERY_HP=5;
 const FOCUS_BONUS=0.4, RECYCLE_RATE=0.25, MARK_MS=2000;
@@ -38,7 +38,8 @@ function valid(s) {
   num(s.laserMs,0,LASER_MS)&&num(s.duplicateMs,0,DUPLICATE_MS)&&
   Array.isArray(s.observed)&&new Set(s.observed).size===s.observed.length&&
   s.observed.every(id=>Number.isSafeInteger(id)&&id>0)&&obj(s.grace)&&
-  Object.entries(s.grace).every(([id,ms])=>/^[1-9]\d*$/.test(id)&&num(ms,0,GRACE_MS))&&
+  Object.entries(s.grace).every(([id,ms])=>/^[1-9]\d*$/.test(id)&&num(ms,0,GRACE_MS+TALENT_GRACE_MS))&&
+  (s.lastGraceMs===undefined||obj(s.lastGraceMs)&&Object.entries(s.lastGraceMs).every(([id,ms])=>/^[1-9]\d*$/.test(id)&&num(ms,0,GRACE_MS+TALENT_GRACE_MS)))&&
   obj(s.waveHp)&&Object.entries(s.waveHp).every(([wave,hp])=>/^[1-9]\d*$/.test(wave)&&num(hp,0,120))&&
   Number.isSafeInteger(s.waveNumber)&&s.waveNumber>=0&&
   Number.isSafeInteger(s.shieldUsedWave)&&s.shieldUsedWave>=-1&&
@@ -57,9 +58,11 @@ function valid(s) {
 }
 function syncAttention(model) {
  const s=state(model), now=observed(model), current=new Set(now);
- if(owns(model,'lingering')) {
+ const duration=(owns(model,'lingering')?GRACE_MS:0)+
+  (model.world.get(model.game,'VisionTalents')?.residual?TALENT_GRACE_MS:0);
+ if(duration>0) {
   for(const id of s.observed)if(!current.has(id)&&model.world.has(id))
-   s.grace[id]=GRACE_MS;
+   s.grace[id]=duration;
  }
  for(const id of Object.keys(s.grace))
   if(current.has(Number(id))||!model.world.has(Number(id)))delete s.grace[id];
@@ -161,12 +164,14 @@ function production(model,dt,economy,coolingBonuses={},relayMs={}) {
  const s=state(model);
  syncAttention(model);
  const extra={};
+ const hasGrace=owns(model,'lingering')||model.world.get(model.game,'VisionTalents')?.residual===true;
  for(const [id,remaining] of Object.entries(s.grace)){
-  if(!owns(model,'lingering')){delete s.grace[id];continue;}
+  if(!hasGrace){delete s.grace[id];continue;}
   extra[id]=Math.min(dt,remaining);
   s.grace[id]=Math.max(0,remaining-dt);
   if(s.grace[id]===0)delete s.grace[id];
  }
+ s.lastGraceMs={...extra}; // Research reuses the same elapsed grace in this tick.
  for(const [id,ms] of Object.entries(relayMs))
   extra[id]=Math.max(extra[id]||0,ms); // Relay and residual memory do not double-count.
  const boosted=owns(model,'anticipation')?Math.min(dt,s.anticipationMs||0):0;

@@ -170,6 +170,9 @@ class VNextScene extends Phaser.Scene {
                 extraMarksman: defense.includes('defense_marksman'),
                 extraMedic: defense.includes('defense_medic')
             });
+            this.world.set(this.model.game, 'VisionTalents', {
+                residual: defense.includes('resource_node_scanner')
+            });
             OverseerVNextCards.initialize(this.model);
             OverseerVNextTechnologies.inventory(this.model);
             OverseerVNextEconomy.initialize(this.model);
