@@ -39,7 +39,7 @@ function valid(s) {
   Array.isArray(s.observed)&&new Set(s.observed).size===s.observed.length&&
   s.observed.every(id=>Number.isSafeInteger(id)&&id>0)&&obj(s.grace)&&
   Object.entries(s.grace).every(([id,ms])=>/^[1-9]\d*$/.test(id)&&num(ms,0,GRACE_MS+TALENT_GRACE_MS))&&
-  (s.lastGraceMs===undefined||obj(s.lastGraceMs)&&Object.entries(s.lastGraceMs).every(([id,ms])=>/^[1-9]\\d*$/.test(id)&&num(ms,0,GRACE_MS+TALENT_GRACE_MS)))&&
+  (s.lastGraceMs===undefined||obj(s.lastGraceMs)&&Object.entries(s.lastGraceMs).every(([id,ms])=>/^[1-9]\d*$/.test(id)&&num(ms,0,GRACE_MS+TALENT_GRACE_MS)))&&
   obj(s.waveHp)&&Object.entries(s.waveHp).every(([wave,hp])=>/^[1-9]\d*$/.test(wave)&&num(hp,0,120))&&
   Number.isSafeInteger(s.waveNumber)&&s.waveNumber>=0&&
   Number.isSafeInteger(s.shieldUsedWave)&&s.shieldUsedWave>=-1&&
