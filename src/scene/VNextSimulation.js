@@ -11,7 +11,7 @@
             scene.autosaveElapsed %= OverseerVNextSave.AUTOSAVE_MS;
             scene.saveCurrentGame();
         }
-        if (scene.speed === 0 || scene.activeReward || scene.optionsModal || !scene.battleUnits) return;
+        if (scene.speed === 0 || scene.activeReward || scene.optionsModal || scene.pauseMenu || !scene.battleUnits) return;
         const dt = Math.min(delta, 60) * scene.speed;
         for (const wave of OverseerVNextWaves.advance(scene.waveClock, dt)) scene.triggerWave(wave);
         scene.updateWaveTimeline();
@@ -28,6 +28,10 @@
             if (event.type === 'production') scene.showProductionPopup(event);
             if (event.type === 'artifact-network') scene.showNetworkPopup(event);
         }
+        const repair=OverseerVNextMaintenance.step(scene.model,dt,scene.baseHp,relayMs);
+        scene.baseHp=repair.hp;
+        if(repair.healed)scene.actionEffects.heal(
+            {x:65,y:300},{x:65,y:300},0x69d9a0);
         const zoneEvents=OverseerVNextZones.step(scene.model,dt);
         for(const event of zoneEvents) scene.actionEffects.heal({x:event.x,y:event.y},{x:event.x,y:event.y},0x69d9a0);
         scene.zoneFrameMs=Math.min(60,Math.max(0,delta));

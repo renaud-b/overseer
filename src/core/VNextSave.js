@@ -85,6 +85,8 @@
         requireValid(resources && ['energy', 'matter', 'components'].every(id =>
             number(resources[id])) &&
             (resources.data === undefined || number(resources.data)), 'resources');
+        const artifacts = root.OverseerVNextArtifacts ||
+            (typeof require === 'function' ? require('./VNextArtifacts.js') : null);
         // Optional run-scoped meta-progression snapshot. Fractional remainders
         // are simulation data and must survive Continue without rounding.
         const progression = world.get(game,'ProductionTalents');
@@ -106,8 +108,6 @@
                             number(value,0,1) && value < 1)), 'production fractions');
             }
         }
-        const artifacts = root.OverseerVNextArtifacts ||
-            (typeof require === 'function' ? require('./VNextArtifacts.js') : null);
         const artifactCollection = world.get(game, 'ArtifactCollection');
         requireValid(!artifactCollection || artifacts.valid(artifactCollection.ids), 'artifact collection');
         const effectRules = root.OverseerVNextArtifactEffects ||
@@ -124,6 +124,14 @@
             requireValid(integer(slot, 0, 24) && !occupied.has(slot) &&
                 typeof world.get(id, 'Building').type === 'string', 'building');
             occupied.add(slot);
+        }
+
+        // Optional new per-building repair timers: legacy saves need no migration.
+        for(const id of world.query('MaintenanceCycle')) {
+            const status=world.get(id,'MaintenanceCycle');
+            requireValid(world.get(id,'Building')?.type==='maintenance' &&
+                number(status.elapsedMs,0,30000) && status.elapsedMs<30000,
+                'maintenance cycle');
         }
 
         // Older saves may carry obsolete heat state. It no longer changes gameplay.

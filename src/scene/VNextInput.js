@@ -15,10 +15,19 @@
             if (event.code === 'Space') event.preventDefault();
             return;
         }
+        if (this.pauseMenu) {
+            if (event.code === 'Escape') {
+                if (this.pauseMenu.confirm) { this.pauseMenu.confirm=false; this.pauseMenu.render(); }
+                else this.pauseMenu.close();
+            }
+            if (event.code === 'Space') event.preventDefault();
+            return;
+        }
         if (this.activeReward) {
             if (event.code === 'Space') event.preventDefault();
             return;
         }
+        if (event.code === 'Escape') { this.openPauseMenu(); return; }
         if (event.code === 'Space') { event.preventDefault(); this.selectSpeed(this.speed === 0 ? (this.lastSpeed || 1) : 0); return; }
         if (['Digit1', 'Digit2', 'Digit3', 'Digit5'].includes(event.code)) {
             this.selectSpeed(Number(event.code.slice(-1))); return;
@@ -35,7 +44,7 @@
     },
 
     onDragStart(pointer, object) {
-        if (this.optionsModal || this.activeReward) return;
+        if (this.optionsModal || this.pauseMenu || this.activeReward) return;
         this.hideTechnologyTooltip();
         this.hideBattleUnitTooltip();
         const technology=object.getData('technology');
@@ -53,7 +62,7 @@
     },
 
     onDragEnd(pointer, object) {
-        if (this.activeReward) {
+        if (this.activeReward || this.optionsModal || this.pauseMenu) {
             this.dragGhost?.destroy();
             this.dragGhost = null;
             this.dragType = null;

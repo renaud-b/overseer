@@ -53,12 +53,9 @@
             label.setPadding(11, 5, 11, 5).setInteractive({ useHandCursor: true });
             label.on('pointerdown', () => this.selectSpeed(speed));
         });
-        const settings = this.text(w - 155, 24, '⚙', 16, '#7b9aad');
-        settings.setPadding(5).setInteractive({ useHandCursor: true });
-        settings.on('pointerdown', () => this.openOptions());
-        const menu = this.text(w - 59, 24, 'MENU', 12, '#7b9aad');
+        const menu = this.text(w - 77, 24, 'Ⅱ MENU', 12, '#7b9aad');
         menu.setPadding(5).setInteractive({ useHandCursor: true });
-        menu.on('pointerdown', () => this.returnToMenu());
+        menu.on('pointerdown', () => this.openPauseMenu());
     },
 
     drawResourceIcon(g, style, x, y, radius = 10) {

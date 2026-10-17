@@ -234,3 +234,28 @@ test('Continue retains pending full-inventory replacement and rejects tampering'
  invalid.activeReward.stages[0].kind='building';
  assert.throws(()=>save.restore(invalid,World),/reward stage|pending artifact replacement/);
 });
+
+test('maintenance progress persists as an optional building component and corrupt cycles are rejected',()=>{
+ const maintenance=require('../src/core/VNextMaintenance.js');
+ const scene=runningScene(), slot=storage();
+ const id=preview.placeBuilding(scene.model,'maintenance',6);
+ maintenance.ensure(scene.model);
+ scene.world.get(id,'MaintenanceCycle').elapsedMs=12750;
+ assert.equal(save.write(scene,slot),true);
+ const raw=save.read(slot);
+ assert.equal(save.restore(raw,World).model.world.get(id,'MaintenanceCycle').elapsedMs,12750);
+ for(const invalid of [-1,30000,'a lot']){
+  const corrupted=JSON.parse(JSON.stringify(raw));
+  const obj=corrupted.world.entities.find(e=>e.id===id).components
+   .find(([kind])=>kind==='MaintenanceCycle')[1];
+  obj.elapsedMs=invalid;
+  assert.throws(()=>save.restore(corrupted,World),/maintenance cycle/);
+ }
+ const invalidOwner=JSON.parse(JSON.stringify(raw));
+ const obj=invalidOwner.world.entities.find(e=>e.id===id).components
+  .find(([kind])=>kind==='Building')[1];
+ obj.type='reactor';
+ assert.throws(()=>save.restore(invalidOwner,World),/maintenance cycle/);
+ const legacy=runningScene();
+ assert.ok(save.restore(save.capture(legacy),World),'older saves need no repair state');
+});
