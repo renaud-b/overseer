@@ -472,10 +472,11 @@ test('Contamination synthétique adds bounded zones, never hurts allies and expi
  assert.equal(effects.state(m).corrosionZones.length,0);
  assert.deepEqual(effects.corrosionStep(m,1000),[]);
 });
-test('Corrosion zones survive save restore and stop growing at twelve zones',()=>{
+test('Corrosion uses seeded chance and survives save restore with limited zones',()=>{
  const m=model();artifacts.add(m,'corrosion');
  for(let i=0;i<20;i++){const id=unit(m,'enemy',i*5,100,0);effects.contamination(m,[id]);}
- assert.equal(effects.state(m).corrosionZones.length,12);
+ assert.ok(effects.state(m).corrosionZones.length>0);
+ assert.ok(effects.state(m).corrosionZones.length<=12);
  effects.corrosionStep(m,1250);
  const copy=World.restore(m.world.serialize()),restored={...m,world:copy};
  assert.equal(effects.state(restored).corrosionZones[0].remainingMs,2750);
@@ -620,4 +621,26 @@ test('shielded hits do not count as core damage for perfect defense',()=>{
  assert.equal(hit.hp,28);
  assert.equal(hit.absorbed,8);
  assert.deepEqual(effects.clearWave(m,1,28),{hp:33,healed:5});
+});
+
+test('Corrosion chance is seeded, 30 percent and saved across Continue',()=>{
+ const m=model();artifacts.add(m,'corrosion');
+ const before=effects.state(m).corrosionSeed;
+ let triggered=0;
+ for(let i=0;i<1000;i++){
+  const id=unit(m,'enemy',100+i,100,0);
+  triggered+=effects.contamination(m,[id]).length;
+  effects.state(m).corrosionZones.length=0;
+ }
+ assert.ok(triggered>=250&&triggered<=350,triggered);
+ assert.notEqual(effects.state(m).corrosionSeed,before);
+ const saved=World.restore(m.world.serialize());
+ const other={...m,world:saved};
+ assert.equal(effects.state(other).corrosionSeed,effects.state(m).corrosionSeed);
+ const dead=unit(m,'enemy',0,0,0);
+ const matched=other.world.create(other.game);
+ other.world.set(matched,'Faction',{side:'enemy'});
+ other.world.set(matched,'Position',{x:0,y:0});
+ other.world.set(matched,'Health',{hp:0,maxHp:1});
+ assert.equal(effects.contamination(m,[dead]).length,effects.contamination(other,[matched]).length);
 });
