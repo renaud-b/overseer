@@ -26,6 +26,7 @@ const cooling = require('../src/core/VNextCooling.js');
 const maintenance = require('../src/core/VNextMaintenance.js');
 const saves = require('../src/core/VNextSave.js');
 const visionUpgrades = require('../src/core/VNextVision.js');
+const talentProgression = require('../src/core/TalentProgression.js');
 const savedEntries = new Map();
 const saveStorage = {
     getItem: key => savedEntries.get(key) ?? null,
@@ -110,7 +111,7 @@ const VNextScene = vm.runInNewContext(optionsSource + '\n' + pauseSource + '\n' 
     OverseerBattleUnitStyles: battleStyles, OverseerBattleActionEffects: battleActions,
     OverseerVNextPreview: preview,
     OverseerVNextEconomy: economy, OverseerVNextBuildings: catalog, OverseerVNextCards: cards,
-    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextMemoryShards: shards, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextArtifactEffects: artifactEffects, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextCooling: cooling, OverseerVNextMaintenance: maintenance, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades,
+    OverseerVNextWaves: waves, OverseerVNextWaveTelemetry: telemetry, OverseerVNextMemoryShards: shards, OverseerVNextTechnologies: technologies, OverseerVNextRewards: rewards, OverseerVNextArtifacts: artifacts, OverseerVNextArtifactEffects: artifactEffects, OverseerVNextZones: zones, OverseerVNextThreats: threats, OverseerVNextCooling: cooling, OverseerVNextMaintenance: maintenance, OverseerVNextSave: saves, OverseerVNextVision: visionUpgrades, OverseerTalentProgression: talentProgression,
     localStorage: saveStorage, Vision, OverseerVNextBrand
 });
 
@@ -2710,5 +2711,32 @@ test('abandon demands confirmation and preserves persistent shards and talents',
  scene.onPageHide();
  scene.update(0,60000);
  assert.equal(saveStorage.getItem(saves.KEY),null);
+ savedEntries.clear();
+});
+
+
+test('defense talents grant core HP and one free guard only on a fresh run',()=>{
+ savedEntries.clear();
+ savedEntries.set('unlockedTalents',JSON.stringify(['root','starter_base_hp','starter_reinforcement']));
+ const scene=new VNextScene();scene.create();
+ const guardCount=()=>scene.battleUnits.filter(id=>scene.world.get(id,'PreviewUnit')?.type==='unit_guard').length;
+ assert.equal(scene.baseHp,120);
+ assert.equal(guardCount(),2);
+ assert.equal(scene.world.get(scene.model.game,'DefenseTalents').extraGuard,true);
+ const raw=saves.capture(scene);
+ const restored=saves.restore(raw,World);
+ assert.equal(restored.baseHp,120);
+ assert.equal(restored.battleUnits.length,4);
+ scene.init({resume:true});
+ scene.create();
+ assert.equal(scene.baseHp,120);
+ assert.equal(guardCount(),2);
+ savedEntries.clear();
+});
+test('a fresh run without defense investments keeps the original lineup',()=>{
+ savedEntries.clear();
+ const scene=new VNextScene();scene.create();
+ assert.equal(scene.baseHp,100);
+ assert.equal(scene.battleUnits.length,3);
  savedEntries.clear();
 });

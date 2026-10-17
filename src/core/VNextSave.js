@@ -132,7 +132,10 @@
         const waveClock = data.waveClock;
         requireValid(waveClock && integer(waveClock.number, 0) &&
             number(waveClock.elapsedMs) && integer(waveClock.seed, 0, 0xffffffff), 'wave clock');
-        requireValid(number(data.baseHp, Number.EPSILON, 100) &&
+        const defense=world.get(game,'DefenseTalents');
+        requireValid(!defense || (typeof defense.reinforced==='boolean' &&
+            typeof defense.extraGuard==='boolean'), 'defense talents');
+        requireValid(number(data.baseHp, Number.EPSILON, defense?.reinforced ? 120 : 100) &&
             SPEEDS.includes(data.speed) && SPEEDS.includes(data.lastSpeed) &&
             data.lastSpeed > 0, 'base / speed');
 

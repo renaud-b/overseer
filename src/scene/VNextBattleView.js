@@ -131,7 +131,7 @@
         // Pure presentation geometry, driven by saved simulation time (not wall time).
         // An undulating perimeter stays legible when healthy; deterministic higher
         // harmonics become increasingly prominent as the core loses integrity.
-        const damage = 1 - Math.max(0, Math.min(100, this.baseHp)) / 100;
+        const damage = 1 - Math.max(0, Math.min(this.world.get(this.model.game,'DefenseTalents')?.reinforced?120:100, this.baseHp)) / (this.world.get(this.model.game,'DefenseTalents')?.reinforced?120:100);
         const noise = Math.pow(damage, 1.2);
         const phase = timeMs / 1000;
         const points = [];
@@ -195,7 +195,7 @@
         const healthY = base.y - 37;
         g.fillStyle(0x203b49, 1).fillRect(healthX, healthY, healthWidth, 5);
         g.fillStyle(coreColor, 1).fillRect(healthX, healthY,
-            healthWidth * Math.max(0, Math.min(1, this.baseHp / 100)), 5);
+            healthWidth * Math.max(0, Math.min(1, this.baseHp / (this.world.get(this.model.game,'DefenseTalents')?.reinforced?120:100))), 5);
         for (const id of this.battleUnits) {
             if (!this.world.has(id)) continue;
             const hp = this.world.get(id, 'Health');
