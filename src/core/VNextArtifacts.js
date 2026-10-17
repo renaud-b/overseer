@@ -42,7 +42,9 @@
         { id: 'distributed', label: 'Système distribué', symbol: 'orbit', color: 0xb58aff,
           description: 'Active un bâtiment immédiatement à la périphérie de la vision pendant 20 s, puis en choisit un autre au hasard.' },
         { id: 'evolution', label: 'Instinct d’évolution', symbol: 'diamond', color: 0x69d9a0,
-          description: 'Après une vague sans dégâts au noyau, une unité alliée gagne +1 PV max (maximum +5 par unité).' }
+          description: 'Après une vague sans dégâts au noyau, une unité alliée gagne +1 PV max (maximum +5 par unité).' },
+        { id: 'pristine_repair', label: 'Intégrité préservée', symbol: 'diamond', color: 0x69d9a0,
+          description: 'Après chaque vague remportée sans dégâts réels au noyau, restaure jusqu’à 5 PV (max. 100).' }
     ].map(entry => Object.freeze(entry)));
     const IDS = Object.freeze(CATALOG.map(entry => entry.id));
     function get(id) { return CATALOG.find(artifact => artifact.id === id) || null; }

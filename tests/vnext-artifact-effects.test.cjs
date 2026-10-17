@@ -586,3 +586,38 @@ test('Evolution excludes a wave which damaged the core even after healing restor
  assert.equal(outcome.evolved,undefined);
  assert.equal(m.world.get(ally,'Health').maxHp,10);
 });
+
+test('Intégrité préservée repairs five HP only after an undamaged completed wave',()=>{
+ const m=model();artifacts.add(m,'pristine_repair');
+ assert.equal(artifacts.get('pristine_repair').label,'Intégrité préservée');
+ effects.startWave(m,1,10,80,economy);
+ assert.deepEqual(effects.clearWave(m,1,80),{hp:85,healed:5});
+ assert.deepEqual(effects.clearWave(m,1,85),{hp:85,healed:0},'cannot claim the same wave twice');
+ effects.startWave(m,2,10,98,economy);
+ assert.deepEqual(effects.clearWave(m,2,98),{hp:100,healed:2},'never exceeds the HP cap');
+ effects.startWave(m,3,10,100,economy);
+ assert.deepEqual(effects.clearWave(m,3,100),{hp:100,healed:0},'nothing banked at full HP');
+});
+test('Intégrité préservée never rewards actual core damage even if subsequently healed',()=>{
+ const m=model();artifacts.add(m,'pristine_repair');artifacts.add(m,'recovery');
+ effects.startWave(m,5,10,80,economy);
+ assert.equal(effects.baseHit(m,80,8).hp,72);
+ assert.deepEqual(effects.clearWave(m,5,80),{hp:80,healed:0},
+  'a later heal to starting HP does not make the wave pristine');
+ effects.startWave(m,6,10,70,economy);
+ assert.equal(effects.baseHit(m,70,10).hp,60);
+ assert.deepEqual(effects.clearWave(m,6,60),{hp:65,healed:5},
+  'only the existing damaged-wave Recovery can heal');
+ effects.startWave(m,7,10,65,economy);
+ assert.deepEqual(effects.clearWave(m,7,65),{hp:70,healed:5});
+ assert.deepEqual(effects.clearWave(m,8,70),{hp:70,healed:0},
+  'a wave never started is not eligible');
+});
+test('shielded hits do not count as core damage for perfect defense',()=>{
+ const m=model();artifacts.add(m,'pristine_repair');artifacts.add(m,'shield');
+ effects.startWave(m,1,8,28,economy);
+ const hit=effects.baseHit(m,28,8);
+ assert.equal(hit.hp,28);
+ assert.equal(hit.absorbed,8);
+ assert.deepEqual(effects.clearWave(m,1,28),{hp:33,healed:5});
+});
