@@ -121,6 +121,7 @@ class TalentScene extends Phaser.Scene {
     foundationCaption(id) {
         return ({
             starter_base_hp:'Noyau +PV',starter_reinforcement:'Renfort +1',
+            defense_marksman:'Tireur +1',defense_medic:'Soigneur +1',
             vision_boost:'Vision I',resource_node_scanner:'Vision II',artifact_scanner:'Vision III',
             production_extraction:'Extraction',production_components:'Composants',
             production_efficiency:'Efficacité',production_automation:'Automat.',
@@ -139,7 +140,7 @@ class TalentScene extends Phaser.Scene {
     foundationPositions(tree,box) {
         const positions=new Map([['root',{x:box.x+box.w/2,y:box.y+30}]]);
         const cols=[
-            ['starter_base_hp','starter_reinforcement','starter_drone','starter_guard'],
+            ['starter_base_hp','starter_reinforcement','defense_marksman','defense_medic','starter_drone','starter_guard'],
             ['vision_boost','resource_node_scanner','artifact_scanner'],
             ['production_extraction','production_components','production_efficiency','production_automation'],
             ['starter_tech','starter_spell_building','spell_charge_boost']
@@ -151,9 +152,9 @@ class TalentScene extends Phaser.Scene {
                 if(!tree.some(n=>n.id===id))return;
                 const depth=id==='production_automation'?2:
                     ['production_components','production_efficiency','starter_reinforcement','starter_drone'].includes(id)?1:
-                    ['starter_guard','artifact_scanner','spell_charge_boost'].includes(id)?2:j;
-                const dx=id==='production_components'?-box.w/22:
-                    id==='production_efficiency'?box.w/22:0;
+                    ['starter_guard','defense_marksman','defense_medic','artifact_scanner','spell_charge_boost'].includes(id)?2:j;
+                const dx=id==='production_components'||id==='defense_marksman'?-box.w/22:
+                    id==='production_efficiency'||id==='defense_medic'?box.w/22:0;
                 positions.set(id,{x:x+dx,y:baseY+depth*dy});
             });
         });
