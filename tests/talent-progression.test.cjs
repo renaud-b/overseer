@@ -30,3 +30,8 @@ test('old purchased defense nodes stay refundable without being sold to new play
  assert.equal(p.reset(s,catalog).ok,true);
  assert.equal(p.read(s).shards,13);
 });
+
+test('Foundation has distinct defense, vision, production and technology roots',()=>{
+ const roots=catalog.trees.foundation.filter(t=>t.parent==='root'&&!t.legacy);
+ for(const id of ['starter_base_hp','vision_boost','production_extraction','starter_tech'])assert.ok(roots.some(t=>t.id===id));
+});
